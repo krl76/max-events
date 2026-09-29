@@ -1,0 +1,134 @@
+name: Deploy events.versacegus.cc
+
+# Auto-deploy:
+#   push to dev     -> https://events.versacegus.cc      (prod stack)
+#   push to dev-kku -> https://dev.events.versacegus.cc  (isolated stack)
+#
+# GitHub secrets (Settings -> Secrets and variables -> Actions):
+#   SSH_HOST = 2.27.41.96
+#   SSH_USER = root
+#   SSH_KEY  = private key work-vps-server (the file WITHOUT .pub)
+#
+# Server-side .env files are never overwritten.
+
+on:
+  push:
+    branches: [dev, dev-kku]
+  workflow_dispatch:
+    inputs:
+      reset_demo:
+        description: Wipe generated and user-made content, then load a full demo
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-max-events-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select environment
+        id: env
+        run: |
+          case "${{ github.ref_name }}" in
+            dev-kku)
+              echo "root=/opt/max-events-kku" >> "$GITHUB_OUTPUT"
+              echo "www=/var/www/max-events-kku" >> "$GITHUB_OUTPUT"
+              echo "port=3101" >> "$GITHUB_OUTPUT"
+              echo "project=max-events-kku" >> "$GITHUB_OUTPUT"
+              echo "slug=max-events-kku" >> "$GITHUB_OUTPUT"
+              echo "host=dev.events.versacegus.cc" >> "$GITHUB_OUTPUT"
+              ;;
+            dev)
+              echo "root=/opt/max-events" >> "$GITHUB_OUTPUT"
+              echo "www=/var/www/max-events" >> "$GITHUB_OUTPUT"
+              echo "port=3100" >> "$GITHUB_OUTPUT"
+              echo "project=max-events" >> "$GITHUB_OUTPUT"
+              echo "slug=max-events" >> "$GITHUB_OUTPUT"
+              echo "host=events.versacegus.cc" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "No deploy target for branch ${{ github.ref_name }}"
+              exit 1
+              ;;
+          esac
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install and build miniapp
+        env:
+          VITE_BROWSER_AUTH: ${{ github.ref_name == 'dev-kku' && '1' || '' }}
+        run: |
+          bun install --frozen-lockfile
+          bun --filter @max-events/api-contracts build
+          bun --filter app-miniapp build
+
+      - name: Setup SSH (with keepalive)
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          {
+            echo "Host deploy"
+            echo "  HostName $SSH_HOST"
+            echo "  User $SSH_USER"
+            echo "  IdentityFile ~/.ssh/id_deploy"
+            echo "  StrictHostKeyChecking accept-new"
+            echo "  ServerAliveInterval 20"
+            echo "  ServerAliveCountMax 15"
+            echo "  TCPKeepAlive yes"
+          } > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      - name: Ship code + static
+        env:
+          DEPLOY_ROOT: ${{ steps.env.outputs.root }}
+          DEPLOY_WWW: ${{ steps.env.outputs.www }}
+        run: |
+          ssh deploy "install -d -m 755 '$DEPLOY_ROOT' '$DEPLOY_WWW'"
+          ssh deploy 'command -v rsync >/dev/null || (apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y rsync)'
+          rsync -az --delete \
+            --exclude node_modules --exclude .git --exclude .env --exclude dist \
+            --exclude apps/app-miniapp/e2e --exclude apps/app-miniapp/src \
+            ./ "deploy:${DEPLOY_ROOT}/"
+          rsync -az --delete apps/app-miniapp/dist/ "deploy:${DEPLOY_WWW}/"
+          ssh deploy "chmod +x '${DEPLOY_ROOT}/deploy/deploy.sh' '${DEPLOY_ROOT}/deploy/ci-run.sh'"
+
+      - name: Remote deploy (resilient to SSH drops)
+        env:
+          DEPLOY_ROOT: ${{ steps.env.outputs.root }}
+          DEPLOY_SLUG: ${{ steps.env.outputs.slug }}
+          HOST_PORT: ${{ steps.env.outputs.port }}
+          COMPOSE_PROJECT_NAME: ${{ steps.env.outputs.project }}
+          # Стенд без контура MAX наполняется демо-данными. На events.versacegus.cc сид
+          # запускается только вручную, с reset_demo: старые строки стираются один раз.
+          SEED_DEMO: ${{ (github.event.inputs.reset_demo == 'true' || github.ref_name == 'dev-kku') && '1' || '' }}
+          SEED_DEMO_RESET: ${{ github.event.inputs.reset_demo == 'true' && '1' || '' }}
+          SEED_DEMO_SCALE: ${{ github.event.inputs.reset_demo == 'true' && 'big' || '' }}
+        run: |
+          set -e
+          ssh deploy "DEPLOY_ROOT='$DEPLOY_ROOT' DEPLOY_SLUG='$DEPLOY_SLUG' HOST_PORT='$HOST_PORT' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' SEED_DEMO='$SEED_DEMO' SEED_DEMO_RESET='$SEED_DEMO_RESET' SEED_DEMO_SCALE='$SEED_DEMO_SCALE' bash '$DEPLOY_ROOT/deploy/ci-run.sh'"
+          echo "Waiting for remote build ($DEPLOY_SLUG)..."
+          for i in $(seq 1 180); do
+            sleep 10
+            if ssh deploy "test -f /tmp/${DEPLOY_SLUG}-deploy.done"; then
+              code=$(ssh deploy "cat /tmp/${DEPLOY_SLUG}-deploy.done" || echo 1)
+              echo "=== remote deploy log (tail) ==="
+              ssh deploy "tail -n 80 /tmp/${DEPLOY_SLUG}-deploy.log" || true
+              echo "=== remote exit code: ${code} ==="
+              exit "${code:-1}"
+            fi
+            echo "...still building ($((i*10))s)"
+          done
+          echo "Timed out waiting for deploy"
+          ssh deploy "tail -n 80 /tmp/${DEPLOY_SLUG}-deploy.log" || true
+          exit 1
