@@ -27,8 +27,8 @@ describe("ReplaceMismatchedDemoContent20260928180000", () => {
     expect(sql).toContain("/covers/visits/tsaritsyno.jpg");
     expect(sql).toContain("/covers/visits/tsaritsyno-me.jpg");
     expect(sql).toContain("/covers/visits/cleanup.jpg");
-    expect(sql).toContain("Экскурсия по Царицыну. Я у пруда, дворец за спиной — так и хотела снять.");
-    expect(sql).toContain("Субботник в Измайловском парке. Мешок собрали вдвоём и сразу сфотографировались.");
+    expect(sql).toContain("Экскурсия по Царицыну. Гуляли у пруда, Большой дворец напротив.");
+    expect(sql).toContain("Субботник в Измайловском парке. Мешок собрали вдвоём за час.");
     expect(sql).toContain('DELETE FROM "events" AS e');
     expect(sql).toContain('e."title" NOT IN');
 
