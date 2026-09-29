@@ -1,4 +1,5 @@
 import type { WalkBudgetMode, WalkInterest } from "@max-events/api-contracts";
+import { AppChip } from "../ui/primitives";
 
 export type WalkChoice = {
   readonly durationMinutes: number | null;
@@ -90,7 +91,7 @@ export function WalkWizard({
         Собрать прогулку
       </button>
       {onSaved !== undefined ? (
-        <button type="button" className="app-walk-back" onClick={onSaved}>
+        <button type="button" className="app-walk-saved" onClick={onSaved}>
           Мои прогулки
         </button>
       ) : null}
@@ -102,18 +103,22 @@ function TimeStep({ choice, onChange }: { readonly choice: WalkChoice; readonly 
   return (
     <fieldset className="app-walk-step">
       <legend>Сколько времени</legend>
-      {TIME_OPTIONS.map((option) => (
-        <button key={option.minutes} type="button" onClick={() => onChange(selectWalkTime(choice, option.minutes))}>
-          {option.label}
-        </button>
-      ))}
-      <label>
+      <div className="app-walk-choices">
+        {TIME_OPTIONS.map((option) => (
+          <AppChip key={option.minutes} pressed={choice.durationMinutes === option.minutes} onClick={() => onChange(selectWalkTime(choice, option.minutes))}>
+            {option.label}
+          </AppChip>
+        ))}
+      </div>
+      <label className="app-walk-custom">
         Своё
         <input
           type="number"
           min={30}
           max={480}
+          inputMode="numeric"
           aria-label="Своё"
+          placeholder="мин"
           onChange={(event) => {
             const minutes = Number(event.target.value);
             if (Number.isInteger(minutes)) onChange(selectWalkTime(choice, minutes));
@@ -128,22 +133,25 @@ function BudgetStep({ choice, onChange }: { readonly choice: WalkChoice; readonl
   return (
     <fieldset className="app-walk-step">
       <legend>Бюджет</legend>
-      <button type="button" onClick={() => onChange(selectWalkBudget(choice, "free"))}>
-        Бесплатно
-      </button>
-      <button type="button" onClick={() => onChange(selectWalkBudget(choice, "any"))}>
-        Любой
-      </button>
-      <button type="button" onClick={() => onChange(selectWalkBudget(choice, "custom", null))}>
-        Свой
-      </button>
+      <div className="app-walk-choices">
+        <AppChip pressed={choice.budgetMode === "free"} onClick={() => onChange(selectWalkBudget(choice, "free"))}>
+          Бесплатно
+        </AppChip>
+        <AppChip pressed={choice.budgetMode === "any"} onClick={() => onChange(selectWalkBudget(choice, "any"))}>
+          Любой
+        </AppChip>
+        <AppChip pressed={choice.budgetMode === "custom"} onClick={() => onChange(selectWalkBudget(choice, "custom", choice.budgetRub))}>
+          Свой
+        </AppChip>
+      </div>
       {choice.budgetMode === "custom" ? (
-        <label>
+        <label className="app-walk-custom">
           Рубли
           <input
             type="number"
             min={0}
             max={100000}
+            inputMode="numeric"
             aria-label="Свой бюджет"
             onChange={(event) => {
               const rub = Number(event.target.value);
@@ -160,11 +168,13 @@ function InterestStep({ choice, onChange }: { readonly choice: WalkChoice; reado
   return (
     <fieldset className="app-walk-step">
       <legend>Интересы</legend>
-      {INTEREST_OPTIONS.map((option) => (
-        <button key={option.id} type="button" aria-pressed={choice.interests.includes(option.id)} onClick={() => onChange(toggleWalkInterest(choice, option.id))}>
-          {option.label}
-        </button>
-      ))}
+      <div className="app-walk-choices">
+        {INTEREST_OPTIONS.map((option) => (
+          <AppChip key={option.id} pressed={choice.interests.includes(option.id)} onClick={() => onChange(toggleWalkInterest(choice, option.id))}>
+            {option.label}
+          </AppChip>
+        ))}
+      </div>
     </fieldset>
   );
 }
