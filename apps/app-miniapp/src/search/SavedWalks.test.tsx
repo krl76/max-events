@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { act, createElement, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CityWalk } from "@max-events/api-contracts";
+import { apiClient } from "../api/client";
 import { ApiError } from "../api/endpoints/transport";
 import { SavedWalkList, SavedWalkPage, SavedWalkView, sortWalksNewest } from "./SavedWalks";
 
@@ -139,6 +140,81 @@ describe("saved city walks", () => {
       await Promise.resolve();
     });
     expect(host.textContent).toContain("Прогулка не найдена.");
+    expect(host.querySelector(".app-walk-back")).not.toBeNull();
+    root.unmount();
+    host.remove();
+  });
+
+  it("displays error message when get returns non-404 error", async () => {
+    const { host, root } = await mount(
+      createElement(SavedWalkPage, {
+        id: "error-id",
+        load: () => Promise.reject(new Error("Сетевой сбой")),
+      }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(host.textContent).toContain("Не удалось открыть прогулку");
+    expect(host.textContent).toContain("Сетевой сбой");
+    expect(host.querySelector(".app-walk-back")).not.toBeNull();
+    root.unmount();
+    host.remove();
+  });
+
+  it("shows loading state with back button while fetching", async () => {
+    let resolveWalk!: (walk: CityWalk) => void;
+    const pending = new Promise<CityWalk>((resolve) => {
+      resolveWalk = resolve;
+    });
+    const { host, root } = await mount(
+      createElement(SavedWalkPage, {
+        id: "slow-id",
+        load: () => pending,
+      }),
+    );
+    expect(host.textContent).toContain("Открываем прогулку");
+    expect(host.querySelector(".app-walk-back")).not.toBeNull();
+    await act(async () => {
+      resolveWalk(sampleWalk());
+    });
+    expect(host.textContent).toContain("Тула");
+    root.unmount();
+    host.remove();
+  });
+
+  it("renders saved walk page using default load prop without infinite loop", async () => {
+    const walk = sampleWalk();
+    const spy = vi.spyOn(apiClient, "getCityWalk").mockResolvedValue(walk);
+    const { host, root } = await mount(
+      createElement(SavedWalkPage, {
+        id: walk.id,
+      }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(spy).toHaveBeenCalledWith(walk.id);
+    expect(host.textContent).toContain("Тула");
+    expect(host.textContent).toContain("Кремль");
+    spy.mockRestore();
+    root.unmount();
+    host.remove();
+  });
+
+  it("calls onPlace when place button is clicked in SavedWalkView", async () => {
+    const walk = sampleWalk();
+    const openedPlaces: string[] = [];
+    const { host, root } = await mount(
+      createElement(SavedWalkView, {
+        walk,
+        onBack: () => {},
+        onToggle: () => {},
+        onPlace: (id) => openedPlaces.push(id),
+      }),
+    );
+    clickText(host, "Кремль");
+    expect(openedPlaces).toEqual([PLACE_ID]);
     root.unmount();
     host.remove();
   });
