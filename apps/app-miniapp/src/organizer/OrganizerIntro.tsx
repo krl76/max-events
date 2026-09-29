@@ -16,6 +16,7 @@ import { useState } from "react";
 import { AfishaWordmark } from "../auth/EntryPage";
 import { useSwipeDrag } from "../ui/gestures";
 import { AppButton } from "../ui/primitives";
+import { useOrganizerNativeBack } from "./organizer-native-back";
 import { ORGANIZER_INTRO_SLIDES, markOrganizerIntroDone } from "./organizer-onboarding";
 
 /**
@@ -98,5 +99,6 @@ export function OrganizerIntro({ onDone }: { onDone: () => void }) {
     onDone();
   }
 
+  useOrganizerNativeBack(slide > 0, () => go(Math.max(0, slide - 1)));
   return <OrganizerIntroView slide={slide} direction={direction} onSlide={go} onSkip={finish} onNext={() => (slide < ORGANIZER_INTRO_SLIDES.length - 1 ? go(slide + 1) : finish())} onBack={() => go(Math.max(0, slide - 1))} />;
 }

@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { useOrganizerNativeBack } from "./organizer-native-back";
 
 export type PromoPane = "tools" | "analytics";
 export type PromoTool = "campaign" | "feed" | "code" | "mail";
@@ -72,12 +73,9 @@ export function promoToolNotice(tool: PromoTool, draft: PromoDraft): string {
 
 function ToolForm({ tool, draft, block, onChange, onSubmit, onBack }: { tool: PromoTool; draft: PromoDraft; block: string | null; onChange: (patch: Partial<PromoDraft>) => void; onSubmit: () => void; onBack: () => void }) {
   const card = PROMO_TOOL_CARDS.find((item) => item.id === tool);
+  useOrganizerNativeBack(true, onBack);
   return (
     <section className="app-cab" aria-label={card?.title}>
-      <button type="button" className="app-cab-back" onClick={onBack}>
-        <ActionIcon name="chevron" size={18} strokeWidth={2.4} />
-        Назад
-      </button>
       <h1 className="app-cab-title">{card?.title}</h1>
       <p className="app-cab-lead">{card?.text}</p>
       {tool === "campaign" && (

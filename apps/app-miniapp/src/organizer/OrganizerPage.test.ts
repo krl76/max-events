@@ -228,6 +228,7 @@ describe("EventDraftForm", () => {
     const when = form({ step: 2 });
     expect(when).toContain("Адрес");
     expect(when).toContain("Локация");
+    expect(when).not.toContain("app-make-back");
 
     const join = form({ step: 3 });
     expect(join).toContain("Бесплатно по регистрации");

@@ -28232,8 +28232,9 @@ html:not([data-theme="dark"]) .app-when-sheet {
   width: 44px;
 }
 
-.app-evt-tools {
-  display: flex;
+.app-gathering > .app-profile-input {
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .app-evt-filters {
