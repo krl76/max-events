@@ -4,7 +4,7 @@ import { act, createElement, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ORGANIZER_BACK_COVER, ORGANIZER_BACK_SECTION, OrganizerNativeBackRoot, useOrganizerNativeBack } from "./organizer-native-back";
 
-globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 let root: Root | null = null;
 let host: HTMLDivElement | null = null;

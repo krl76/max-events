@@ -6,7 +6,7 @@ import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppChip } from "../ui/primitives";
-import { WalkStopMedia } from "./WalkResult";
+import { WalkStopMedia, walkStopBlurb } from "./WalkResult";
 
 function defaultListCityWalks(): Promise<CityWalk[]> {
   return apiClient.listCityWalks();
@@ -74,32 +74,37 @@ export function SavedWalkView({ walk, onToggle, onMap, onPlace }: { readonly wal
         <h1 className="app-walk-title">{walk.city}</h1>
       </header>
       <ol className="app-walk-stops">
-        {walk.stops.map((stop) => (
-          <li key={stop.sourceUrl} className="app-walk-stop app-walk-stop--card">
-            <WalkStopMedia stop={stop} />
-            <div className="app-walk-stop-body">
-              <span className="app-walk-num">{stop.order}</span>
-              {stop.placeId !== null && onPlace !== undefined ? (
-                <button type="button" className="app-walk-place" onClick={() => onPlace(stop.placeId!)}>
-                  {stop.title}
-                </button>
-              ) : (
-                <h3>{stop.title}</h3>
-              )}
-              {stop.address ? <p className="app-walk-meta">{stop.address}</p> : null}
-              <p className="app-walk-note">{stop.description}</p>
-              <AppChip pressed={stop.done} onClick={() => onToggle(stop.order, !stop.done)}>
-                Пройдено
-              </AppChip>
-            </div>
-          </li>
-        ))}
+        {walk.stops.map((stop) => {
+          const blurb = walkStopBlurb(stop.description);
+          return (
+            <li key={stop.sourceUrl} className="app-walk-stop app-walk-stop--card">
+              <div className="app-walk-stop-body">
+                <span className="app-walk-num">{stop.order}</span>
+                {stop.placeId !== null && onPlace !== undefined ? (
+                  <button type="button" className="app-walk-place" onClick={() => onPlace(stop.placeId!)}>
+                    {stop.title}
+                  </button>
+                ) : (
+                  <h3>{stop.title}</h3>
+                )}
+                {stop.address ? <p className="app-walk-meta">{stop.address}</p> : null}
+                {blurb !== null ? <p className="app-walk-note">{blurb}</p> : null}
+                <AppChip pressed={stop.done} onClick={() => onToggle(stop.order, !stop.done)}>
+                  Пройдено
+                </AppChip>
+              </div>
+              <WalkStopMedia stop={stop} />
+            </li>
+          );
+        })}
       </ol>
       {onMap !== undefined ? (
-        <button type="button" className="app-walk-saved" onClick={onMap}>
-          <span>На карте</span>
-          <ActionIcon name="pin" size={18} />
-        </button>
+        <div className="app-walk-dock">
+          <button type="button" className="app-walk-saved" onClick={onMap}>
+            <span>Маршрут</span>
+            <ActionIcon name="pin" size={18} />
+          </button>
+        </div>
       ) : null}
     </section>
   );

@@ -31,3 +31,19 @@ export async function walkingRoute(from: [number, number], to: [number, number],
     return straight;
   }
 }
+
+/** Foot geometry through every stop, in order. A failed leg stays a straight segment so the line still joins the steps. */
+export async function stitchWalkingRoute(stops: readonly [number, number][], fetchImpl: typeof fetch = fetch): Promise<[number, number][]> {
+  const straight = stops.map((point) => [point[0], point[1]] as [number, number]);
+  if (stops.length < 2) return straight;
+  const joined: [number, number][] = [];
+  for (let index = 1; index < stops.length; index += 1) {
+    const from = stops[index - 1];
+    const to = stops[index];
+    if (from === undefined || to === undefined) continue;
+    const segment = await walkingRoute(from, to, fetchImpl);
+    if (joined.length === 0) joined.push(...segment);
+    else joined.push(...segment.slice(1));
+  }
+  return joined.length >= 2 ? joined : straight;
+}

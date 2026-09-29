@@ -47,7 +47,7 @@ import { pictured } from "../ui/photos";
 import { useAppliedScheme, type ThemeScheme } from "../ui/theme";
 import { basemapCredit, MAP_BASEMAPS, readBasemapPreference, STANDARD_BASEMAP, writeBasemapPreference, type MapBasemap } from "./basemaps";
 import { buildMapMarkers, clusterMapMarkers, type MapMarker, type MapPinGlyph } from "./mapMarkers";
-import { walkingRoute } from "./walkingRoute";
+import { stitchWalkingRoute, walkingRoute } from "./walkingRoute";
 import { droppedPinCardVisible, droppedPinKey, droppedPinStop, DROPPED_PIN_TITLE, placeRouteStop, routeBarLabel, type MapRouteStop } from "./droppedPinRoute";
 import { pinLabel } from "../ui/pin-label";
 import { useLeafletMap } from "./useLeafletMap";
@@ -308,8 +308,10 @@ export interface MapView {
   /** Where the viewer stands: draws the «Вы здесь» marker and anchors the route. A city-center point uses another label. */
   origin: [number, number] | null;
   hereLabel?: string;
-  /** Walking geometry from the origin to the selected object. */
+  /** Walking geometry from the origin to the selected object, or the walk's own line when walkRoute is set. */
   route: [number, number][] | null;
+  /** The line is the walk itself: numbered stops, no «Вы здесь» pin on top of them. */
+  walkRoute?: boolean;
   /** Ключ выбранного маркера: его пин приподнят, чтобы карточка внизу и точка на карте читались как одно. */
   selectedKey: string | null;
   /** Точка, которую поставили на посте: свой пин поверх каталога. */
@@ -337,6 +339,8 @@ export interface MapHandle {
   update: (view: MapView) => void;
   zoomBy: (delta: number) => void;
   focus: (point: [number, number], zoom?: number) => void;
+  /** Fit every stop of a walk, instead of flying into the first one. */
+  frame: (points: readonly [number, number][]) => void;
   dispose: () => void;
 }
 
@@ -396,7 +400,7 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
 
   function placePin(marker: MapMarker, lat: number, lng: number): void {
     const selected = marker.key === view.selectedKey ? " app-map-pin--active" : "";
-    const icon = marker.friends ? L.divIcon({ className: `app-map-pin app-map-pin--friends${selected}`, iconSize: [78, 78], iconAnchor: [39, 39], popupAnchor: [0, -40], html: friendPinHtml(marker) }) : L.divIcon({ className: `app-map-pin${marker.promoted ? " app-map-pin--promo" : ""}${selected}`, iconSize: [34, 42], iconAnchor: [17, 42], popupAnchor: [0, -38], html: pinHtml(marker) });
+    const icon = marker.badge !== undefined ? L.divIcon({ className: `app-map-pin app-map-pin--step${selected}`, iconSize: [32, 32], iconAnchor: [16, 16], popupAnchor: [0, -18], html: `<span class="app-map-step">${marker.badge}</span>` }) : marker.friends ? L.divIcon({ className: `app-map-pin app-map-pin--friends${selected}`, iconSize: [78, 78], iconAnchor: [39, 39], popupAnchor: [0, -40], html: friendPinHtml(marker) }) : L.divIcon({ className: `app-map-pin${marker.promoted ? " app-map-pin--promo" : ""}${selected}`, iconSize: [34, 42], iconAnchor: [17, 42], popupAnchor: [0, -38], html: pinHtml(marker) });
     L.marker([lat, lng], { icon, riseOnHover: true })
       .addTo(pins)
       .bindPopup(popupNode(marker, callbacks.onOpenEvent, callbacks.onOpenPlace))
@@ -405,11 +409,16 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
 
   function drawPins(): void {
     const zoom = map.getZoom();
-    const clusters = clusterMapMarkers(view.markers, zoom);
-    const signature = `${view.selectedKey ?? ""}|${clusters.map((cluster) => `${cluster.lat.toFixed(5)},${cluster.lng.toFixed(5)}:${cluster.markers.map((marker) => marker.key).join("+")}`).join(";")}`;
+    const steps = view.markers.filter((marker) => marker.badge !== undefined);
+    const clusters = clusterMapMarkers(
+      view.markers.filter((marker) => marker.badge === undefined),
+      zoom,
+    );
+    const signature = `${view.selectedKey ?? ""}|${steps.map((marker) => marker.key).join("+")}|${clusters.map((cluster) => `${cluster.lat.toFixed(5)},${cluster.lng.toFixed(5)}:${cluster.markers.map((marker) => marker.key).join("+")}`).join(";")}`;
     if (signature === drawn) return;
     drawn = signature;
     pins.clearLayers();
+    for (const marker of steps) placePin(marker, marker.lat, marker.lng);
     for (const cluster of clusters) {
       if (cluster.markers.length > 1) {
         const size = clusterSize(cluster.markers.length);
@@ -437,10 +446,13 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
         .addTo(overlay)
         .on("click", () => callbacks.onSelectDropped?.());
     }
-    if (view.origin === null) return;
+    if (view.route !== null && view.route.length >= 2) {
+      L.polyline(view.route, { className: "app-map-route-casing", weight: 8, lineCap: "round", lineJoin: "round" }).addTo(overlay);
+      L.polyline(view.route, { className: "app-map-route", weight: 4, lineCap: "round", lineJoin: "round" }).addTo(overlay);
+    }
+    if (view.origin === null || view.walkRoute === true) return;
     const hereLabel = view.hereLabel ?? "Вы здесь";
     L.marker(view.origin, { icon: L.divIcon({ className: "app-map-pin app-map-pin--me", iconSize: [22, 22], iconAnchor: [11, 11], html: `<span class="app-map-me-dot"></span><span class="app-map-me-label">${hereLabel}</span>` }) }).addTo(overlay);
-    if (view.route !== null && view.route.length >= 2) L.polyline(view.route, { className: "app-map-route", weight: 4, lineCap: "round" }).addTo(overlay);
   }
 
   map.on("zoom", onZoom);
@@ -463,6 +475,16 @@ export async function initEventMap(container: HTMLElement, initial: MapView, cal
     },
     focus(point, zoom) {
       map.flyTo(point, zoom ?? Math.max(map.getZoom(), 14), { duration: 0.6 });
+    },
+    frame(points) {
+      if (points.length === 0) return;
+      const line = points.map((point) => [point[0], point[1]] as [number, number]);
+      const only = line[0];
+      if (line.length === 1 && only !== undefined) {
+        map.flyTo(only, 15, { duration: 0.45 });
+        return;
+      }
+      map.flyToBounds(L.latLngBounds(line).pad(0.28), { padding: [72, 88], maxZoom: 16, duration: 0.45 });
     },
     dispose() {
       map.off("zoom", onZoom);
@@ -585,12 +607,14 @@ interface MapScreenProps {
   drawRoute?: boolean;
   /** Остановки сохранённой прогулки. Идут тем же путём, что и остальные метки. */
   extraMarkers?: readonly MapMarker[];
+  /** Линия прогулки по порядку остановок. Пока она есть, каталог с карты уходит: на экране сам маршрут. */
+  walkPath?: readonly [number, number][] | null;
   /** Первая остановка прогулки. Не drawRoute: тот флаг смотрит только на одну площадку. */
   focusPoint?: { lat: number; lng: number } | null;
   walkFailed?: boolean;
 }
 
-export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false, extraMarkers = EMPTY_MARKERS, focusPoint = null, walkFailed = false }: MapScreenProps) {
+export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false, extraMarkers = EMPTY_MARKERS, walkPath = null, focusPoint = null, walkFailed = false }: MapScreenProps) {
   const located = useProfileCityPoint();
   const weatherCity = located.city ?? city;
   // Until the profile city is known the canvas stays on Moscow. A far GPS fix must not pan the map away from the catalog.
@@ -684,10 +708,12 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const shownPlaces = useMemo(() => (layers.places ? readyPlaces.filter((item) => needle === "" || `${item.title} ${item.address}`.toLowerCase().includes(needle)) : []), [readyPlaces, layers.places, needle]);
   // A fresh [] on every render would land in the map's dependency list and rebuild Leaflet each time.
   const visits = useMemo(() => (layers.friends ? friendVisits : EMPTY_VISITS), [layers.friends, friendVisits]);
+  const showingWalk = walkPath !== null && walkPath.length >= 2;
   const markers = useMemo(() => {
+    if (showingWalk) return [...extraMarkers];
     const catalog = buildMapMarkers(shownEvents, shownPlaces, visits, { placeCatalog: readyPlaces });
     return extraMarkers.length === 0 ? catalog : [...extraMarkers, ...catalog];
-  }, [shownEvents, shownPlaces, visits, readyPlaces, extraMarkers]);
+  }, [showingWalk, shownEvents, shownPlaces, visits, readyPlaces, extraMarkers]);
 
   const selectedPlaceId = selected === null ? null : (selected.placeId ?? events.find((item) => item.id === selected.eventId)?.placeId ?? null);
   const selectedPlace = selectedPlaceId === null ? undefined : readyPlaces.find((item) => item.id === selectedPlaceId);
@@ -714,6 +740,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   }, [selectedPlaceId, originPoint]);
 
   useEffect(() => {
+    if (walkPath !== null && walkPath.length >= 2) return;
     if (!routeOn || routePlace === null) {
       setRoutePath(null);
       return;
@@ -730,7 +757,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     return () => {
       alive = false;
     };
-  }, [routeOn, originPoint, routePlace]);
+  }, [routeOn, originPoint, routePlace, walkPath]);
   const select = useCallback((marker: MapMarker) => {
     setSelected(marker);
     setWeatherOpen(false);
@@ -775,7 +802,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     [],
   );
   const dropped = pin === null ? null : ([pin.lat, pin.lng] as [number, number]);
-  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, hereLabel, route: weatherOpen ? null : routePath, selectedKey: selected?.key ?? null, dropped, basemap, scheme }), [markers, originPoint, hereLabel, routePath, selected, dropped, basemap, scheme, weatherOpen]);
+  const view = useMemo<MapView>(() => ({ markers, origin: originPoint, hereLabel, route: weatherOpen ? null : routePath, walkRoute: showingWalk, selectedKey: selected?.key ?? null, dropped, basemap, scheme }), [markers, originPoint, hereLabel, routePath, showingWalk, selected, dropped, basemap, scheme, weatherOpen]);
   const create = useCallback((container: HTMLElement, initial: MapView) => initEventMap(container, initial, callbacks), [callbacks]);
   const { containerRef, handleRef, status } = useLeafletMap<MapView, MapHandle>(create, view);
 
@@ -811,6 +838,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
       setRouteOn(true);
       return;
     }
+    if (walkPath !== null && walkPath.length >= 2) return;
     if (focusPoint !== null) {
       const key = `walk:${focusPoint.lat.toFixed(5)},${focusPoint.lng.toFixed(5)}`;
       if (flown.current === key) return;
@@ -831,7 +859,25 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     }
     const marker = markers.find((item) => item.placeId === focusPlaceId && item.eventId === null);
     if (marker) setSelected(marker);
-  }, [status, pin, focusPoint, focusPlaceId, places, markers, handleRef, drawRoute]);
+  }, [status, pin, focusPoint, focusPlaceId, places, markers, handleRef, drawRoute, walkPath]);
+
+  const framed = useRef("");
+  useEffect(() => {
+    if (status !== "ready" || walkPath === null || walkPath.length < 2) return;
+    const key = walkPath.map((point) => `${point[0].toFixed(5)},${point[1].toFixed(5)}`).join(";");
+    if (framed.current === key) return;
+    framed.current = key;
+    const line = walkPath.map((point) => [point[0], point[1]] as [number, number]);
+    setRoutePath(line);
+    handleRef.current?.frame(line);
+    let alive = true;
+    stitchWalkingRoute(line).then((path) => {
+      if (alive) setRoutePath(path);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [status, walkPath, handleRef]);
 
   const weatherChange = weather === null ? null : formatMapChange(weather);
   const friendsLine = mapFriendsLine(friendVisits.find((visit) => visit.place.id === selectedPlaceId));
@@ -864,6 +910,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     setVectorFallback(false);
   }
 
+  const walkSteps = showingWalk ? extraMarkers.filter((marker) => marker.badge !== undefined).sort((left, right) => (left.badge ?? 0) - (right.badge ?? 0)) : [];
+
   return (
     // Тёмная и своя подложки тёмные сами: модификатор обёртки снимает с тайлов инверсию тёмной схемы (theme.css)
     <div className={mapWrapClass(basemap)}>
@@ -871,6 +919,18 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
           целиком, вместе с классами leaflet (.leaflet-container и его правило max-width для тайлов —
           без него тайлы схлопываются в нулевую ширину). Тон подложки поэтому висит на обёртке выше. */}
       <div ref={containerRef} className={`app-map${status === "error" ? " app-map--blank" : ""}`} aria-label="Карта событий и мест" />
+      {selected === null && walkSteps.length > 0 ? (
+        <ol className="app-map-walk" aria-label="Шаги прогулки">
+          {walkSteps.map((step) => (
+            <li key={step.key}>
+              <button type="button" className="app-map-walk-step" onClick={() => handleRef.current?.focus([step.lat, step.lng], 16)}>
+                <span className="app-map-walk-num">{step.badge}</span>
+                <span className="app-map-walk-title">{step.title}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      ) : null}
       {status === "loading" && (
         <span className="app-map-skeleton" aria-live="polite">
           <span className="app-map-here-chip">{hereLabel}</span>

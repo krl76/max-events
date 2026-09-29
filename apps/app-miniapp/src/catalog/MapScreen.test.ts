@@ -314,6 +314,40 @@ describe("initEventMap", () => {
     );
   });
 
+  it("numbers each walk step and draws the route without a here pin", async () => {
+    const steps: MapMarker[] = [
+      { key: "walk-1", eventId: null, placeId: null, promoted: false, friends: false, glyph: "place", title: "Кремль", subtitle: "", lat: 55.75, lng: 37.61, badge: 1 },
+      { key: "walk-2", eventId: null, placeId: null, promoted: false, friends: false, glyph: "place", title: "Набережная", subtitle: "", lat: 55.76, lng: 37.62, badge: 2 },
+    ];
+    await initEventMap(
+      container,
+      view(steps, {
+        origin: [55.75, 37.61],
+        walkRoute: true,
+        route: [
+          [55.75, 37.61],
+          [55.755, 37.615],
+          [55.76, 37.62],
+        ],
+      }),
+      callbacks(),
+    );
+
+    const html = leaflet.divIcon.mock.calls.map((call) => (call[0] as { html: string }).html).join("\n");
+    expect(html).toContain('class="app-map-step">1');
+    expect(html).toContain('class="app-map-step">2');
+    expect(html).not.toContain("Вы здесь");
+    expect(leaflet.marker).toHaveBeenCalledTimes(2);
+    expect(leaflet.polyline).toHaveBeenCalledWith(
+      [
+        [55.75, 37.61],
+        [55.755, 37.615],
+        [55.76, 37.62],
+      ],
+      expect.objectContaining({ className: "app-map-route-casing" }),
+    );
+  });
+
   it("asks the screen to reopen the route card when the dropped pin is tapped", async () => {
     const onSelectDropped = vi.fn();
     await initEventMap(container, view([], { dropped: [55.7522, 37.6156] }), callbacks({ onSelectDropped }));

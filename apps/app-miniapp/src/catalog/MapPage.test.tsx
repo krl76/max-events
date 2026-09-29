@@ -4,7 +4,7 @@ import { act, createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { mockEvents } from "../api/mock";
-import { walkStopMarkers } from "./mapMarkers";
+import { walkRouteLine, walkStopMarkers } from "./mapMarkers";
 import { MapPage, MapPageView } from "./MapPage";
 
 const noop = () => {};
@@ -98,7 +98,18 @@ describe("walk stops on the existing map", () => {
 
     expect(markers.map((marker) => marker.badge)).toEqual([1, 2]);
     expect(markers.map((marker) => marker.title)).toEqual(["Кремль", "Набережная"]);
+    expect(walkRouteLine(markers).map((point) => point[0])).toEqual([54.2, 54.21]);
     expect(markers.some((marker) => marker.lat === 0 || marker.lng === 0)).toBe(false);
+  });
+
+  it("lists the walk steps on the map instead of only opening the catalog", () => {
+    const markers = walkStopMarkers([STOP, { ...STOP, order: 2, title: "Набережная", latitude: 54.21, longitude: 37.61, placeId: null }]);
+    const html = renderToStaticMarkup(createElement(MapPageView, { state: { status: "ready", events: [] }, onOpenEvent: noop, onOpenPlace: noop, walkMarkers: markers, walkPath: walkRouteLine(markers) }));
+
+    expect(html).toContain('aria-label="Шаги прогулки"');
+    expect(html).toContain("Кремль");
+    expect(html).toContain("Набережная");
+    expect(html).toContain("app-map-walk-num");
   });
 
   it("keeps the map open when the walk fails and does not invent a point", () => {

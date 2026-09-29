@@ -9,7 +9,7 @@ import type { CityWalk, ComposeCityWalkWrite } from "@max-events/api-contracts";
 import { ApiError } from "../api/endpoints/transport";
 import { mockEvents } from "../api/mock";
 import { cityWalkAsk, nextWalkAsk, walkBudgetLabel, walkBudgetRub, walkClock, walkSpanLabel, walkSpanMinutes, WalkPage, WalkView } from "./WalkPage";
-import { WalkResult, walkArrivalOffsetMinutes, walkErrorText, walkStopKeys } from "./WalkResult";
+import { WalkResult, walkArrivalOffsetMinutes, walkErrorText, walkStopBlurb, walkStopKeys } from "./WalkResult";
 import { EMPTY_WALK_CHOICE, selectWalkBudget, selectWalkTime, toggleWalkInterest, walkComposeReady, WalkWizard } from "./WalkWizard";
 
 describe("city walk query", () => {
@@ -170,6 +170,8 @@ describe("composed walk", () => {
         now: Date.parse("2026-09-27T09:00:00"),
         onAnother: () => {},
         onPlace: () => {},
+        onSaved: () => {},
+        onMap: () => {},
       }),
     );
     expect(html).toContain("Старая крепость.");
@@ -177,6 +179,15 @@ describe("composed walk", () => {
     expect(html).toContain("Маршрут из каталога");
     expect(html).toContain("https://commons.wikimedia.org/wiki/Special:FilePath/Kremlin.jpg?width=800");
     expect(html).toContain("app-walk-photo");
+    expect(html).not.toContain("app-walk-photo--empty");
+    expect(html).toContain("Сохранено в мои прогулки");
+    expect(html).toContain("app-walk-dock");
+    expect(html).toContain(">Мои прогулки<");
+    expect(html).toContain(">Маршрут<");
+    expect(html).toContain(">места<");
+    expect(html).not.toContain("достопримечател");
+    expect(walkStopBlurb("Место в городе Москва.")).toBeNull();
+    expect(walkStopBlurb("Старая крепость.")).toBe("Старая крепость.");
     expect(html).not.toContain("Пеший маршрут");
     expect(html).not.toContain("app-walk-back");
     expect(html).toContain("Бесплатно");

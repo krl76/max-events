@@ -187,6 +187,14 @@ export function buildMapMarkers(events: Event[], places: Place[], friendVisits: 
   return markers;
 }
 
+/** Ordered walk line. Stops without a real point are already absent from the markers. */
+export function walkRouteLine(markers: readonly MapMarker[]): [number, number][] {
+  return markers
+    .filter((marker) => marker.badge !== undefined && hasMapPoint(marker.lat, marker.lng))
+    .sort((left, right) => (left.badge ?? 0) - (right.badge ?? 0))
+    .map((marker) => [marker.lat, marker.lng]);
+}
+
 /** Остановки прогулки на той же карте. Точка без координат не становится меткой и не подменяется выдуманной. */
 export function walkStopMarkers(stops: readonly { readonly order: number; readonly title: string; readonly address: string; readonly latitude: number; readonly longitude: number; readonly placeId: string | null }[]): MapMarker[] {
   const markers: MapMarker[] = [];

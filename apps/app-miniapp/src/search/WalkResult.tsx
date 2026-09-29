@@ -9,15 +9,16 @@ export function walkStopPhoto(stop: { readonly imageUrl?: string | null }): stri
   return value.startsWith("https://") ? value : null;
 }
 
+/** The catalog fallback «Место в городе …» does not describe the sight, so the card leaves it out. */
+export function walkStopBlurb(description: string): string | null {
+  const text = description.trim();
+  if (text === "" || /^Место в городе .+\.$/.test(text)) return null;
+  return text;
+}
+
 export function WalkStopMedia({ stop }: { readonly stop: { readonly imageUrl?: string | null } }) {
   const photo = walkStopPhoto(stop);
-  if (photo === null) {
-    return (
-      <span className="app-walk-photo app-walk-photo--empty" aria-hidden="true">
-        <ActionIcon name="pin" size={22} />
-      </span>
-    );
-  }
+  if (photo === null) return null;
   return <img className="app-walk-photo" alt="" src={photo} />;
 }
 
@@ -83,6 +84,10 @@ export function WalkResult({ city, walk, now, onAnother, onPlace, onSaved, onMap
         <h1 className="app-walk-title">Прогулка: {city}</h1>
       </header>
       {walk.sourceLabel === "catalog" ? <p className="app-walk-note">Маршрут из каталога</p> : null}
+      <p className="app-walk-saved-flag">
+        <ActionIcon name="check" size={14} />
+        Сохранено в мои прогулки
+      </p>
       <ul className="app-walk-stats">
         <li className="app-walk-stat">
           <strong>{walk.fitted ? travelLabel(travel) : "Дольше выбранного времени"}</strong>
@@ -90,7 +95,7 @@ export function WalkResult({ city, walk, now, onAnother, onPlace, onSaved, onMap
         </li>
         <li className="app-walk-stat">
           <strong>{count}</strong>
-          <span>{pluralRu(count, "достопримечательность", "достопримечательности", "достопримечательностей")}</span>
+          <span>{pluralRu(count, "место", "места", "мест")}</span>
         </li>
         <li className="app-walk-stat">
           <strong>{moneyLabel(legBudget(walk.legs))}</strong>
@@ -100,36 +105,43 @@ export function WalkResult({ city, walk, now, onAnother, onPlace, onSaved, onMap
       <ol className="app-walk-stops">
         {walk.stops.map((stop, index) => {
           const leg = walk.legs[index];
+          const blurb = walkStopBlurb(stop.description);
           return (
             <li key={stop.sourceUrl} className="app-walk-stop app-walk-stop--card">
-              <WalkStopMedia stop={stop} />
               <div className="app-walk-stop-body">
                 <span className="app-walk-num">{stop.order}</span>
-                <p className="app-walk-meta">{arrivalLabel(now, index, walk.legs)}</p>
+                <p className="app-walk-meta">
+                  {arrivalLabel(now, index, walk.legs)}
+                  {leg !== undefined ? ` · ${leg.travelMinutes} мин пешком` : ""}
+                </p>
                 <StopTitle stop={stop} onPlace={onPlace} />
                 <p className="app-walk-meta">{stop.address}</p>
-                <p className="app-walk-note">{stop.description}</p>
-                {leg !== undefined ? <p className="app-walk-meta">{leg.travelMinutes} мин пешком</p> : null}
+                {blurb !== null ? <p className="app-walk-note">{blurb}</p> : null}
               </div>
+              <WalkStopMedia stop={stop} />
             </li>
           );
         })}
       </ol>
-      <div className="app-walk-actions">
+      <div className="app-walk-dock">
         <AppButton className="app-walk-another" stretched onClick={onAnother}>
           Хочу новую прогулку
         </AppButton>
-        {onSaved !== undefined ? (
-          <button type="button" className="app-walk-saved" onClick={onSaved}>
-            <span>Мои прогулки</span>
-            <ActionIcon name="chevron" size={18} />
-          </button>
-        ) : null}
-        {onMap !== undefined ? (
-          <button type="button" className="app-walk-saved" onClick={onMap}>
-            <span>На карте</span>
-            <ActionIcon name="pin" size={18} />
-          </button>
+        {onSaved !== undefined || onMap !== undefined ? (
+          <div className="app-walk-dock-row">
+            {onSaved !== undefined ? (
+              <button type="button" className="app-walk-dock-btn" onClick={onSaved}>
+                <ActionIcon name="check" size={16} />
+                <span>Мои прогулки</span>
+              </button>
+            ) : null}
+            {onMap !== undefined ? (
+              <button type="button" className="app-walk-dock-btn" onClick={onMap}>
+                <ActionIcon name="pin" size={16} />
+                <span>Маршрут</span>
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </section>
