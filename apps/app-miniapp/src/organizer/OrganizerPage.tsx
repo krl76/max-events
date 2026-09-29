@@ -1226,7 +1226,8 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
   }
 
   return (
-    <section className="app-gathering">
+    <section className="app-gathering app-evt-home">
+      <h1 className="app-fin-title">События</h1>
       <CabinetListSwitch tab={tab} onTab={setTab} />
       {tab === "events" && (
         <>
@@ -1237,7 +1238,6 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
             Создать событие
           </button>
           <input className="app-profile-input" aria-label="Поиск" placeholder="Поиск" value={eventQuery} onChange={(change) => setEventQuery(change.target.value)} />
-          <p className="app-cab-lead">Ваши события и статистика</p>
           <div className="app-evt-filters" role="tablist" aria-label="Состояние событий">
             {(
               [

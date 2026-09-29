@@ -185,12 +185,7 @@ export function OrganizerPromotion() {
 
   return (
     <section className="app-cab" aria-label="Продвижение">
-      <header className="app-cab-head">
-        <div>
-          <h1 className="app-cab-title">Продвижение</h1>
-          <p className="app-cab-lead">Продвигайте свои события и привлекайте больше гостей</p>
-        </div>
-      </header>
+      <h1 className="app-fin-title">Продвижение</h1>
       <div className="app-cab-panes" role="tablist" aria-label="Раздел продвижения">
         <button type="button" role="tab" aria-selected={pane === "tools"} className={pane === "tools" ? "app-cab-pane app-cab-pane--on" : "app-cab-pane"} onClick={() => setPane("tools")}>
           Инструменты

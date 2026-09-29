@@ -261,10 +261,7 @@ export function OrganizerStatistics(_props: { onCreateEvent?: () => void }) {
   return (
     <section className="app-cab" aria-label="Статистика">
       <header className="app-cab-head">
-        <div>
-          <h1 className="app-cab-title">Статистика</h1>
-          <p className="app-cab-lead">Полная аналитика вашего аккаунта</p>
-        </div>
+        <h1 className="app-fin-title">Статистика</h1>
         <button type="button" className="app-cab-bell" aria-label="Уведомления" onClick={() => setNotices(true)}>
           <ActionIcon name="bell" size={20} strokeWidth={2} />
         </button>

@@ -75,7 +75,7 @@ describe("OrganizerFinance", () => {
     const html = renderToStaticMarkup(createElement(OrganizerFinance));
 
     expect(html).toContain("Финансы");
-    expect(html).toContain("Доходы, выплаты и аналитика");
+    expect(html).not.toContain("Доходы, выплаты и аналитика");
     const earned = cabinetStats(CABINET_EVENTS, new Date("2026-08-27T23:59:59+03:00"), new Date("2026-09-26T23:59:59+03:00"));
     expect(html).toContain("Общий доход");
     expect(html).toContain(formatRub(earned.incomeRub));
