@@ -99,11 +99,17 @@ export function microDays(events: MicroEvent[], now: Date): MicroDay[] {
   }
   const todayKey = dayKey(now);
   counts.set(todayKey, counts.get(todayKey) ?? 0);
-  return [...counts.keys()].sort().map((key) => {
-    // «2026-9-19» parts back into a local date; the string key is sortable, the parts are the date.
-    const [year, month, day] = key.split("-").map(Number);
-    return { key, label: MICRO_DAY_LABEL.format(new Date(year, month - 1, day)), count: counts.get(key) ?? 0, today: key === todayKey };
-  });
+  return [...counts.keys()]
+    .sort((a, b) => {
+      const [y1, m1, d1] = a.split("-").map(Number);
+      const [y2, m2, d2] = b.split("-").map(Number);
+      return new Date(y1, m1, d1).getTime() - new Date(y2, m2, d2).getTime();
+    })
+    .map((key) => {
+      // «2026-9-19» parts back into a local date; the string key is sortable, the parts are the date.
+      const [year, month, day] = key.split("-").map(Number);
+      return { key, label: MICRO_DAY_LABEL.format(new Date(year, month - 1, day)), count: counts.get(key) ?? 0, today: key === todayKey };
+    });
 }
 
 /** «через N мин» under the time of a row; only the next hour is urgent enough to say it out loud. */
@@ -174,37 +180,63 @@ export function MicroRow({ item, places, people, joined, now = new Date(), onOpe
   const state = microCtaState(item, joined);
   const faces = item.participantIds.map((id) => people.find((person) => person.id === id)).filter((person): person is Friend => person !== undefined);
   const relative = microRelative(item.startsAt, now);
+  const place = item.placeId ? places.find((p) => p.id === item.placeId) : null;
+  const coverUrl = place?.logoUrl ?? null;
+  const whereText = microWhere(item, places);
+
   return (
-    <div className="app-micro-row app-micro-row--compact">
-      <div className="app-micro-clock-col">
-        <span className="app-micro-clock">{microTime(item.startsAt)}</span>
-        {relative !== "" && <span className="app-micro-clock-rel">{relative}</span>}
+    <article className="app-micro-row app-micro-grid-card">
+      <div
+        className="app-micro-grid-media"
+        onClick={onOpen}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") onOpen();
+        }}
+      >
+        {coverUrl ? (
+          <img src={coverUrl} className="app-micro-grid-img" alt="" />
+        ) : (
+          <div className="app-micro-grid-gradient" />
+        )}
+        <div className="app-micro-grid-overlay-top">
+          <span className="app-micro-time-chip">
+            <span className="app-micro-clock">{microTime(item.startsAt)}</span>
+            {relative !== "" && <span className="app-micro-clock-rel"> · {relative}</span>}
+          </span>
+          {state === "joined" && <span className="app-micro-badge-in">✓ Ты идёшь</span>}
+        </div>
       </div>
-      <button type="button" className="app-micro-row-open" onClick={onOpen}>
-        <span className="app-micro-title">{item.title}</span>
-        <span className="app-micro-where">
-          <ActionIcon name="pin" size={14} strokeWidth={2.2} />
-          {microWhere(item, places)}
-        </span>
-        <span className="app-micro-foot">
-          <MicroFaces people={faces} />
-          <span className="app-micro-count">{microSeatsLine(item)}</span>
-        </span>
-      </button>
-      {state === "join" && (
-        <button type="button" className="app-micro-cta app-micro-cta--join" onClick={onJoin}>
-          Иду
+      <div className="app-micro-grid-body">
+        <button type="button" className="app-micro-row-open" onClick={onOpen}>
+          <span className="app-micro-title">{item.title}</span>
+          <span className="app-micro-where">
+            <ActionIcon name="pin" size={12} strokeWidth={2.2} />
+            {whereText}
+          </span>
         </button>
-      )}
-      {state === "joined" && (
-        <span className="app-micro-cta app-micro-cta--in">
-          <ActionIcon name="check" size={14} strokeWidth={2.6} />
-          Ты идёшь
-        </span>
-      )}
-      {state === "full" && <span className="app-micro-cta app-micro-cta--full">Мест нет</span>}
-      {state === "cancelled" && <span className="app-micro-cta app-micro-cta--full">Отменено</span>}
-    </div>
+        <div className="app-micro-grid-foot">
+          <div className="app-micro-foot-meta">
+            <MicroFaces people={faces} />
+            <span className="app-micro-count">{microSeatsLine(item)}</span>
+          </div>
+          {state === "join" && (
+            <button type="button" className="app-micro-cta app-micro-cta--join app-micro-cta-grid" onClick={onJoin}>
+              Иду
+            </button>
+          )}
+          {state === "joined" && (
+            <span className="app-micro-cta app-micro-cta--in app-micro-cta-grid">
+              <ActionIcon name="check" size={13} strokeWidth={2.6} />
+              Ты идёшь
+            </span>
+          )}
+          {state === "full" && <span className="app-micro-cta app-micro-cta--full app-micro-cta-grid">Мест нет</span>}
+          {state === "cancelled" && <span className="app-micro-cta app-micro-cta--full app-micro-cta-grid">Отменено</span>}
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -268,8 +300,31 @@ export function MicroEventsView({ state, places, people, viewerId, now = new Dat
       {state.status === "ready" && days.length === 0 && <AppState hint="Время, место, лимит — и сбор в ленте.">Пока никто ничего не собирает.</AppState>}
       {state.status === "ready" && days.length > 0 && (
         <>
-          <DayStrip days={days} selectedKey={activeKey ?? ""} onSelect={setSelectedKey} />
-          {active.length === 0 ? <AppState hint="Загляни в соседние дни или собери своё.">В этот день пока никто ничего не собирает.</AppState> : active.map((item) => <MicroRow key={item.id} item={item} places={places} people={people} joined={viewerId !== null && item.participantIds.includes(viewerId)} now={now} onOpen={() => onOpen(item.id)} onJoin={() => onJoin?.(item.id)} />)}
+          <div className="app-micro-header-sticky">
+            <DayStrip days={days} selectedKey={activeKey ?? ""} onSelect={setSelectedKey} />
+          </div>
+          {active.length === 0 ? (
+            <AppState hint="Загляни в соседние дни или собери своё.">В этот день пока никто ничего не собирает.</AppState>
+          ) : (
+            <div className="app-micro-grid">
+              {active.map((item) => (
+                <MicroRow
+                  key={item.id}
+                  item={item}
+                  places={places}
+                  people={people}
+                  joined={viewerId !== null && item.participantIds.includes(viewerId)}
+                  now={now}
+                  onOpen={() => onOpen(item.id)}
+                  onJoin={() => onJoin?.(item.id)}
+                />
+              ))}
+            </div>
+          )}
+          <button type="button" className="app-micro-floating-create" onClick={onCreate} aria-label="Собрать микро-событие">
+            <ActionIcon name="plus" size={18} strokeWidth={2.8} />
+            Собрать
+          </button>
         </>
       )}
     </section>

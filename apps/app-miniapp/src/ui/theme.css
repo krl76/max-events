@@ -12295,13 +12295,27 @@ button.app-poll-result {
   padding: 0 14px;
 }
 
-/* --- Экран 24, вариант C: стрип дней + компактная строка --- */
+/* --- Экран 24, вариант C: стрип дней + компактная строка / квадратная сетка 2x2 --- */
+
+/* Фиксированная / прилипающая сверху полоса с выбором дат */
+.app-micro-header-sticky {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: var(--app-canvas);
+  border-bottom: 1px solid var(--app-divider);
+  margin: 0 calc(-1 * var(--app-space-screen)) var(--app-space-s);
+  padding: var(--app-space-xs) var(--app-space-screen) var(--app-space-s);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
 
 /* Стрип дней: горизонтальный скролл пилюль, выбранный день — заливка поверхности + обводка */
 .app-micro-daystrip {
+  align-items: center;
   display: flex;
   gap: 8px;
-  margin: 0 0 var(--app-space-l);
+  margin: 0 0 var(--app-space-s);
   overflow-x: auto;
   padding: 2px;
   scrollbar-width: none;
@@ -12313,39 +12327,250 @@ button.app-poll-result {
 
 .app-micro-day {
   align-items: center;
-  background: none;
-  border: 1px solid var(--app-divider);
-  border-radius: var(--app-radius-card);
+  background: var(--app-surface);
+  border: 1.5px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
   box-sizing: border-box;
-  color: var(--app-text-secondary);
+  color: var(--app-text);
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   flex: none;
-  flex-direction: column;
   font: inherit;
-  gap: 2px;
-  min-height: 44px;
-  min-width: 64px;
-  padding: 6px 10px;
+  font-size: 13.5px;
+  font-weight: 800;
+  gap: 6px;
+  height: 38px;
+  justify-content: center;
+  letter-spacing: 0.02em;
+  padding: 0 16px;
   text-align: center;
+  text-transform: uppercase;
+  transition: all 0.16s ease-out;
+}
+
+.app-micro-day:hover {
+  border-color: var(--app-accent);
 }
 
 .app-micro-day--on {
-  background: var(--app-surface);
-  box-shadow: inset 0 0 0 1.5px var(--app-accent);
-  color: var(--app-text-primary);
+  background: rgba(0, 122, 255, 0.12);
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 1px var(--app-accent);
+  color: var(--app-accent);
 }
 
 .app-micro-day-label {
-  font-size: var(--app-font-size-description);
+  font-size: 13px;
   font-weight: 800;
   white-space: nowrap;
 }
 
 .app-micro-daycount {
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-caption);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+/* --- Сетка 2x2 квадратных карточек 1:1 микро-событий --- */
+.app-micro-grid {
+  display: grid;
+  gap: var(--app-space-m);
+  grid-template-columns: repeat(2, 1fr);
+  padding-bottom: 80px;
+}
+
+.app-micro-grid-card {
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-card);
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  text-align: left;
+  transition: transform 0.16s ease-out;
+}
+
+.app-micro-grid-card:hover,
+.app-micro-grid-card:active {
+  transform: translateY(-2px);
+}
+
+.app-micro-grid-media {
+  aspect-ratio: 1 / 1;
+  background: var(--app-media-gradient-1);
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.app-micro-grid-gradient {
+  background: var(--app-media-gradient-2);
+  inset: 0;
+  position: absolute;
+}
+
+.app-micro-grid-img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-micro-grid-overlay-top {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  left: 8px;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  z-index: 2;
+}
+
+.app-micro-time-chip {
+  align-items: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(6, 7, 8, 0.78);
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  display: inline-flex;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.app-micro-time-chip .app-micro-clock {
+  color: var(--brand-white);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.app-micro-time-chip .app-micro-clock-rel {
+  color: var(--brand-blue-hover);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.app-micro-badge-in {
+  background: var(--brand-green);
+  border-radius: var(--app-radius-pill);
+  box-shadow: 0 2px 6px rgba(6, 7, 8, 0.2);
+  color: var(--brand-white);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+}
+
+.app-micro-grid-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: space-between;
+  padding: 10px 10px 12px;
+}
+
+.app-micro-grid-body .app-micro-row-open {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 4px;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.app-micro-grid-body .app-micro-title {
+  color: var(--app-text);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  font-size: 13.5px;
+  font-weight: 800;
+  -webkit-line-clamp: 2;
+  line-height: 1.25;
+  min-height: 34px;
+  overflow: hidden;
+}
+
+.app-micro-grid-body .app-micro-where {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: 11.5px;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-micro-grid-foot {
+  align-items: center;
+  border-top: var(--app-hairline);
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.app-micro-foot-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-micro-cta-grid {
+  align-items: center;
+  border-radius: var(--app-radius-pill);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  height: 30px;
+  padding: 0 12px;
+}
+
+/* Плавающая кнопка «+ Собрать» (Floating Action Button по центру) */
+.app-micro-floating-create {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  bottom: calc(56px + var(--app-space-m));
+  box-shadow: 0 8px 24px rgba(0, 122, 255, 0.4);
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 800;
+  gap: 6px;
+  left: 50%;
+  padding: 12px 24px;
+  position: fixed;
+  transform: translateX(-50%);
+  transition: transform 0.16s ease, background 0.16s ease;
+  white-space: nowrap;
+  z-index: 80;
+}
+
+.app-micro-floating-create:active {
+  background: var(--app-accent-press);
+  transform: translateX(-50%) scale(0.96);
 }
 
 /* Компактная строка: время фиксированной колонкой слева, остальное — в строке */
