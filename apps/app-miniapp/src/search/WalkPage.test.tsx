@@ -291,4 +291,3 @@ describe("composed walk", () => {
     host.remove();
   });
 });
-

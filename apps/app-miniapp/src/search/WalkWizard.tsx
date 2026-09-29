@@ -245,7 +245,7 @@ function TimeStep({ choice, onChange, onSelect }: { readonly choice: WalkChoice;
             max={480}
             inputMode="numeric"
             aria-label="Своё"
-            value={custom ? choice.durationMinutes ?? "" : ""}
+            value={custom ? (choice.durationMinutes ?? "") : ""}
             onChange={(event) => {
               const minutes = Number(event.target.value);
               if (Number.isInteger(minutes) && minutes >= 30 && minutes <= 480) {
@@ -336,13 +336,7 @@ function InterestStep({ choice, onChange }: { readonly choice: WalkChoice; reado
         {INTEREST_OPTIONS.map((option) => {
           const isSelected = choice.interests.includes(option.id);
           return (
-            <button
-              key={option.id}
-              type="button"
-              className={isSelected ? "app-walk-interest-chip app-walk-interest-chip--selected" : "app-walk-interest-chip"}
-              aria-pressed={isSelected}
-              onClick={() => onChange(toggleWalkInterest(choice, option.id))}
-            >
+            <button key={option.id} type="button" className={isSelected ? "app-walk-interest-chip app-walk-interest-chip--selected" : "app-walk-interest-chip"} aria-pressed={isSelected} onClick={() => onChange(toggleWalkInterest(choice, option.id))}>
               <span>{option.label}</span>
             </button>
           );

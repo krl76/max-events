@@ -195,11 +195,7 @@ export function MicroRow({ item, places, people, joined, now = new Date(), onOpe
           if (e.key === "Enter" || e.key === " ") onOpen();
         }}
       >
-        {coverUrl ? (
-          <img src={coverUrl} className="app-micro-grid-img" alt="" />
-        ) : (
-          <div className="app-micro-grid-gradient" />
-        )}
+        {coverUrl ? <img src={coverUrl} className="app-micro-grid-img" alt="" /> : <div className="app-micro-grid-gradient" />}
         <div className="app-micro-grid-overlay-top">
           <span className="app-micro-time-chip">
             <span className="app-micro-clock">{microTime(item.startsAt)}</span>
@@ -308,16 +304,7 @@ export function MicroEventsView({ state, places, people, viewerId, now = new Dat
           ) : (
             <div className="app-micro-grid">
               {active.map((item) => (
-                <MicroRow
-                  key={item.id}
-                  item={item}
-                  places={places}
-                  people={people}
-                  joined={viewerId !== null && item.participantIds.includes(viewerId)}
-                  now={now}
-                  onOpen={() => onOpen(item.id)}
-                  onJoin={() => onJoin?.(item.id)}
-                />
+                <MicroRow key={item.id} item={item} places={places} people={people} joined={viewerId !== null && item.participantIds.includes(viewerId)} now={now} onOpen={() => onOpen(item.id)} onJoin={() => onJoin?.(item.id)} />
               ))}
             </div>
           )}

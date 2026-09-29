@@ -12563,7 +12563,9 @@ button.app-poll-result {
   padding: 12px 24px;
   position: fixed;
   transform: translateX(-50%);
-  transition: transform 0.16s ease, background 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease;
   white-space: nowrap;
   z-index: 80;
 }
@@ -23591,7 +23593,9 @@ button.app-story-viewer-author {
   gap: 6px;
   height: 38px;
   padding: 0 14px 0 10px;
-  transition: background var(--app-duration-fast) var(--app-ease-out), transform var(--app-duration-fast) var(--app-ease-out);
+  transition:
+    background var(--app-duration-fast) var(--app-ease-out),
+    transform var(--app-duration-fast) var(--app-ease-out);
 }
 .app-walk-back:active {
   transform: scale(0.96);
@@ -23829,7 +23833,9 @@ button.app-story-viewer-author {
 .app-walk-tile--selected {
   background: var(--app-card);
   border-color: var(--app-accent);
-  box-shadow: 0 0 0 2px var(--app-accent), 0 2px 8px rgba(6, 7, 8, 0.04);
+  box-shadow:
+    0 0 0 2px var(--app-accent),
+    0 2px 8px rgba(6, 7, 8, 0.04);
 }
 .app-walk-tile-head {
   align-items: center;
@@ -23936,7 +23942,9 @@ button.app-story-viewer-author {
 .app-walk-budget-card--selected {
   background: var(--app-card);
   border-color: var(--app-accent);
-  box-shadow: 0 0 0 2px var(--app-accent), 0 2px 8px rgba(6, 7, 8, 0.04);
+  box-shadow:
+    0 0 0 2px var(--app-accent),
+    0 2px 8px rgba(6, 7, 8, 0.04);
 }
 .app-walk-budget-content {
   display: flex;
