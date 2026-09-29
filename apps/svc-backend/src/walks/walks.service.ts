@@ -56,6 +56,7 @@ type ComposePoint = {
   readonly longitude: number;
   readonly sourceUrl: string;
   readonly placeId: string | null;
+  readonly imageUrl: string | null;
   readonly kind: "sight" | "food";
   readonly origin: "web" | "catalog";
 };
@@ -153,6 +154,7 @@ function fromWeb(row: CityWalkCandidate, city: string): ComposePoint {
     longitude: row.longitude,
     sourceUrl: row.sourceUrl,
     placeId: null,
+    imageUrl: row.imageUrl,
     kind: "sight",
     origin: "web",
   };
@@ -168,6 +170,7 @@ function fromPlace(place: ListedPlace, city: string): ComposePoint {
     longitude: place.longitude,
     sourceUrl: `app://places/${place.id}`,
     placeId: place.id,
+    imageUrl: null,
     kind: place.category === "food" ? "food" : "sight",
     origin: "catalog",
   };
@@ -208,5 +211,6 @@ function toStop(point: ComposePoint, order: number): CityWalkStop {
     sourceUrl: point.sourceUrl,
     placeId: point.placeId,
     done: false,
+    ...(point.imageUrl !== null ? { imageUrl: point.imageUrl } : {}),
   };
 }

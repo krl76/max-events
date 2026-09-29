@@ -59,6 +59,7 @@ export type Route =
   | { name: "plan-new" }
   | { name: "day-route" }
   | { name: "walk"; city: string }
+  | { name: "upcoming"; city: string }
   | { name: "walks" }
   | { name: "walk-saved"; id: string }
   | { name: "list"; id: string }
@@ -208,6 +209,10 @@ function toRoute(value: unknown): Route | null {
     case "walk": {
       const city = "city" in value && typeof value.city === "string" ? value.city.trim() : "";
       return { name: "walk", city: city !== "" ? city : "Москва" };
+    }
+    case "upcoming": {
+      const upcomingCity = "city" in value && typeof value.city === "string" ? value.city.trim() : "";
+      return { name: "upcoming", city: upcomingCity !== "" ? upcomingCity : "Москва" };
     }
     case "walks":
       return { name: "walks" };

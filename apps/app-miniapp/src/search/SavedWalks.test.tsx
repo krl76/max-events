@@ -68,8 +68,8 @@ function clickText(host: HTMLElement, text: string): void {
 
 function OpenHarness({ walk }: { readonly walk: CityWalk }) {
   const [id, setId] = useState<string | null>(null);
-  if (id === null) return createElement(SavedWalkList, { walks: [walk], onOpen: setId, onBack: () => {} });
-  return createElement(SavedWalkView, { walk, onBack: () => {}, onToggle: () => {} });
+  if (id === null) return createElement(SavedWalkList, { walks: [walk], onOpen: setId });
+  return createElement(SavedWalkView, { walk, onToggle: () => {} });
 }
 
 describe("saved city walks", () => {
@@ -77,7 +77,7 @@ describe("saved city walks", () => {
     const older = { ...sampleWalk("2026-09-26T12:00:00.000Z"), id: "33333333-3333-4333-8333-333333333333", city: "Калуга" };
     const newer = sampleWalk("2026-09-27T12:00:00.000Z");
     expect(sortWalksNewest([older, newer])[0]?.city).toBe("Тула");
-    const html = renderToStaticMarkup(createElement(SavedWalkList, { walks: [older, newer], onOpen: () => {}, onBack: () => {} }));
+    const html = renderToStaticMarkup(createElement(SavedWalkList, { walks: [older, newer], onOpen: () => {} }));
     expect(html.indexOf("Тула")).toBeLessThan(html.indexOf("Калуга"));
     expect(html).toContain("2 остановки");
     const source = readFileSync("src/search/SavedWalks.tsx", "utf8");
@@ -140,7 +140,7 @@ describe("saved city walks", () => {
       await Promise.resolve();
     });
     expect(host.textContent).toContain("Прогулка не найдена.");
-    expect(host.querySelector(".app-walk-back")).not.toBeNull();
+    expect(host.querySelector(".app-walk-back")).toBeNull();
     root.unmount();
     host.remove();
   });
@@ -157,7 +157,7 @@ describe("saved city walks", () => {
     });
     expect(host.textContent).toContain("Не удалось открыть прогулку");
     expect(host.textContent).toContain("Сетевой сбой");
-    expect(host.querySelector(".app-walk-back")).not.toBeNull();
+    expect(host.querySelector(".app-walk-back")).toBeNull();
     root.unmount();
     host.remove();
   });
@@ -174,7 +174,7 @@ describe("saved city walks", () => {
       }),
     );
     expect(host.textContent).toContain("Открываем прогулку");
-    expect(host.querySelector(".app-walk-back")).not.toBeNull();
+    expect(host.querySelector(".app-walk-back")).toBeNull();
     await act(async () => {
       resolveWalk(sampleWalk());
     });
@@ -208,7 +208,6 @@ describe("saved city walks", () => {
     const { host, root } = await mount(
       createElement(SavedWalkView, {
         walk,
-        onBack: () => {},
         onToggle: () => {},
         onPlace: (id) => openedPlaces.push(id),
       }),

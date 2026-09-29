@@ -107,6 +107,13 @@ describe("routeHasBack", () => {
     expect(routeHasBack({ name: "map" })).toBe(false);
   });
 
+  it("shows the native back button on a city walk, which does not draw its own", () => {
+    expect(routeHasBack({ name: "walk", city: "Москва" })).toBe(true);
+    expect(routeHasBack({ name: "walks" })).toBe(true);
+    expect(routeHasBack({ name: "walk-saved", id: "w1" })).toBe(true);
+    expect(routeHasBack({ name: "upcoming", city: "Москва" })).toBe(true);
+  });
+
   it("hides the native back button on fullscreen screens, which draw their own close", () => {
     expect(routeHasBack({ name: "place", id: "p1" })).toBe(false);
     expect(routeHasBack({ name: "story-new" })).toBe(false);

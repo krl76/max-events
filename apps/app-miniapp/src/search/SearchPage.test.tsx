@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { catalogCards } from "../api/mock";
-import { addRecentSearch, cityWalkAsk, nearbyEntryTitle, RECENT_SEARCHES_LIMIT, railMeta, searchCities, SearchFilterSheet, SearchFold, SearchNearby, SearchQueryForm, SearchTools, SearchTopBar, type SearchState } from "./SearchPage";
+import { addRecentSearch, cityWalkAsk, nearbyEntryTitle, POPULAR_COUNT, popularCards, RECENT_SEARCHES_LIMIT, railMeta, searchCities, SearchFilterSheet, SearchFold, SearchNearby, SearchQueryForm, SearchTools, SearchTopBar, type SearchState } from "./SearchPage";
 
 const noop = () => {};
 const CARDS = catalogCards({ sort: "near" }, { latitude: 55.7522, longitude: 37.6156 });
@@ -72,7 +72,7 @@ describe("SearchQueryForm", () => {
 
 describe("search entries", () => {
   it("keeps every search door as an icon, with the full name on the button", () => {
-    const html = renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, onDayRoute: noop, onCityWalk: noop }));
+    const html = renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, onDayRoute: noop, onCityWalk: noop, onUpcoming: noop }));
 
     expect(html).toContain('aria-label="Спросить MAX"');
     expect(html).toContain('aria-label="Подбор свайпами"');
@@ -82,8 +82,16 @@ describe("search entries", () => {
     expect(html).toContain('aria-label="Микро-события"');
     expect(html).toContain('aria-label="Маршрут на день"');
     expect(html).toContain('aria-label="Маршрут по городу"');
+    expect(html).toContain("Ближайшие события");
+    expect(html).toContain('aria-label="Ближайшие события"');
     expect(nearbyEntryTitle(false)).toBe("В городе");
-    expect(renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, onDayRoute: noop, onCityWalk: noop, nearbyLabel: "Город", nearbyAria: "В городе" }))).toContain('aria-label="В городе"');
+    expect(renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, onDayRoute: noop, onCityWalk: noop, onUpcoming: noop, nearbyLabel: "Город", nearbyAria: "В городе" }))).toContain('aria-label="В городе"');
+    const ranked = CARDS[0];
+    if (ranked !== undefined) {
+      const many = Array.from({ length: 24 }, (_, index) => ({ ...ranked, event: { ...ranked.event, id: `pop-${index}`, popularity: index } }));
+      expect(popularCards(many)).toHaveLength(POPULAR_COUNT);
+      expect(POPULAR_COUNT).toBeGreaterThanOrEqual(20);
+    }
   });
 
   describe("cityWalkAsk", () => {

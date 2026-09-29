@@ -4,7 +4,7 @@ import { apiClient } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { AppButton, AppState } from "../ui/primitives";
-import { EMPTY_WALK_CHOICE, walkComposeReady, WalkBack, WalkWizard, type WalkChoice } from "./WalkWizard";
+import { EMPTY_WALK_CHOICE, walkComposeReady, WalkWizard, type WalkChoice } from "./WalkWizard";
 import { WalkResult, walkErrorText, walkStopKeys } from "./WalkResult";
 
 const WAIT_SKELETONS: readonly number[] = [0, 1, 2, 3];
@@ -58,10 +58,9 @@ export function walkWaitSubtitle(durationMinutes: number): string {
 
 export type WalkState = { status: "loading" } | { status: "error" } | { status: "ready"; day: AssistDayResponse };
 
-export function WalkView({ city, state, onBack, onAnother }: { readonly city: string; readonly state: WalkState; readonly onBack: () => void; readonly onAnother: () => void }) {
+export function WalkView({ city, state, onAnother }: { readonly city: string; readonly state: WalkState; readonly onAnother: () => void }) {
   return (
     <section className="app-walk">
-      <WalkBack onBack={onBack} />
       <h1 className="app-walk-title">Маршрут выходного дня: {city}</h1>
       {state.status === "loading" && <AppState>Собираем прогулку по достопримечательностям.</AppState>}
       {state.status === "error" && <AppState error>Не удалось собрать прогулку.</AppState>}
@@ -114,7 +113,7 @@ function WalkDraft({ day, onAnother }: { readonly day: AssistDayResponse; readon
 }
 
 export function WalkPage({ city, compose = (body) => apiClient.composeCityWalk(body), initialChoice = EMPTY_WALK_CHOICE }: { readonly city: string; readonly compose?: (body: ComposeCityWalkWrite) => Promise<CityWalk>; readonly initialChoice?: WalkChoice }) {
-  const { back, navigate } = useRoute();
+  const { navigate } = useRoute();
   const [choice, setChoice] = useState(initialChoice);
   const [excludeKeys, setExcludeKeys] = useState<readonly string[]>([]);
   const [phase, setPhase] = useState<"form" | "wait" | "ready">("form");
@@ -169,9 +168,7 @@ export function WalkPage({ city, compose = (body) => apiClient.composeCityWalk(b
   if (phase === "wait") {
     return (
       <section className="app-walk">
-        <WalkBack onBack={back} />
         <header className="app-walk-head">
-          <p className="app-walk-kicker">Пеший маршрут</p>
           <h1 className="app-walk-title">Прогулка: {city}</h1>
         </header>
         <div className="app-walk-wait" aria-live="polite">
@@ -202,7 +199,7 @@ export function WalkPage({ city, compose = (body) => apiClient.composeCityWalk(b
   }
 
   if (phase === "ready" && walk !== null) {
-    return <WalkResult city={city} walk={walk} now={now} onBack={back} onAnother={onAnother} onPlace={(id) => navigate({ name: "place", id })} onSaved={() => navigate({ name: "walks" })} onMap={() => navigate({ name: "map", walkId: walk.id })} />;
+    return <WalkResult city={city} walk={walk} now={now} onAnother={onAnother} onPlace={(id) => navigate({ name: "place", id })} onSaved={() => navigate({ name: "walks" })} onMap={() => navigate({ name: "map", walkId: walk.id })} />;
   }
 
   return (
@@ -210,7 +207,6 @@ export function WalkPage({ city, compose = (body) => apiClient.composeCityWalk(b
       city={city}
       choice={choice}
       onChange={setChoice}
-      onBack={back}
       notice={error}
       onSaved={() => navigate({ name: "walks" })}
       onCompose={() => {

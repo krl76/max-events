@@ -44,6 +44,11 @@ export const CityWalkStopSchema = z.object({
   sourceUrl: SourceUrlSchema,
   placeId: IdSchema.nullable(),
   done: z.boolean(),
+  /** Commons photograph of the sight, when Wikidata has one. */
+  imageUrl: z
+    .string()
+    .refine((value) => value.startsWith("https://"), "https image")
+    .optional(),
 });
 export type CityWalkStop = z.infer<typeof CityWalkStopSchema>;
 

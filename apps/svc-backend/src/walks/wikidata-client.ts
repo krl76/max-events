@@ -31,7 +31,7 @@ export async function fetchWikidataCandidates(city: string, interests: readonly 
 
 function sparqlFor(city: string, classIds: readonly string[]): string {
   const values = classIds.map((id) => `wd:${id}`).join(" ");
-  return `SELECT ?item ?itemLabel ?itemDescription ?coord (GROUP_CONCAT(DISTINCT ?classId; SEPARATOR=",") AS ?classes) WHERE {
+  return `SELECT ?item ?itemLabel ?itemDescription ?coord (GROUP_CONCAT(DISTINCT ?classId; SEPARATOR=",") AS ?classes) (SAMPLE(?image) AS ?photo) WHERE {
   VALUES ?class { ${values} }
   ?item wdt:P31 ?class .
   ?item wdt:P131* ?place .
@@ -39,9 +39,10 @@ function sparqlFor(city: string, classIds: readonly string[]): string {
   FILTER(LANG(?placeLabel) = "ru")
   FILTER(CONTAINS(LCASE(?placeLabel), LCASE("${sparqlString(city)}")))
   ?item wdt:P625 ?coord .
+  OPTIONAL { ?item wdt:P18 ?image }
   BIND(STRAFTER(STR(?class), "http://www.wikidata.org/entity/") AS ?classId)
   SERVICE wikibase:label { bd:serviceParam wikibase:language "ru,en". }
-} LIMIT 40`;
+} GROUP BY ?item ?itemLabel ?itemDescription ?coord LIMIT 40`;
 }
 
 function sparqlString(value: string): string {

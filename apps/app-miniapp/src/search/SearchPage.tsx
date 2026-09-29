@@ -223,7 +223,7 @@ export function SearchFilters({ category, onCategory }: { category: EventCategor
   );
 }
 
-const SEARCH_TOOLS: Array<{ id: string; label: string; aria: string; icon: "spark" | "cards" | "pin" | "sparkle" | "clock" | "users" | "navigation"; dark?: boolean }> = [
+const SEARCH_TOOLS: Array<{ id: string; label: string; aria: string; icon: "spark" | "cards" | "pin" | "sparkle" | "clock" | "users" | "navigation" | "walk" | "calendar"; dark?: boolean }> = [
   { id: "ask", label: "Спросить", aria: "Спросить MAX", icon: "spark" },
   { id: "swipe", label: "Свайпы", aria: "Подбор свайпами", icon: "cards" },
   { id: "map", label: "Карта", aria: "На карте", icon: "pin" },
@@ -231,14 +231,21 @@ const SEARCH_TOOLS: Array<{ id: string; label: string; aria: string; icon: "spar
   { id: "nearby", label: "Рядом", aria: "Рядом со мной", icon: "clock" },
   { id: "micro", label: "Сборы", aria: "Микро-события", icon: "users" },
   { id: "route", label: "Маршрут", aria: "Маршрут на день", icon: "navigation" },
-  { id: "walk", label: "Прогулка", aria: "Маршрут по городу", icon: "navigation" },
+  { id: "walk", label: "Прогулка", aria: "Маршрут по городу", icon: "walk" },
+  { id: "soon", label: "Ближайшие события", aria: "Ближайшие события", icon: "calendar" },
 ];
 
 export { cityWalkAsk } from "./WalkPage";
 
-/** Seven doors, three columns. The day route and the city walk share the last row. */
-export function SearchTools({ onAsk, onSwipe, onMap, onWhereto, onNearby, onMicro, onDayRoute, onCityWalk, nearbyLabel = "Рядом", nearbyAria = "Рядом со мной" }: { onAsk: () => void; onSwipe: () => void; onMap: () => void; onWhereto: () => void; onNearby: () => void; onMicro: () => void; onDayRoute: () => void; onCityWalk: () => void; nearbyLabel?: string; nearbyAria?: string }) {
-  const go = { ask: onAsk, swipe: onSwipe, map: onMap, whereto: onWhereto, nearby: onNearby, micro: onMicro, route: onDayRoute, walk: onCityWalk };
+/** Nine doors, three columns. The last row is the day route, the city walk, and upcoming events. */
+export const POPULAR_COUNT = 20;
+
+export function popularCards(cards: readonly CatalogCard[], limit = POPULAR_COUNT): CatalogCard[] {
+  return [...cards].sort((left, right) => (right.rating ?? 0) * 1000 + (right.event.popularity ?? 0) + (right.event.bookedCount ?? 0) - ((left.rating ?? 0) * 1000 + (left.event.popularity ?? 0) + (left.event.bookedCount ?? 0))).slice(0, limit);
+}
+
+export function SearchTools({ onAsk, onSwipe, onMap, onWhereto, onNearby, onMicro, onDayRoute, onCityWalk, onUpcoming, nearbyLabel = "Рядом", nearbyAria = "Рядом со мной" }: { onAsk: () => void; onSwipe: () => void; onMap: () => void; onWhereto: () => void; onNearby: () => void; onMicro: () => void; onDayRoute: () => void; onCityWalk: () => void; onUpcoming: () => void; nearbyLabel?: string; nearbyAria?: string }) {
+  const go = { ask: onAsk, swipe: onSwipe, map: onMap, whereto: onWhereto, nearby: onNearby, micro: onMicro, route: onDayRoute, walk: onCityWalk, soon: onUpcoming };
   return (
     <div className="app-search-tools">
       {SEARCH_TOOLS.map((tool) => (
@@ -445,6 +452,7 @@ interface SearchViewProps {
   onOpenMicro: () => void;
   onDayRoute: () => void;
   onCityWalk: () => void;
+  onUpcoming: () => void;
   onRetry: () => void;
   /** The feed search icon opens this screen with the field already open. */
   searchFieldOpen?: boolean;
@@ -517,13 +525,13 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
   const [fold, setFold] = useState<"today" | "hot">("hot");
   const inCity = props.distancesFromViewer !== false;
   const todayCards = props.state.status === "ready" ? props.state.cards : [];
-  const hotCards = [...(props.popular ?? [])].sort((left, right) => (right.rating ?? 0) * 1000 + (right.event.popularity ?? 0) + (right.event.bookedCount ?? 0) - ((left.rating ?? 0) * 1000 + (left.event.popularity ?? 0) + (left.event.bookedCount ?? 0))).slice(0, 12);
+  const hotCards = popularCards(props.popular ?? []);
   const openFold = (next: "today" | "hot") => setFold(next);
   const shown = fold === "today" ? todayCards : fold === "hot" ? hotCards : [];
   return (
     <div className="app-search">
       <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
-      <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} onDayRoute={props.onDayRoute} onCityWalk={props.onCityWalk} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
+      <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} onDayRoute={props.onDayRoute} onCityWalk={props.onCityWalk} onUpcoming={props.onUpcoming} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
       <div className="app-bills">
         <section className={fold === "hot" ? "app-bill app-bill--open" : "app-bill"}>
           <button type="button" className="app-bill-title" aria-expanded={fold === "hot"} onClick={() => openFold("hot")}>
@@ -625,7 +633,7 @@ export function SearchPage() {
 
   useEffect(() => {
     let alive = true;
-    apiClient.listEventCards({ city, sort: "rating", limit: 24 }, { latitude: catalogPoint.latitude, longitude: catalogPoint.longitude }).then(
+    apiClient.listEventCards({ city, sort: "rating", limit: 40 }, { latitude: catalogPoint.latitude, longitude: catalogPoint.longitude }).then(
       (cards) => {
         if (alive) setPopular(cards);
       },
@@ -729,6 +737,7 @@ export function SearchPage() {
         onOpenMicro={() => navigate({ name: "micro" })}
         onDayRoute={() => navigate({ name: "day-route" })}
         onCityWalk={() => navigate({ name: "walk", city })}
+        onUpcoming={() => navigate({ name: "upcoming", city })}
         onRetry={() => setAttempt((count) => count + 1)}
         searchFieldOpen={route.name === "search" && route.focus === true}
         distancesFromViewer={todayPoint.fromViewer}

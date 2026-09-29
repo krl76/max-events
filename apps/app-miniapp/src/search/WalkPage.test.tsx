@@ -43,7 +43,6 @@ describe("WalkView", () => {
     const html = renderToStaticMarkup(
       createElement(WalkView, {
         city: "Тула",
-        onBack: () => {},
         onAnother: () => {},
         state: {
           status: "ready",
@@ -87,7 +86,7 @@ describe("walk wizard", () => {
     expect(walkComposeReady(timed)).toBe(false);
     expect(walkComposeReady(budgeted)).toBe(false);
     expect(walkComposeReady(ready)).toBe(true);
-    const html = renderToStaticMarkup(createElement(WalkWizard, { city: "Тула", choice: ready, onChange: () => {}, onBack: () => {} }));
+    const html = renderToStaticMarkup(createElement(WalkWizard, { city: "Тула", choice: ready, onChange: () => {} }));
     expect(html).toContain("Культурные");
     expect(html).toContain("Собрать прогулку");
     expect(html).not.toContain("disabled");
@@ -152,19 +151,23 @@ async function mount(node: ReactElement): Promise<{ host: HTMLDivElement; root: 
 
 function clickText(host: HTMLElement, text: string): void {
   const buttons = [...host.querySelectorAll("button, ion-button")];
-  const button = buttons.find((item) => item.textContent?.trim() === text) ?? buttons.find((item) => (item.textContent ?? "").includes(text) && (item.className ?? "").includes("app-walk-tile"));
+  const button = buttons.find((item) => item.textContent?.trim() === text) ?? buttons.find((item) => (item.textContent ?? "").includes(text) && ((item.className ?? "").includes("app-walk-tile") || (item.className ?? "").includes("app-walk-budget-card")));
   if (button === undefined) throw new Error(`missing button ${text}`);
   if (button instanceof HTMLElement) button.click();
 }
 
 describe("composed walk", () => {
   it("renders both stop descriptions without a star", () => {
+    const walk = sampleWalk();
+    const shown = {
+      ...walk,
+      stops: walk.stops.map((stop, index) => (index === 1 ? { ...stop, imageUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Kremlin.jpg?width=800" } : stop)),
+    };
     const html = renderToStaticMarkup(
       createElement(WalkResult, {
         city: "Тула",
-        walk: sampleWalk(),
+        walk: shown,
         now: Date.parse("2026-09-27T09:00:00"),
-        onBack: () => {},
         onAnother: () => {},
         onPlace: () => {},
       }),
@@ -172,6 +175,10 @@ describe("composed walk", () => {
     expect(html).toContain("Старая крепость.");
     expect(html).toContain("Река рядом.");
     expect(html).toContain("Маршрут из каталога");
+    expect(html).toContain("https://commons.wikimedia.org/wiki/Special:FilePath/Kremlin.jpg?width=800");
+    expect(html).toContain("app-walk-photo");
+    expect(html).not.toContain("Пеший маршрут");
+    expect(html).not.toContain("app-walk-back");
     expect(html).toContain("Бесплатно");
     expect(html).not.toContain("★");
     expect(walkArrivalOffsetMinutes(1, sampleWalk().legs)).toBe(35);
@@ -249,43 +256,30 @@ describe("composed walk", () => {
     host.remove();
   });
 
-  it("navigates between wizard steps via Back button and progress tabs without emojis", async () => {
-    let backCalled = false;
-    const { host, root } = await mount(
-      createElement(WalkWizard, {
-        city: "Тула",
-        choice: readyChoice(),
-        onChange: () => {},
-        onBack: () => {
-          backCalled = true;
-        },
-      }),
-    );
+  it("moves between wizard steps with the progress tabs and does not draw a back button", async () => {
+    const { host, root } = await mount(createElement(WalkWizard, { city: "Тула", choice: readyChoice(), onChange: () => {} }));
     expect(host.textContent).toContain("Интересы");
     expect(host.textContent).toContain("Выбрано: 1");
     expect(host.textContent).not.toMatch(/[\u{1F300}-\u{1FAFF}]/u);
+    expect(host.textContent).not.toContain("Назад");
+    expect(host.textContent).not.toContain("Пеший маршрут");
 
     await act(async () => {
-      clickText(host, "Назад");
+      clickText(host, "Бюджет");
     });
-    expect(host.textContent).toContain("Бюджет");
+    expect(host.textContent).toContain("Бюджет маршрута");
     expect(host.textContent).toContain("Любой");
 
     await act(async () => {
-      clickText(host, "Назад");
+      clickText(host, "Время");
     });
     expect(host.textContent).toContain("Сколько времени");
     expect(host.textContent).toContain("1 час");
 
     await act(async () => {
-      clickText(host, "Назад");
-    });
-    expect(backCalled).toBe(true);
-
-    await act(async () => {
       clickText(host, "Интересы");
     });
-    expect(host.textContent).toContain("Интересы");
+    expect(host.textContent).toContain("Выбрано: 1");
 
     root.unmount();
     host.remove();

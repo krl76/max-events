@@ -88,15 +88,6 @@ const PROGRESS: readonly { readonly id: "time" | "budget" | "interests"; readonl
   { id: "interests", label: "Интересы" },
 ];
 
-export function WalkBack({ onBack }: { readonly onBack: () => void }) {
-  return (
-    <button type="button" className="app-walk-back" onClick={onBack}>
-      <ActionIcon name="chevron" size={15} />
-      <span>Назад</span>
-    </button>
-  );
-}
-
 function WalkProgress({ step, onSelectStep }: { readonly step: "time" | "budget" | "interests"; readonly onSelectStep: (step: "time" | "budget" | "interests") => void }) {
   const current = PROGRESS.findIndex((item) => item.id === step);
   return (
@@ -118,7 +109,7 @@ function WalkProgress({ step, onSelectStep }: { readonly step: "time" | "budget"
   );
 }
 
-export function WalkWizard({ city, choice, onChange, onBack, onCompose, onSaved, notice }: { readonly city: string; readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void; readonly onBack: () => void; readonly onCompose?: () => void; readonly onSaved?: () => void; readonly notice?: string | null }) {
+export function WalkWizard({ city, choice, onChange, onCompose, onSaved, notice }: { readonly city: string; readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void; readonly onCompose?: () => void; readonly onSaved?: () => void; readonly notice?: string | null }) {
   const defaultStep = walkStep(choice);
   const [userStep, setUserStep] = useState<"time" | "budget" | "interests" | null>(null);
 
@@ -137,16 +128,6 @@ export function WalkWizard({ city, choice, onChange, onBack, onCompose, onSaved,
 
   const canAdvance = step === "time" ? canAdvanceTime : step === "budget" ? canAdvanceBudget : isReady;
 
-  function handleBack(): void {
-    if (step === "interests") {
-      setUserStep("budget");
-    } else if (step === "budget") {
-      setUserStep("time");
-    } else {
-      onBack();
-    }
-  }
-
   function handleNext(): void {
     if (step === "time") {
       setUserStep("budget");
@@ -162,7 +143,6 @@ export function WalkWizard({ city, choice, onChange, onBack, onCompose, onSaved,
   return (
     <section className="app-walk">
       <div className="app-walk-top">
-        <WalkBack onBack={handleBack} />
         <div className="app-walk-city-chip">
           <ActionIcon name="pin" size={12} />
           <span>{city}</span>
@@ -170,7 +150,6 @@ export function WalkWizard({ city, choice, onChange, onBack, onCompose, onSaved,
       </div>
 
       <header className="app-walk-head">
-        <p className="app-walk-kicker">Пеший маршрут</p>
         <h1 className="app-walk-title">Прогулка: {city}</h1>
       </header>
 
@@ -190,7 +169,7 @@ export function WalkWizard({ city, choice, onChange, onBack, onCompose, onSaved,
         </button>
         {onSaved !== undefined ? (
           <button type="button" className="app-walk-btn-secondary" onClick={onSaved}>
-            <span>Мои сохранённые прогулки</span>
+            <span>Мои прогулки</span>
             <ActionIcon name="chevron" size={15} />
           </button>
         ) : null}
@@ -275,7 +254,7 @@ function BudgetStep({ choice, onChange, onSelect }: { readonly choice: WalkChoic
             <button
               key={item.id}
               type="button"
-              className={isSelected ? "app-walk-budget-card app-walk-tile app-walk-budget-card--selected" : "app-walk-budget-card app-walk-tile"}
+              className={isSelected ? "app-walk-budget-card app-walk-budget-card--selected" : "app-walk-budget-card"}
               aria-pressed={isSelected}
               onClick={() => {
                 if (item.id === "custom") {
@@ -286,11 +265,13 @@ function BudgetStep({ choice, onChange, onSelect }: { readonly choice: WalkChoic
                 }
               }}
             >
-              <div className="app-walk-budget-content">
+              <span className="app-walk-budget-content">
                 <span className="app-walk-budget-title">{item.title}</span>
                 <span className="app-walk-budget-desc">{item.desc}</span>
-              </div>
-              <div className="app-walk-budget-radio" />
+              </span>
+              <span className="app-walk-budget-mark" aria-hidden="true">
+                {isSelected ? <ActionIcon name="check" size={14} strokeWidth={2.8} /> : null}
+              </span>
             </button>
           );
         })}

@@ -5,7 +5,19 @@ export type CityWalkCandidate = {
   readonly latitude: number;
   readonly longitude: number;
   readonly classIds: readonly string[];
+  readonly imageUrl: string | null;
 };
+
+/** Wikidata P18 is a Commons file page. An image tag needs https and a bounded width. */
+export function commonsPhotoUrl(raw: string | null): string | null {
+  if (raw === null) return null;
+  const trimmed = raw.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return null;
+  const https = trimmed.replace(/^http:\/\//i, "https://").replace(/ /g, "%20");
+  if (!https.includes("Special:FilePath")) return https;
+  if (/[?&]width=\d+/.test(https)) return https;
+  return `${https}${https.includes("?") ? "&" : "?"}width=800`;
+}
 
 const CLASS_IDS = {
   cultural: ["Q33506", "Q24354", "Q207694"],
@@ -65,6 +77,7 @@ function readCandidate(binding: unknown, city: string): CityWalkCandidate | null
     latitude: coord.latitude,
     longitude: coord.longitude,
     classIds: readClassIds(binding.classes),
+    imageUrl: commonsPhotoUrl(readValue(binding.photo)),
   };
 }
 

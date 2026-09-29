@@ -59,6 +59,7 @@ const PlanPage = lazyNamed(() => import("../plans/PlanPage"), "PlanPage");
 const PlanCreatePage = lazyNamed(() => import("../plans/PlanCreatePage"), "PlanCreatePage");
 const SearchPage = lazyNamed(() => import("../search/SearchPage"), "SearchPage");
 const BrowsePage = lazyNamed(() => import("../search/BrowsePage"), "BrowsePage");
+const UpcomingPage = lazyNamed(() => import("../search/UpcomingPage"), "UpcomingPage");
 const SwipePage = lazyNamed(() => import("../swipe/SwipePage"), "SwipePage");
 const MapPage = lazyNamed(() => import("../catalog/MapPage"), "MapPage");
 const CreatePage = lazyNamed(() => import("../create/CreatePage"), "CreatePage");
@@ -130,6 +131,7 @@ function Routed() {
   if (route.name === "calendar") return <CalendarPage inviteToken={route.inviteToken} />;
   if (route.name === "search") return <SearchPage />;
   if (route.name === "browse") return <BrowsePage list={route.list} query={route.query} city={route.city} date={route.date} />;
+  if (route.name === "upcoming") return <UpcomingPage city={route.city} />;
   if (route.name === "swipe") return <SwipePage />;
   if (route.name === "map") return <MapPage />;
   if (route.name === "create") return <CreatePage />;

@@ -69,6 +69,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   "plan-new": "Свой план",
   "day-route": "Маршрут на день",
   walk: "Прогулка",
+  upcoming: "Ближайшие события",
   walks: "Мои прогулки",
   "walk-saved": "Прогулка",
   lists: "Списки",
@@ -115,7 +116,11 @@ export function useHeaderTitle(title: string | null): void {
   }, [setTitle, title]);
 }
 
+/** Прогулка полноэкранная, но «Назад» у неё — кнопка клиента MAX, не вторая кнопка внутри экрана. */
+const NATIVE_BACK_FULLSCREEN: ReadonlySet<Route["name"]> = new Set(["walk", "walks", "walk-saved"]);
+
 export function routeHasBack(route: Route): boolean {
+  if (NATIVE_BACK_FULLSCREEN.has(route.name)) return true;
   // Полноэкранные экраны рисуют собственный крест/назад — нативная кнопка MAX стала бы второй.
   return !isTabRoute(route.name) && !routeIsFullscreen(route);
 }

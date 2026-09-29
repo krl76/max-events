@@ -81,9 +81,6 @@ export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
                   <span />
                 </span>
               )}
-              <span className="app-create-plus">
-                <ActionIcon name="plus" size={16} />
-              </span>
             </span>
             <span className="app-create-card-copy">
               <span className="app-create-card-label">{entry.label}</span>

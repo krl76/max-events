@@ -3,7 +3,23 @@ import { pluralRu } from "../catalog/format";
 import { ApiError } from "../api/endpoints/transport";
 import { AppButton } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
-import { WalkBack } from "./WalkWizard";
+
+export function walkStopPhoto(stop: { readonly imageUrl?: string | null }): string | null {
+  const value = stop.imageUrl?.trim() ?? "";
+  return value.startsWith("https://") ? value : null;
+}
+
+export function WalkStopMedia({ stop }: { readonly stop: { readonly imageUrl?: string | null } }) {
+  const photo = walkStopPhoto(stop);
+  if (photo === null) {
+    return (
+      <span className="app-walk-photo app-walk-photo--empty" aria-hidden="true">
+        <ActionIcon name="pin" size={22} />
+      </span>
+    );
+  }
+  return <img className="app-walk-photo" alt="" src={photo} />;
+}
 
 const DWELL_MINUTES = 20;
 
@@ -58,14 +74,12 @@ function StopTitle({ stop, onPlace }: { readonly stop: CityWalkStop; readonly on
   );
 }
 
-export function WalkResult({ city, walk, now, onBack, onAnother, onPlace, onSaved, onMap }: { readonly city: string; readonly walk: CityWalk; readonly now: number; readonly onBack: () => void; readonly onAnother: () => void; readonly onPlace: (id: string) => void; readonly onSaved?: () => void; readonly onMap?: () => void }) {
+export function WalkResult({ city, walk, now, onAnother, onPlace, onSaved, onMap }: { readonly city: string; readonly walk: CityWalk; readonly now: number; readonly onAnother: () => void; readonly onPlace: (id: string) => void; readonly onSaved?: () => void; readonly onMap?: () => void }) {
   const count = walk.stops.length;
   const travel = walk.legs.reduce((sum, leg) => sum + leg.travelMinutes, 0);
   return (
     <section className="app-walk">
-      <WalkBack onBack={onBack} />
       <header className="app-walk-head">
-        <p className="app-walk-kicker">Пеший маршрут</p>
         <h1 className="app-walk-title">Прогулка: {city}</h1>
       </header>
       {walk.sourceLabel === "catalog" ? <p className="app-walk-note">Маршрут из каталога</p> : null}
@@ -87,9 +101,10 @@ export function WalkResult({ city, walk, now, onBack, onAnother, onPlace, onSave
         {walk.stops.map((stop, index) => {
           const leg = walk.legs[index];
           return (
-            <li key={stop.sourceUrl} className="app-walk-stop">
-              <span className="app-walk-num">{stop.order}</span>
-              <div>
+            <li key={stop.sourceUrl} className="app-walk-stop app-walk-stop--card">
+              <WalkStopMedia stop={stop} />
+              <div className="app-walk-stop-body">
+                <span className="app-walk-num">{stop.order}</span>
                 <p className="app-walk-meta">{arrivalLabel(now, index, walk.legs)}</p>
                 <StopTitle stop={stop} onPlace={onPlace} />
                 <p className="app-walk-meta">{stop.address}</p>
