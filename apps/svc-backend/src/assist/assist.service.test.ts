@@ -85,11 +85,7 @@ describe("AssistService", () => {
   });
 
   it("finds sport events for the word Спорт the same way volunteering is found", async () => {
-    const events = [
-      eventRow("00000000-0000-4000-8000-0000000000a1", "Матч любительской лиги по футболу", "2026-09-19T18:00:00+03:00", null, "afisha"),
-      eventRow("00000000-0000-4000-8000-0000000000a2", "Утренняя йога в парке", "2026-09-20T09:00:00+03:00", null, "sport"),
-      eventRow("00000000-0000-4000-8000-0000000000a3", "Субботник в парке", "2026-09-19T11:00:00+03:00", null, "volunteering"),
-    ];
+    const events = [eventRow("00000000-0000-4000-8000-0000000000a1", "Матч любительской лиги по футболу", "2026-09-19T18:00:00+03:00", null, "afisha"), eventRow("00000000-0000-4000-8000-0000000000a2", "Утренняя йога в парке", "2026-09-20T09:00:00+03:00", null, "sport"), eventRow("00000000-0000-4000-8000-0000000000a3", "Субботник в парке", "2026-09-19T11:00:00+03:00", null, "volunteering")];
     const service = new AssistService(new NoneLlmProvider(), { find: async () => events } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { find: async () => [] } as never, { create: async () => ({}) } as never, new AssistRateLimiter());
     const sport = await service.suggest(userId, "Спорт", now);
     expect(sport.items.map((item) => item.event.title).sort()).toEqual(["Матч любительской лиги по футболу", "Утренняя йога в парке"]);

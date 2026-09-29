@@ -33,10 +33,7 @@ export function PlaceSheet({ title, places, onConfirm, onClose }: { title: strin
         <ul className="app-place-list">
           {matches.map((place) => (
             <li key={place.id}>
-              <button
-                type="button"
-                onClick={() => onConfirm({ label: place.address.trim() !== "" ? place.address : place.title, placeId: place.id })}
-              >
+              <button type="button" onClick={() => onConfirm({ label: place.address.trim() !== "" ? place.address : place.title, placeId: place.id })}>
                 <span>{place.title}</span>
                 {place.address.trim() !== "" && <small>{place.address}</small>}
               </button>

@@ -16,7 +16,10 @@ export interface NearbyPlace {
 
 /** Street and city from a reverse-geocode payload. Empty when the payload has neither. */
 export function addressLine(parts: AddressParts): string | null {
-  const street = [parts.street, parts.housenumber].map((part) => part?.trim() ?? "").filter((part) => part !== "").join(", ");
+  const street = [parts.street, parts.housenumber]
+    .map((part) => part?.trim() ?? "")
+    .filter((part) => part !== "")
+    .join(", ");
   const area = (parts.district || parts.locality || parts.city || "").trim();
   const name = (parts.name ?? "").trim();
   const head = street !== "" ? street : name !== "" && name !== area ? name : "";

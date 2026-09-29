@@ -44,7 +44,25 @@ describe("selectBrowseCards", () => {
 
 describe("BrowseView", () => {
   it("offers other events when a query finds nothing", () => {
-    const html = renderToStaticMarkup(createElement(BrowseView, { list: "results", query: "кварк", state: { status: "ready", cards: [], suggesting: false, suggestions: [{ card: CARDS[0]!, reason: "Похоже на запрос" }, { card: CARDS[1]!, reason: null }] }, inCity: true, onOpen: () => {}, onBack: () => {}, onRetry: () => {} }));
+    const html = renderToStaticMarkup(
+      createElement(BrowseView, {
+        list: "results",
+        query: "кварк",
+        state: {
+          status: "ready",
+          cards: [],
+          suggesting: false,
+          suggestions: [
+            { card: CARDS[0]!, reason: "Похоже на запрос" },
+            { card: CARDS[1]!, reason: null },
+          ],
+        },
+        inCity: true,
+        onOpen: () => {},
+        onBack: () => {},
+        onRetry: () => {},
+      }),
+    );
 
     expect(html).toContain("Ничего не нашлось по запросу «кварк».");
     expect(html).toContain("Похожее");

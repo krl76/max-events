@@ -88,7 +88,10 @@ export class SwipeService {
     const profile = await this.taste.profile(userId);
     const friends = await this.friends.list(userId);
     const friendIds = new Set(friends.map((row) => row.id));
-    const visitors = await this.visitorsByPlace(rows.map((row) => row.id), friendIds);
+    const visitors = await this.visitorsByPlace(
+      rows.map((row) => row.id),
+      friendIds,
+    );
     const previews = await this.previewByPlace(rows);
     const scored = rows.map((row) => {
       const place = toPlaceDto(row);

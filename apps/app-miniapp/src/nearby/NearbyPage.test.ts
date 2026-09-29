@@ -248,7 +248,7 @@ describe("точка на карте", () => {
   });
 });
 
-  describe("фильтр даты и поиска", () => {
+describe("фильтр даты и поиска", () => {
   const card = {
     bucket: "evening" as const,
     event: { id: "c1", title: "Летний концерт", startsAt: "2026-09-12T19:00:00+03:00" },

@@ -86,12 +86,12 @@ describe("search entries", () => {
     expect(renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, onDayRoute: noop, onCityWalk: noop, nearbyLabel: "Город", nearbyAria: "В городе" }))).toContain('aria-label="В городе"');
   });
 
-describe("cityWalkAsk", () => {
-  it("asks MAX for a walking route through the selected city", () => {
-    expect(cityWalkAsk("Казань")).toContain("Казань");
-    expect(cityWalkAsk("Казань")).toContain("достопримечательностям");
+  describe("cityWalkAsk", () => {
+    it("asks MAX for a walking route through the selected city", () => {
+      expect(cityWalkAsk("Казань")).toContain("Казань");
+      expect(cityWalkAsk("Казань")).toContain("достопримечательностям");
+    });
   });
-});
 });
 
 describe("SearchFilterSheet", () => {

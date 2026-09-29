@@ -56,7 +56,7 @@ describe("AddOrganizerOrganizationId20260919160000", () => {
     await migration.up(queryRunner);
     expect(queries[0]).toContain('ALTER TABLE "events" ADD COLUMN "organizerOrganizationId"');
     expect(queries[1]).toContain('ALTER TABLE "places" ADD COLUMN "organizerOrganizationId"');
-    expect(queries[2]).toContain("UPDATE \"events\"");
+    expect(queries[2]).toContain('UPDATE "events"');
     expect(queries[4]).toContain("FK_events_organizer_organization");
     queries.length = 0;
     await migration.down(queryRunner);

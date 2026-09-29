@@ -4,7 +4,11 @@ import { CreateSwipeDecisions20260919170000 } from "../database/migrations/20260
 describe("CreateSwipeDecisions", () => {
   it("creates swipe_decisions with a unique (userId, placeId) and drops it on revert", async () => {
     const queries: string[] = [];
-    const runner = { query: async (sql: string) => { queries.push(sql); } };
+    const runner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    };
     const migration = new CreateSwipeDecisions20260919170000();
     await migration.up(runner as never);
     expect(queries[0]).toContain('CREATE TABLE "swipe_decisions"');

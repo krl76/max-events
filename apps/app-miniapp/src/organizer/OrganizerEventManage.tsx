@@ -515,17 +515,19 @@ export function OrganizerEventManage({ event, screen, onScreen, onPromo, onEdit,
         setPublishing(true);
         setFailed(null);
         const placeReady = event.placeId === null ? Promise.resolve() : apiClient.publishOrganizerPlace(event.placeId).then(() => undefined);
-        placeReady.then(() => apiClient.publishOrganizerEvent(event.id)).then(
-          (item) => {
-            setPublishing(false);
-            setNotice("Событие опубликовано.");
-            onPublished(item);
-          },
-          () => {
-            setPublishing(false);
-            setFailed("Не удалось опубликовать.");
-          },
-        );
+        placeReady
+          .then(() => apiClient.publishOrganizerEvent(event.id))
+          .then(
+            (item) => {
+              setPublishing(false);
+              setNotice("Событие опубликовано.");
+              onPublished(item);
+            },
+            () => {
+              setPublishing(false);
+              setFailed("Не удалось опубликовать.");
+            },
+          );
       }}
       onShare={() => {
         const payload = sharePayload(event.title, `event-${event.id}`);
@@ -536,4 +538,3 @@ export function OrganizerEventManage({ event, screen, onScreen, onPromo, onEdit,
     />
   );
 }
-

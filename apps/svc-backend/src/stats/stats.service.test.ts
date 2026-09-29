@@ -72,11 +72,7 @@ describe("StatsService", () => {
 describe("organizationSummary", () => {
   it("splits traffic sources, weekdays and the previous window", async () => {
     const events = createStoreRepo<EventEntity>([{ id: eventId, organizerOrganizationId: owner, organizerUserId: owner } as EventEntity]);
-    const bookings = createStoreRepo<BookingEntity>([
-      { id: "b1", eventId, status: "active", source: "chats", createdAt: september } as BookingEntity,
-      { id: "b2", eventId, status: "cancelled", source: "feed", createdAt: september } as BookingEntity,
-      { id: "b3", eventId, status: "active", source: "chats", createdAt: august } as BookingEntity,
-    ]);
+    const bookings = createStoreRepo<BookingEntity>([{ id: "b1", eventId, status: "active", source: "chats", createdAt: september } as BookingEntity, { id: "b2", eventId, status: "cancelled", source: "feed", createdAt: september } as BookingEntity, { id: "b3", eventId, status: "active", source: "chats", createdAt: august } as BookingEntity]);
     const checkIns = createStoreRepo<CheckInEntity>([{ userId: other, eventId } as CheckInEntity]);
     const service = new StatsService(createStoreRepo<PageViewEntity>() as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, checkIns as unknown as Repository<CheckInEntity>);
     const period = { from: "2026-09-01T00:00:00.000Z", to: "2026-09-30T23:59:59.000Z" };

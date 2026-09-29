@@ -73,7 +73,9 @@ describe("assistChatTranscript", () => {
   it("sends a 500-character user line as 400 characters and leaves the bubble intact", () => {
     const line = "а".repeat(500);
     const thread = askedThread(START, line);
-    const userTurn = assistChatTranscript(thread).filter((turn) => turn.role === "user").at(-1);
+    const userTurn = assistChatTranscript(thread)
+      .filter((turn) => turn.role === "user")
+      .at(-1);
 
     expect(userTurn?.text).toHaveLength(400);
     expect(userTurn?.text).toBe(line.slice(0, 400));

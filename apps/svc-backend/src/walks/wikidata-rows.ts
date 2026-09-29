@@ -80,7 +80,7 @@ function readPoint(value: string): { readonly latitude: number; readonly longitu
 
 function readQid(item: string): string | null {
   const match = /\/(Q\d+)$/.exec(item);
-  return match === null ? null : match[1] ?? null;
+  return match === null ? null : (match[1] ?? null);
 }
 
 function readClassIds(value: unknown): string[] {

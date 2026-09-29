@@ -79,11 +79,13 @@ export async function mountVectorBasemap(map: LeafletMap, basemap: VectorBasemap
     maplibre.addProtocol("pmtiles", new pmtiles.Protocol().tile);
     protocolReady = true;
   }
-  const layer = adapter.maplibreGL({
-    style: buildOwnBasemapStyle(basemap, scheme, origin),
-    attributionControl: false,
-    canvasContextAttributes: { ...VECTOR_CANVAS_ATTRIBUTES, contextType: "webgl2" },
-  }).addTo(map);
+  const layer = adapter
+    .maplibreGL({
+      style: buildOwnBasemapStyle(basemap, scheme, origin),
+      attributionControl: false,
+      canvasContextAttributes: { ...VECTOR_CANVAS_ATTRIBUTES, contextType: "webgl2" },
+    })
+    .addTo(map);
   const glMap = layer.getMaplibreMap();
   let troubleReported = false;
   const reportTrouble = () => {

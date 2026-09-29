@@ -198,11 +198,7 @@ function Timeline({ state, onRetryTimeline, onOpenEvent, onOpenLocation, radiusK
           {nearbyErrorTitle(inCity)}
         </AppState>
       )}
-      {state.status === "ready" && segments.length === 0 && (
-        <AppState hint={searching ? "Можно другими словами — формы подберёт поиск" : `Мы смотрим только на ${radiusKm} км вокруг`}>
-          {searching ? "Ничего не нашлось" : nearbyEmptyTitle(inCity)}
-        </AppState>
-      )}
+      {state.status === "ready" && segments.length === 0 && <AppState hint={searching ? "Можно другими словами — формы подберёт поиск" : `Мы смотрим только на ${radiusKm} км вокруг`}>{searching ? "Ничего не нашлось" : nearbyEmptyTitle(inCity)}</AppState>}
       {segments.map((segment) => (
         <section key={segment.bucket} className="app-nb-seg" aria-label={BUCKET_LABELS[segment.bucket]}>
           <div className="app-nb-seg-head">

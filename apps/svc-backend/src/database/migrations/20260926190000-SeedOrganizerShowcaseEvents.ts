@@ -4,23 +4,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  * Fifteen published events for each organizer account that already exists, so the cabinet list
  * is not a single row. Titles are stable: a second run inserts nothing that is already there.
  */
-const SHOWCASE_TITLES = [
-  "Вечер джаза на Патриарших",
-  "Ночной забег по набережной",
-  "Экскурсия по Замоскворечью",
-  "Субботник в парке Горького",
-  "Выставка молодой графики",
-  "Йога на Воробьёвых горах",
-  "Лекция о городе",
-  "Велопрогулка по Яузе",
-  "Мастерская керамики",
-  "Поход в Коломенское",
-  "Концерт во дворе",
-  "Сбор корма для приюта",
-  "Турнир по настольному теннису",
-  "Рассвет на Воробьёвых",
-  "Книжный клуб в библиотеке",
-] as const;
+const SHOWCASE_TITLES = ["Вечер джаза на Патриарших", "Ночной забег по набережной", "Экскурсия по Замоскворечью", "Субботник в парке Горького", "Выставка молодой графики", "Йога на Воробьёвых горах", "Лекция о городе", "Велопрогулка по Яузе", "Мастерская керамики", "Поход в Коломенское", "Концерт во дворе", "Сбор корма для приюта", "Турнир по настольному теннису", "Рассвет на Воробьёвых", "Книжный клуб в библиотеке"] as const;
 
 export class SeedOrganizerShowcaseEvents20260926190000 implements MigrationInterface {
   name = "SeedOrganizerShowcaseEvents20260926190000";

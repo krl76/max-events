@@ -295,8 +295,20 @@ function FinanceChart({ points }: { points: FinancePoint[] }) {
         {[0, 1, 2, 3].map((row) => (
           <line key={row} x1="0" x2="100" y1={row * (100 / 3)} y2={row * (100 / 3)} className="app-fin-grid" />
         ))}
-        <path d={smoothPath(points.map((point) => point.income), max)} className="app-fin-line app-fin-line--income" />
-        <path d={smoothPath(points.map((point) => point.payout), max)} className="app-fin-line app-fin-line--payout" />
+        <path
+          d={smoothPath(
+            points.map((point) => point.income),
+            max,
+          )}
+          className="app-fin-line app-fin-line--income"
+        />
+        <path
+          d={smoothPath(
+            points.map((point) => point.payout),
+            max,
+          )}
+          className="app-fin-line app-fin-line--payout"
+        />
       </svg>
     </div>
   );
@@ -365,7 +377,16 @@ export function OrganizerFinance() {
         <p className="app-fin-available">{formatRub(view.availableRub)}</p>
         <label className="app-fin-field">
           <span className="app-fin-field-label">Сумма</span>
-          <input className="app-fin-field-input" inputMode="numeric" placeholder="0" value={amount} onChange={(change) => { setAmount(change.target.value); setBlock(null); }} />
+          <input
+            className="app-fin-field-input"
+            inputMode="numeric"
+            placeholder="0"
+            value={amount}
+            onChange={(change) => {
+              setAmount(change.target.value);
+              setBlock(null);
+            }}
+          />
         </label>
         {block !== null && <p className="app-fin-block">{block}</p>}
         <button type="button" className="app-fin-withdraw" onClick={submitWithdrawal}>
@@ -386,8 +407,18 @@ export function OrganizerFinance() {
           Назад
         </button>
         <h1 className="app-fin-title">Все операции</h1>
-        <p className="app-fin-lead">{FINANCE_SCOPES.find((item) => item.id === scope)?.label} · {period} дней</p>
-        {view.operations.length === 0 ? <p className="app-fin-empty">Операций за этот период нет.</p> : <ul className="app-fin-ops">{view.operations.map((row) => <OperationRow key={row.id} row={row} />)}</ul>}
+        <p className="app-fin-lead">
+          {FINANCE_SCOPES.find((item) => item.id === scope)?.label} · {period} дней
+        </p>
+        {view.operations.length === 0 ? (
+          <p className="app-fin-empty">Операций за этот период нет.</p>
+        ) : (
+          <ul className="app-fin-ops">
+            {view.operations.map((row) => (
+              <OperationRow key={row.id} row={row} />
+            ))}
+          </ul>
+        )}
       </section>
     );
   }
@@ -461,8 +492,23 @@ export function OrganizerFinance() {
           Все →
         </button>
       </div>
-      {preview.length === 0 ? <p className="app-fin-empty">Операций за этот период нет.</p> : <ul className="app-fin-ops">{preview.map((row) => <OperationRow key={row.id} row={row} />)}</ul>}
-      <button type="button" className="app-fin-withdraw" onClick={() => { setBlock(null); setScreen("withdraw"); }}>
+      {preview.length === 0 ? (
+        <p className="app-fin-empty">Операций за этот период нет.</p>
+      ) : (
+        <ul className="app-fin-ops">
+          {preview.map((row) => (
+            <OperationRow key={row.id} row={row} />
+          ))}
+        </ul>
+      )}
+      <button
+        type="button"
+        className="app-fin-withdraw"
+        onClick={() => {
+          setBlock(null);
+          setScreen("withdraw");
+        }}
+      >
         <span className="app-fin-withdraw-plus" aria-hidden="true">
           <ActionIcon name="plus" size={16} strokeWidth={2.6} />
         </span>

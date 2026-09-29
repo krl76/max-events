@@ -1,6 +1,5 @@
 import { BadRequestException, Controller, Get, NotFoundException, Param, Query, StreamableFile } from "@nestjs/common";
 import { Public } from "../auth/auth.guard";
-import { isKudagoCover } from "../events/kudago";
 
 const SEED = /^[A-Za-z0-9._-]{1,80}$/;
 const cache = new Map<string, { type: string; bytes: Buffer }>();
@@ -29,23 +28,6 @@ export class MediaController {
     const type = upstream.headers.get("content-type")?.split(";")[0] ?? "image/jpeg";
     if (cache.size > 200) cache.clear();
     cache.set(key, { type, bytes });
-    return new StreamableFile(bytes, { type });
-  }
-
-  /** KudaGo covers are not on our origin. The phone webview loads them through this path. */
-  @Public()
-  @Get("cover")
-  async cover(@Query("src") src?: string): Promise<StreamableFile> {
-    if (!src || !isKudagoCover(src)) throw new BadRequestException("Invalid photo");
-    const hit = cache.get(src);
-    if (hit) return new StreamableFile(hit.bytes, { type: hit.type });
-    const upstream = await fetch(src, { redirect: "manual", headers: { accept: "image/*", "user-agent": "max-events/afisha" } });
-    if (!upstream.ok) throw new NotFoundException("Photo unavailable");
-    const type = upstream.headers.get("content-type")?.split(";")[0] ?? "image/jpeg";
-    if (!type.startsWith("image/")) throw new NotFoundException("Photo unavailable");
-    const bytes = Buffer.from(await upstream.arrayBuffer());
-    if (cache.size > 200) cache.clear();
-    cache.set(src, { type, bytes });
     return new StreamableFile(bytes, { type });
   }
 }

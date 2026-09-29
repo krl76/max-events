@@ -16,7 +16,7 @@ describe("DropCollections20260919130000", () => {
     expect(queries[2]).toContain('"collections"');
     queries.length = 0;
     await migration.down(queryRunner);
-    expect(queries[0]).toContain("CREATE TABLE \"collections\"");
+    expect(queries[0]).toContain('CREATE TABLE "collections"');
     expect(queries[2]).toContain("collection_items");
   });
 });

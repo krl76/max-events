@@ -126,10 +126,15 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
     <section className="app-post-compose" aria-label="Публикация поста">
       <header className="app-post-compose-head">
         <span className="app-post-compose-title">Новый пост</span>
-        <button type="button" className="app-post-compose-publish" disabled={state === "publishing"} onClick={() => {
-          if (missing.length === 0) onPublish();
-          else textRef.current?.focus();
-        }}>
+        <button
+          type="button"
+          className="app-post-compose-publish"
+          disabled={state === "publishing"}
+          onClick={() => {
+            if (missing.length === 0) onPublish();
+            else textRef.current?.focus();
+          }}
+        >
           {publishLabel}
         </button>
       </header>
@@ -180,11 +185,7 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
         <div className="app-post-compose-rows">
           <div className="app-post-compose-row app-post-compose-row--event">
             <button type="button" className="app-post-compose-row-hit" onClick={() => setPickingEvent(true)}>
-              {boundEvent === null ? (
-                <span className="app-post-compose-row-media" aria-hidden="true" />
-              ) : (
-                <AppMedia category={boundEvent.category} src={pictured(boundEvent.id, boundEvent.coverUrl)} className="app-post-compose-thumb" />
-              )}
+              {boundEvent === null ? <span className="app-post-compose-row-media" aria-hidden="true" /> : <AppMedia category={boundEvent.category} src={pictured(boundEvent.id, boundEvent.coverUrl)} className="app-post-compose-thumb" />}
               <span className="app-post-compose-row-text">
                 <span className="app-post-compose-row-title">{boundEvent === null ? "Привязать событие" : boundEvent.title}</span>
                 <span className="app-post-compose-row-note">{boundEvent === null ? "Фото, дата и место — в окне выбора" : postEventLine(boundEvent.startsAt)}</span>
@@ -265,18 +266,19 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
           </div>
         </div>
 
-        {draft.eventId !== null && <div className="app-post-compose-join">
-          <span className="app-post-compose-join-text">
-            <span className="app-post-compose-join-title">Запись с поста</span>
-            <span className="app-post-compose-join-note">Друг нажимает «Я пойду» прямо здесь</span>
-          </span>
-          <button type="button" role="switch" aria-checked={draft.allowJoin} aria-label="Запись с поста" className={draft.allowJoin ? "app-post-compose-switch app-post-compose-switch--on" : "app-post-compose-switch"} onClick={() => onDraft({ ...draft, allowJoin: !draft.allowJoin })}>
-            <span className="app-post-compose-switch-knob" aria-hidden="true" />
-          </button>
-        </div>}
+        {draft.eventId !== null && (
+          <div className="app-post-compose-join">
+            <span className="app-post-compose-join-text">
+              <span className="app-post-compose-join-title">Запись с поста</span>
+              <span className="app-post-compose-join-note">Друг нажимает «Я пойду» прямо здесь</span>
+            </span>
+            <button type="button" role="switch" aria-checked={draft.allowJoin} aria-label="Запись с поста" className={draft.allowJoin ? "app-post-compose-switch app-post-compose-switch--on" : "app-post-compose-switch"} onClick={() => onDraft({ ...draft, allowJoin: !draft.allowJoin })}>
+              <span className="app-post-compose-switch-knob" aria-hidden="true" />
+            </button>
+          </div>
+        )}
         {state === "error" && <p className="app-post-compose-error">Не удалось опубликовать пост. Попробуйте ещё раз.</p>}
       </div>
-
     </section>
   );
 }

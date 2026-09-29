@@ -172,7 +172,7 @@ function readIdArray(content: string): string[] {
     if (typeof item === "string") ids.push(item);
   }
   return ids;
- }
+}
 
 function mergeKnownIds(ranked: readonly string[], input: readonly string[]): string[] {
   const known = new Set(input);

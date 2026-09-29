@@ -76,14 +76,37 @@ export function WhenField({ value, label, onChange }: { value: string; label: st
           <div className="app-when-dials">
             <div className="app-when-dial" role="listbox" aria-label="Час">
               {Array.from({ length: 24 }, (_, index) => (
-                <button key={index} type="button" role="option" aria-selected={hour === index} className={hour === index ? "app-when-tick app-when-tick--on" : "app-when-tick"} onClick={() => { setHour(index); if (value !== "") onChange(whenValue(new Date(cursor.getFullYear(), cursor.getMonth(), parsed.getDate(), index, minute))); }}>
+                <button
+                  key={index}
+                  type="button"
+                  role="option"
+                  aria-selected={hour === index}
+                  className={hour === index ? "app-when-tick app-when-tick--on" : "app-when-tick"}
+                  onClick={() => {
+                    setHour(index);
+                    if (value !== "") onChange(whenValue(new Date(cursor.getFullYear(), cursor.getMonth(), parsed.getDate(), index, minute)));
+                  }}
+                >
                   {pad(index)}
                 </button>
               ))}
             </div>
             <div className="app-when-dial" role="listbox" aria-label="Минуты">
               {Array.from({ length: 12 }, (_, index) => index * 5).map((step) => (
-                <button key={step} type="button" role="option" aria-selected={minute === step} className={minute === step ? "app-when-tick app-when-tick--on" : "app-when-tick"} onClick={() => { setMinute(step); if (value !== "") { onChange(whenValue(new Date(cursor.getFullYear(), cursor.getMonth(), parsed.getDate(), hour, step))); setOpen(false); } }}>
+                <button
+                  key={step}
+                  type="button"
+                  role="option"
+                  aria-selected={minute === step}
+                  className={minute === step ? "app-when-tick app-when-tick--on" : "app-when-tick"}
+                  onClick={() => {
+                    setMinute(step);
+                    if (value !== "") {
+                      onChange(whenValue(new Date(cursor.getFullYear(), cursor.getMonth(), parsed.getDate(), hour, step)));
+                      setOpen(false);
+                    }
+                  }}
+                >
                   {pad(step)}
                 </button>
               ))}

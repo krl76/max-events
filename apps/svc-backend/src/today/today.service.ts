@@ -137,7 +137,7 @@ const INTEREST_CATEGORIES: Record<string, readonly EventEntity["category"][]> = 
   йога: ["sport"],
   "на природе": ["tourism"],
   "с детьми": ["afisha", "tourism"],
-  "волонтёрство": ["volunteering"],
+  волонтёрство: ["volunteering"],
 };
 
 function matchesInterests(event: EventEntity, interests: string[]): boolean {

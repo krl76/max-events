@@ -26,7 +26,11 @@ describe("CreateFriendships20260911190000", () => {
 describe("AddFriendshipClose20260921120000", () => {
   it("adds closeFriend and drops it on revert", async () => {
     const queries: string[] = [];
-    const queryRunner = { query: async (sql: string) => { queries.push(sql); } } as unknown as QueryRunner;
+    const queryRunner = {
+      query: async (sql: string) => {
+        queries.push(sql);
+      },
+    } as unknown as QueryRunner;
     const migration = new AddFriendshipClose20260921120000();
     await migration.up(queryRunner);
     expect(queries[0]).toContain("closeFriend");

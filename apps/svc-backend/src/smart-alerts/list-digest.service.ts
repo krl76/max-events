@@ -151,7 +151,7 @@ export class ListDigestService {
         const fingerprint = digestFingerprint(nearbyIds);
         if (sentFingerprints.has(`${userId}:${fingerprint}`)) continue;
         if (inQuietHours(prefs, now)) continue;
-        const saturdayCount = nearby.filter((row) => moscowDateKey(row.startsAt) === window.saturdayKey).length
+        const saturdayCount = nearby.filter((row) => moscowDateKey(row.startsAt) === window.saturdayKey).length;
         const text = formatListDigestText(nearby.length, saturdayCount);
         try {
           const ok = await this.bot.sendMessage(user.maxUserId, text);

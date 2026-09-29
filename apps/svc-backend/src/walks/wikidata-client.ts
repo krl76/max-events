@@ -3,13 +3,7 @@ import { classIdsFor, parseWikidataRows, type CityWalkCandidate } from "./wikida
 export const WIKIDATA_TIMEOUT_MS = 8_000;
 export const WIKIDATA_SPARQL = "https://query.wikidata.org/sparql";
 
-export async function fetchWikidataCandidates(
-  city: string,
-  interests: readonly string[],
-  fetchImpl: typeof fetch = fetch,
-  now: () => number = Date.now,
-  timeoutMs = WIKIDATA_TIMEOUT_MS,
-): Promise<CityWalkCandidate[]> {
+export async function fetchWikidataCandidates(city: string, interests: readonly string[], fetchImpl: typeof fetch = fetch, now: () => number = Date.now, timeoutMs = WIKIDATA_TIMEOUT_MS): Promise<CityWalkCandidate[]> {
   const classIds = classIdsFor(interests);
   if (classIds.length === 0) return [];
   const startedAt = now();
