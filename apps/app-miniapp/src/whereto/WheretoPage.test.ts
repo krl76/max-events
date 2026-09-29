@@ -82,8 +82,8 @@ describe("подписи выдачи", () => {
   });
 
   it("считает остаток под героем", () => {
-    expect(restLabel(4)).toBe("Ещё четыре под те же ответы");
-    expect(restLabel(1)).toBe("Ещё один под те же ответы");
+    expect(restLabel(4)).toBe("Ещё четыре на выбор");
+    expect(restLabel(1)).toBe("Ещё один на выбор");
   });
 });
 

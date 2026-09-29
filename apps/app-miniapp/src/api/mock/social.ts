@@ -334,7 +334,7 @@ export function createMockMicroEvent(payload: CreateMicroEvent): MicroEvent | "n
     startsAt: payload.startsAt,
     locationText: payload.locationText ?? null,
     placeId,
-    participantsLimit: payload.participantsLimit,
+    participantsLimit: payload.participantsLimit ?? null,
     participantsCount: 1,
     participantIds: [payload.userId],
     participants: mockMicroParticipants([payload.userId]),
@@ -354,7 +354,7 @@ export function joinMockMicroEvent(id: string, userId: string): MicroEvent | nul
   const key = `${userId}:${id}`;
   if (target.status === "cancelled") return "closed";
   if (mockMicroMemberships.has(key)) return target;
-  if (target.participantsCount >= target.participantsLimit) return "full";
+  if (target.participantsLimit !== null && target.participantsCount >= target.participantsLimit) return "full";
   target.participantsCount += 1;
   target.participantIds = [...target.participantIds, userId].sort();
   mockMicroMemberships.add(key);

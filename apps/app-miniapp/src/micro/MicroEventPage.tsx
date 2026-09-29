@@ -100,9 +100,10 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
   const card = state.status === "ready" ? state.card : null;
   const joined = card !== null && viewerId !== null && card.event.participantIds.includes(viewerId);
   const cta = card === null ? null : microCtaState(card.event, joined);
-  const free = card === null ? 0 : card.event.participantsLimit - card.event.participantsCount;
-  const hint = cta === "join" || cta === "joined" ? microSeatsHint(free) : null;
-  const filled = card === null || card.event.participantsLimit === 0 ? 0 : Math.round((card.event.participantsCount / card.event.participantsLimit) * 100);
+  const limit = card?.event.participantsLimit ?? null;
+  const free = card === null || limit === null ? null : limit - card.event.participantsCount;
+  const hint = free !== null && (cta === "join" || cta === "joined") ? microSeatsHint(free) : null;
+  const filled = card === null || limit === null || limit === 0 ? 0 : Math.round((card.event.participantsCount / limit) * 100);
 
   return (
     <section className="app-micro-card">
@@ -127,13 +128,13 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
           </div>
           <div className="app-micro-who">
             <h3 className="app-micro-who-title">Кто идёт</h3>
-            <span className="app-micro-who-count">
-              {card.event.participantsCount} из {card.event.participantsLimit}
-            </span>
+            <span className="app-micro-who-count">{limit === null ? `${card.event.participantsCount} · без лимита` : `${card.event.participantsCount} из ${limit}`}</span>
           </div>
-          <div className="app-micro-gauge" role="img" aria-label={`Занято ${card.event.participantsCount} из ${card.event.participantsLimit}`}>
-            <span className="app-micro-gauge-fill" style={{ width: `${filled}%` }} />
-          </div>
+          {limit !== null && (
+            <div className="app-micro-gauge" role="img" aria-label={`Занято ${card.event.participantsCount} из ${limit}`}>
+              <span className="app-micro-gauge-fill" style={{ width: `${filled}%` }} />
+            </div>
+          )}
           {card.participants.length === 0 ? (
             <p className="app-micro-hint">{card.event.participantsCount === 0 ? "Пока никто не вступил." : `В сборе ${card.event.participantsCount}. Имена подтянутся, когда список обновится.`}</p>
           ) : (

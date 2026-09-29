@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
-// PURPOSE: "Where to go?" suggestions — filter published upcoming events by company, mood and budget, cap at 5.
+// PURPOSE: "Where to go?" suggestions — one mood match first, then other upcoming events that still fit company and budget, five in total.
 // SCOPE: selectWheretoItems on Event DTOs; WheretoService.suggest loads catalog via EventsService.list(dateFrom=now).
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../events/events.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - selectWheretoItems - mood/budget/company filters, sort by startsAt, slice 5
+// - selectWheretoItems - mood matches first, then budget/company fillers, cap 5
 // - WheretoService - suggest(query, now) around EventsService.list
 // END_MODULE_MAP
 
@@ -35,13 +35,21 @@ export class WheretoService {
   }
 }
 
+const WHERETO_PICKS = 5;
+
+function byInterestThenStart(interests: string[]): (left: Event, right: Event) => number {
+  return (left, right) => Number(matchesInterest(right, interests)) - Number(matchesInterest(left, interests)) || left.startsAt.localeCompare(right.startsAt) || left.id.localeCompare(right.id);
+}
+
+/** The mood match stays first. The other seats are filled from later events that still fit the budget and the company, so a quiet evening is not a single card. */
 export function selectWheretoItems(events: Event[], query: WheretoQuery, interests: string[] = []): Event[] {
-  return events
-    .filter((item) => MOOD_CATEGORIES[query.mood].includes(item.category))
-    .filter((item) => matchesBudget(item, query.budget))
-    .filter((item) => matchesCompany(item, query.company))
-    .sort((a, b) => Number(matchesInterest(b, interests)) - Number(matchesInterest(a, interests)) || a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
-    .slice(0, 5);
+  const fits = events.filter((item) => matchesBudget(item, query.budget) && matchesCompany(item, query.company));
+  const order = byInterestThenStart(interests);
+  const strict = fits.filter((item) => MOOD_CATEGORIES[query.mood].includes(item.category)).sort(order);
+  if (strict.length >= WHERETO_PICKS) return strict.slice(0, WHERETO_PICKS);
+  const chosen = new Set(strict.map((item) => item.id));
+  const extra = fits.filter((item) => !chosen.has(item.id)).sort(order);
+  return [...strict, ...extra].slice(0, WHERETO_PICKS);
 }
 
 function matchesInterest(event: Event, interests: string[]): boolean {

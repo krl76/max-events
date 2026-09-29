@@ -19,7 +19,7 @@
 // - wheretoWish - the typed event once it is long enough for MAX AI, otherwise null
 // - answeredRows - the answered questions above the open one, each with its label and value
 // - resultTitle - header of экран 12: «Пять вариантов», spelled out as the design does
-// - restLabel - «Ещё четыре под те же ответы» under the hero card
+// - restLabel - «Ещё четыре на выбор» under the hero card
 // - formatWheretoWhen - «Сегодня 20:00» / «Завтра 21:00» / the full date beyond tomorrow
 // - formatWheretoPrice - «800 ₽» / «бесплатно» / «платно» when the price is missing from a paid event
 // - WheretoView - presentational: the question screen (экран 11) and the result screen (экран 12)
@@ -124,9 +124,9 @@ export function resultTitle(count: number): string {
   return `${word.charAt(0).toUpperCase()}${word.slice(1)} ${pluralRu(count, "вариант", "варианта", "вариантов")}`;
 }
 
-/** «Ещё четыре под те же ответы» — the line between the hero card and the rest of the list. */
+/** «Ещё четыре на выбор» — the line between the main card and the other picks. */
 export function restLabel(count: number): string {
-  return `Ещё ${spelled(count)} под те же ответы`;
+  return `Ещё ${spelled(count)} на выбор`;
 }
 
 const MOSCOW_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Moscow", year: "numeric", month: "2-digit", day: "2-digit" });

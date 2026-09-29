@@ -62,14 +62,25 @@ describe("selectWheretoItems", () => {
   it("maps mood to categories, sorts by start, and caps at 5", () => {
     const active = selectWheretoItems(catalog, query({ mood: "active" }));
     expect(active.map((item) => item.title)).toEqual(["Пробежка", "Прогулка", "Ещё спорт", "Ещё туризм", "Скалодром"]);
-    expect(selectWheretoItems(catalog, query({ mood: "calm" })).map((item) => item.category)).toEqual(["afisha", "afisha", "afisha"]);
+    const calm = selectWheretoItems(catalog, query({ mood: "calm" }));
+    expect(calm.slice(0, 3).every((item) => item.category === "afisha")).toBe(true);
+    expect(calm.map((item) => item.title)).toEqual(["Дорогой концерт", "Платный джаз", "Джаз", "Субботник", "Пробежка"]);
+  });
+
+  it("keeps the mood match first and fills the other seats from events that still fit", () => {
+    const free = selectWheretoItems(catalog, query({ mood: "calm", budget: "free" }));
+    expect(free[0]?.title).toBe("Джаз");
+    expect(free).toHaveLength(5);
+    expect(free.every((item) => !item.isPaid && (item.priceRub === null || item.priceRub === 0))).toBe(true);
   });
 
   it("filters free and under_3000 budgets", () => {
     const free = selectWheretoItems(catalog, query({ mood: "calm", budget: "free" }));
-    expect(free.map((item) => item.title)).toEqual(["Джаз"]);
+    expect(free.map((item) => item.title)).toEqual(["Джаз", "Субботник", "Пробежка", "Прогулка", "Ещё спорт"]);
     const cheap = selectWheretoItems(catalog, query({ mood: "calm", budget: "under_3000" }));
-    expect(cheap.map((item) => item.title)).toEqual(["Платный джаз", "Джаз"]);
+    expect(cheap.slice(0, 2).map((item) => item.title)).toEqual(["Платный джаз", "Джаз"]);
+    expect(cheap.map((item) => item.title)).not.toContain("Дорогой концерт");
+    expect(cheap).toHaveLength(5);
   });
 
   it("applies company constraints for partner and kids", () => {

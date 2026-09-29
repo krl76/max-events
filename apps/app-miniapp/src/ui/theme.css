@@ -830,6 +830,11 @@ html[data-theme="dark"] #root {
 /* Pill-кнопки (AppButton поверх IonButton): primary — заливка brand-blue, нажатие — brand-blue-pressed */
 .app-root .app-btn {
   --border-radius: var(--app-radius-pill);
+  font-weight: 800;
+}
+
+.app-root .app-btn::part(native) {
+  font-weight: 800;
 }
 
 .app-root .app-btn--primary {
@@ -21820,6 +21825,21 @@ button.app-cal-peer-chip {
   color: #ffffff;
 }
 
+.app-when-done {
+  background: var(--app-accent);
+  border: none;
+  border-radius: 16px;
+  color: #ffffff;
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  height: 52px;
+  margin-top: 8px;
+  width: 100%;
+}
+
 .app-pin {
   inset: 0;
   position: fixed;
@@ -22842,8 +22862,7 @@ button.app-story-viewer-author {
   width: 100%;
 }
 
-.app-plan-pin,
-.app-micro-stepper button {
+.app-plan-pin {
   align-items: center;
   background: transparent;
   border: none;
@@ -22915,19 +22934,22 @@ button.app-story-viewer-author {
 
 .app-plan-repeat-option {
   background: var(--app-card);
-  border: none;
+  border: 1px solid var(--app-divider);
   border-radius: 16px;
   color: inherit;
   cursor: pointer;
   font: inherit;
+  font-size: 16px;
   font-weight: 800;
-  min-height: 48px;
-  padding: 0 14px;
+  min-height: 52px;
+  padding: 0 16px;
   text-align: left;
+  width: 100%;
 }
 
 .app-plan-repeat-option--on {
   background: #007aff;
+  border-color: transparent;
   color: #ffffff;
 }
 
@@ -22941,24 +22963,6 @@ button.app-story-viewer-author {
 
 .app-micro-title input {
   font-size: 22px;
-}
-
-.app-micro-stepper {
-  align-items: center;
-  display: flex;
-  gap: 12px;
-}
-
-.app-micro-stepper input {
-  background: transparent;
-  border: none;
-  color: inherit;
-  font: inherit;
-  font-size: 22px;
-  font-weight: 800;
-  outline: none;
-  text-align: center;
-  width: 48px;
 }
 
 .app-post-compose-shot {
@@ -26363,6 +26367,131 @@ html:not([data-theme="dark"]) .app-when-sheet {
   margin-top: 8px;
 }
 
+.app-choose {
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: 18px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 4px;
+  min-height: 76px;
+  padding: 14px 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-choose--static {
+  cursor: default;
+}
+
+.app-choose--cover {
+  background-color: var(--brand-void);
+  background-position: center;
+  background-size: cover;
+  border: none;
+  color: #ffffff;
+  justify-content: flex-end;
+  min-height: 188px;
+  overflow: hidden;
+  padding: 0;
+}
+
+.app-choose-veil {
+  background: linear-gradient(180deg, transparent 0%, rgba(6, 7, 8, 0.78) 72%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 64px 16px 16px;
+  width: 100%;
+}
+
+.app-choose-k {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.app-choose--cover .app-choose-k,
+.app-choose--cover .app-choose-v {
+  color: #ffffff;
+}
+
+.app-choose-v {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.app-choose-v--empty {
+  color: var(--app-text-secondary);
+}
+
+.app-choose-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-choose-input {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-size: 22px;
+  font-weight: 800;
+  outline: none;
+  padding: 0;
+  width: 100%;
+}
+
+.app-choose-input::placeholder {
+  color: var(--app-text-tertiary);
+  font-weight: 800;
+}
+
+.app-choose-input--limit {
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: 16px;
+  font-size: 18px;
+  min-height: 52px;
+  padding: 0 16px;
+}
+
+.app-choose .app-when-open {
+  background: none;
+  border: none;
+  font-size: 18px;
+  font-weight: 800;
+  padding: 0;
+  text-align: left;
+}
+
+.app-choose-go {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: 16px;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  height: 52px;
+  justify-content: center;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.app-choose-go:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
 .app-make {
   gap: 8px;
 }
@@ -26463,10 +26592,6 @@ html:not([data-theme="dark"]) .app-when-sheet {
   min-height: 44px;
   padding: 0;
   text-align: left;
-}
-
-.app-make .app-micro-stepper {
-  margin-left: auto;
 }
 
 /* Лента выходит из полей экрана целиком: overflow на .app-feed обрезал отрицательный отступ поста, и по бокам оставалась белая полоса. */

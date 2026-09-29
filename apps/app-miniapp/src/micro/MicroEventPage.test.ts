@@ -82,7 +82,7 @@ describe("MicroEventView", () => {
     const html = view({ status: "ready", card: seeded });
 
     expect(html).toContain("Иду");
-    expect(html).toContain(microSeatsHint(seeded.event.participantsLimit - seeded.event.participantsCount)!);
+    expect(html).toContain(microSeatsHint((seeded.event.participantsLimit ?? 0) - seeded.event.participantsCount)!);
     expect(html).not.toContain("Выйти");
   });
 
@@ -95,7 +95,7 @@ describe("MicroEventView", () => {
   });
 
   it("closes the card with «Мест нет» when the limit is reached", () => {
-    const full = withEvent({ participantsCount: seeded.event.participantsLimit, participantIds: mockFriends.slice(0, seeded.event.participantsLimit).map((friend) => friend.id) });
+    const full = withEvent({ participantsCount: seeded.event.participantsLimit ?? 0, participantIds: mockFriends.slice(0, seeded.event.participantsLimit ?? 0).map((friend) => friend.id) });
     const html = view({ status: "ready", card: full });
 
     expect(html).toContain("Мест нет");

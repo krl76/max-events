@@ -38,7 +38,7 @@ describe("MicroCard", () => {
   });
 
   it("disables joining when the counter reached the limit", () => {
-    const full = { ...events[0], participantsCount: events[0].participantsLimit };
+    const full = { ...events[0], participantsCount: events[0].participantsLimit ?? 0 };
     const html = renderToStaticMarkup(createElement(MicroCard, { item: full, places: mockPlaces, joined: false, onJoin: noop, onLeave: noop }));
 
     expect(html).toContain("Мест нет");
@@ -47,13 +47,13 @@ describe("MicroCard", () => {
 });
 
 describe("microDraftReady", () => {
-  it("requires every one of the four fields with a positive limit", () => {
+  it("requires the meeting itself and treats an empty limit as no cap", () => {
     expect(microDraftReady(readyDraft)).toBe(true);
     expect(microDraftReady({ ...readyDraft, title: "  " })).toBe(false);
     expect(microDraftReady({ ...readyDraft, when: "" })).toBe(false);
     expect(microDraftReady({ ...readyDraft, where: "" })).toBe(false);
     expect(microDraftReady({ ...readyDraft, limit: "0" })).toBe(false);
-    expect(microDraftReady({ ...readyDraft, limit: "" })).toBe(false);
+    expect(microDraftReady({ ...readyDraft, limit: "" })).toBe(true);
   });
 });
 
@@ -96,7 +96,7 @@ describe("joinedMicroEvents", () => {
 
   it("keeps only what is joined and still ahead, soonest first", () => {
     // Заполненный сбор не принимает новых, поэтому в своих оказываются только те, где ещё есть место.
-    const all = microEvents().filter((item) => item.participantsCount < item.participantsLimit);
+    const all = microEvents().filter((item) => item.participantsLimit === null || item.participantsCount < item.participantsLimit);
     for (const item of all) joinMockMicroEvent(item.id, mockDemoUser.id);
     const byStart = [...all].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
 

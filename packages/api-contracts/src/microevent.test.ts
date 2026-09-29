@@ -37,6 +37,10 @@ describe("MicroEventSchema", () => {
     expect(MicroEventSchema.safeParse({ ...microEvent, participantsCount: 7 }).success).toBe(false);
   });
 
+  it("accepts a gathering with no participant limit", () => {
+    expect(MicroEventSchema.parse({ ...microEvent, participantsLimit: null }).participantsLimit).toBeNull();
+  });
+
   it("defaults participantsCount to zero", () => {
     const fresh = { ...microEvent, participantsCount: undefined, participantIds: undefined };
     expect(MicroEventSchema.parse(fresh).participantsCount).toBe(0);

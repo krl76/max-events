@@ -280,10 +280,11 @@ describe("buildDemoData", () => {
     const microEventIds = new Set(data.microEvents.map((microEvent) => microEvent.id));
     for (const microEvent of data.microEvents) {
       expect(userIds.has(microEvent.authorId)).toBe(true);
-      expect(microEvent.participantsLimit).toBeGreaterThan(0);
+      expect(microEvent.participantsLimit).not.toBeNull();
+      expect(microEvent.participantsLimit ?? 0).toBeGreaterThan(0);
       expect(microEvent.startsAt.getTime()).toBeGreaterThan(now.getTime());
       // MicroEventSchema отвергает запись, где участников больше лимита, и весь список отвечает 500.
-      expect(data.microEventParticipants.filter((row) => row.microEventId === microEvent.id).length).toBeLessThanOrEqual(microEvent.participantsLimit);
+      expect(data.microEventParticipants.filter((row) => row.microEventId === microEvent.id).length).toBeLessThanOrEqual(microEvent.participantsLimit ?? 0);
     }
     const microPairs = new Set<string>();
     for (const participant of data.microEventParticipants) {

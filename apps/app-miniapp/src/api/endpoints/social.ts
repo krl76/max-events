@@ -39,7 +39,7 @@ export interface CreateMicroEvent {
   startsAt: string;
   locationText?: string;
   placeId?: string;
-  participantsLimit: number;
+  participantsLimit?: number | null;
   inviteeIds?: string[];
 }
 

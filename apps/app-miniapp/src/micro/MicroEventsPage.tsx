@@ -133,7 +133,7 @@ export type MicroCtaState = "join" | "joined" | "full" | "cancelled";
 export function microCtaState(item: MicroEvent, joined: boolean): MicroCtaState {
   if (item.status === "cancelled") return "cancelled";
   if (joined) return "joined";
-  return item.participantsCount >= item.participantsLimit ? "full" : "join";
+  return item.participantsLimit !== null && item.participantsCount >= item.participantsLimit ? "full" : "join";
 }
 
 /** The design stacks three faces at most; the counter next to them carries the rest. */
@@ -162,6 +162,7 @@ interface MicroRowProps {
 
 /** Free seats said positively: an empty gathering reads as an invitation, not as a dead «0 из 8». */
 export function microSeatsLine(item: MicroEvent): string {
+  if (item.participantsLimit === null) return "без лимита";
   const free = item.participantsLimit - item.participantsCount;
   if (free <= 0) return "мест нет";
   const form = free === 1 ? "место" : free < 5 ? "места" : "мест";

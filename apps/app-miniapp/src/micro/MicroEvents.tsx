@@ -13,8 +13,8 @@
 // - MyMicroEventsSection - «Микро-события» block of the calendar: what the viewer signed up for, with the leave action
 // - MicroSection - container: loads open micro events and the places list, wires join/leave, the create CTA and the «Все» link to экран 24
 // - MicroDraft - creation form draft (title, when, where, limit)
-// - microDraftReady - the four fields are filled with a positive limit
-// - MicroEventCreateView - presentational four-field form with the place datalist
+// - microDraftReady - title, when and where are filled; a limit is optional and, when set, at least 1
+// - MicroEventCreateView - presentational chooser: what, when, where, who, and an optional limit
 // - MicroEventCreatePage - route container: author id from the auth context, places via apiClient, draft state, publish via createMicroEvent
 // END_MODULE_MAP
 
@@ -48,7 +48,7 @@ interface MicroCardProps {
 }
 
 export function MicroCard({ item, places, joined, onJoin, onLeave, onOpen }: MicroCardProps) {
-  const full = item.participantsCount >= item.participantsLimit;
+  const full = item.participantsLimit !== null && item.participantsCount >= item.participantsLimit;
   const body = (
     <>
       <span className="app-card-title">
@@ -57,7 +57,7 @@ export function MicroCard({ item, places, joined, onJoin, onLeave, onOpen }: Mic
       <span className="app-card-subtitle">{formatStartsAt(item.startsAt)}</span>
       <span className="app-card-subtitle">{microWhere(item, places)}</span>
       <span className="app-card-subtitle">
-        {item.participantsCount}/{item.participantsLimit} участников
+        {item.participantsLimit === null ? `${item.participantsCount} · без лимита` : `${item.participantsCount}/${item.participantsLimit} участников`}
       </span>
     </>
   );
@@ -269,7 +269,9 @@ export interface MicroDraft {
 }
 
 export function microDraftReady(draft: MicroDraft): boolean {
-  return draft.title.trim() !== "" && draft.when !== "" && draft.where.trim() !== "" && Number(draft.limit) >= 1;
+  const limit = draft.limit.trim();
+  const limitOk = limit === "" || (Number.isInteger(Number(limit)) && Number(limit) >= 1);
+  return draft.title.trim() !== "" && draft.when !== "" && draft.where.trim() !== "" && limitOk;
 }
 
 interface MicroEventCreateViewProps {
@@ -286,50 +288,75 @@ interface MicroEventCreateViewProps {
   onSubmit: () => void;
 }
 
+const LIMIT_PRESETS = ["", "6", "12"] as const;
+
 export function MicroEventCreateView({ draft, places, friends = [], inviteeIds = [], submitting, failed, onChange, onInvite, onInviteMax, onSubmit }: MicroEventCreateViewProps) {
   const [pickingPlace, setPickingPlace] = useState(false);
   const [pickingFriends, setPickingFriends] = useState(false);
+  const [ownLimit, setOwnLimit] = useState(() => !LIMIT_PRESETS.includes(draft.limit as (typeof LIMIT_PRESETS)[number]));
   const ready = microDraftReady(draft);
-  const limit = Math.max(1, Number(draft.limit) || 1);
+  const whereEmpty = draft.where.trim() === "";
+  const peopleEmpty = inviteeIds.length === 0;
+  const pickLimit = (value: string) => {
+    setOwnLimit(false);
+    onChange("limit", value);
+  };
   return (
-    <section className="app-micro-build app-make" aria-label="Своя встреча">
-      <p className="app-make-lead">Своя встреча, не из афиши.</p>
-      <label className="app-make-row">
-        <span className="app-make-k">Что делаем</span>
-        <input aria-label="Что делаем" placeholder="Баскетбол, настолки, каток" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
+    <section className="app-micro-build" aria-label="Своя встреча">
+      <p className="app-make-lead">Своя встреча. Лимит — только если он нужен.</p>
+      <label className="app-choose app-choose--static">
+        <span className="app-choose-k">Что делаем</span>
+        <input className="app-choose-input" aria-label="Что делаем" placeholder="Баскетбол, настолки, каток" value={draft.title} onChange={(change) => onChange("title", change.target.value)} />
       </label>
-      <div className="app-make-row">
-        <span className="app-make-k">Когда</span>
-        <WhenField label="Выбрать" value={draft.when} onChange={(value) => onChange("when", value)} />
+      <div className="app-choose app-choose--static">
+        <span className="app-choose-k">Когда</span>
+        <WhenField title="Когда" label="Выбрать" value={draft.when} onChange={(value) => onChange("when", value)} />
       </div>
-      <button type="button" className="app-make-row" onClick={() => setPickingPlace(true)}>
-        <span className="app-make-k">Где</span>
-        <span className="app-make-v">{draft.where.trim() === "" ? "Адрес или карта" : placePinTitle(draft.where)}</span>
+      <button type="button" className="app-choose" onClick={() => setPickingPlace(true)}>
+        <span className="app-choose-k">Где</span>
+        <span className={whereEmpty ? "app-choose-v app-choose-v--empty" : "app-choose-v"}>{whereEmpty ? "Адрес или карта" : placePinTitle(draft.where)}</span>
       </button>
-      <label className="app-make-row">
-        <span className="app-make-k">Лимит участников</span>
-        <span className="app-micro-stepper">
-          <button type="button" aria-label="Меньше людей" onClick={() => onChange("limit", String(Math.max(1, limit - 1)))}>
-            −
-          </button>
-          <input aria-label="Лимит участников" inputMode="numeric" value={draft.limit} onChange={(change) => onChange("limit", change.target.value.replace(/\D/g, "").slice(0, 3))} />
-          <button type="button" aria-label="Больше людей" onClick={() => onChange("limit", String(limit + 1))}>
-            +
-          </button>
-        </span>
-      </label>
-      <button type="button" className="app-make-row" onClick={() => setPickingFriends(true)}>
-        <span className="app-make-k">Кто</span>
-        <span className="app-make-v">Пригласить друзей{inviteeIds.length > 0 ? ` · ${inviteeIds.length}` : ""}</span>
+      <button type="button" className="app-choose" onClick={() => setPickingFriends(true)}>
+        <span className="app-choose-k">Кто</span>
+        <span className={peopleEmpty ? "app-choose-v app-choose-v--empty" : "app-choose-v"}>{peopleEmpty ? "Пригласить друзей" : `Пригласить друзей · ${inviteeIds.length}`}</span>
       </button>
+      <div className="app-choose-group">
+        <span className="app-choose-k">Сколько человек</span>
+        <div className="app-plan-repeat" role="radiogroup" aria-label="Лимит участников">
+          {(
+            [
+              ["", "Без лимита"],
+              ["6", "До 6"],
+              ["12", "До 12"],
+            ] as const
+          ).map(([value, label]) => (
+            <button key={label} type="button" role="radio" aria-checked={!ownLimit && draft.limit === value} className={!ownLimit && draft.limit === value ? "app-plan-repeat-option app-plan-repeat-option--on" : "app-plan-repeat-option"} onClick={() => pickLimit(value)}>
+              {label}
+            </button>
+          ))}
+          <button
+            type="button"
+            role="radio"
+            aria-checked={ownLimit}
+            className={ownLimit ? "app-plan-repeat-option app-plan-repeat-option--on" : "app-plan-repeat-option"}
+            onClick={() => {
+              setOwnLimit(true);
+              if (LIMIT_PRESETS.includes(draft.limit as (typeof LIMIT_PRESETS)[number])) onChange("limit", "");
+            }}
+          >
+            Своё число
+          </button>
+        </div>
+        {ownLimit && <input className="app-choose-input app-choose-input--limit" aria-label="Своё число мест" inputMode="numeric" placeholder="Сколько мест" value={draft.limit} onChange={(change) => onChange("limit", change.target.value.replace(/\D/g, "").slice(0, 3))} />}
+      </div>
       {onInviteMax !== undefined && (
         <button type="button" className="app-make-link" onClick={onInviteMax}>
           Пригласить в MAX
         </button>
       )}
-      <AppButton disabled={submitting || !ready} onClick={onSubmit} stretched>
+      <button type="button" className="app-choose-go" disabled={submitting || !ready} onClick={onSubmit}>
         {submitting ? "Публикуем…" : "Создать микрособытие"}
-      </AppButton>
+      </button>
       {failed && <AppState error>Не удалось опубликовать микро-событие.</AppState>}
       {pickingPlace && (
         <PlaceSheet
@@ -363,7 +390,7 @@ export function MicroEventCreatePage() {
   const auth = useAuth();
   const userId = auth.status === "authenticated" ? auth.user.id : null;
   const { navigate } = useRoute();
-  const [draft, setDraft] = useState<MicroDraft>({ title: "", when: "", where: "", limit: "6" });
+  const [draft, setDraft] = useState<MicroDraft>({ title: "", when: "", where: "", limit: "" });
   const [places, setPlaces] = useState<Place[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [inviteeIds, setInviteeIds] = useState<string[]>([]);
@@ -400,7 +427,7 @@ export function MicroEventCreatePage() {
         title: draft.title.trim(),
         startsAt: new Date(draft.when).toISOString(),
         ...(place ? { placeId: place.id } : { locationText: draft.where.trim() }),
-        participantsLimit: Number(draft.limit),
+        ...(draft.limit.trim() === "" ? { participantsLimit: null } : { participantsLimit: Number(draft.limit) }),
         inviteeIds,
       })
       .then(

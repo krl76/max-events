@@ -34,8 +34,8 @@ export class MicroEventEntity {
   @Column({ type: "uuid", nullable: true })
   placeId!: string | null;
 
-  @Column({ type: "int" })
-  participantsLimit!: number;
+  @Column({ type: "int", nullable: true })
+  participantsLimit!: number | null;
 
   @Column({ type: "varchar", default: "open" })
   status!: MicroEventStatus;

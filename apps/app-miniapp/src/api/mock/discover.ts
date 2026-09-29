@@ -312,20 +312,20 @@ function mockMoscowHour(startsAt: string): number {
   return Number(hour ?? "0");
 }
 
-/** Backend selectWheretoItems parity: mood -> categories, budget (!isPaid free / <=3000 under_3000), company soft filters, upcoming from MOCK_NOW, soonest first, max 5 (fixtures carry no published flag); the distance on each card is the mock's own (#504). */
+/** Backend selectWheretoItems parity: mood matches first, then other upcoming events that still fit budget and company, soonest inside each group, max 5. */
 export function wheretoSuggestions(query: WheretoQuery, origin: { latitude: number; longitude: number } = MOCK_TODAY_ORIGIN, now: Date = MOCK_NOW): WheretoPicks {
   const moodCategories: Record<WheretoMood, EventCategory[]> = { active: ["sport", "tourism"], calm: ["afisha"], unusual: ["volunteering", "tourism"] };
-  return {
-    items: mockEvents
-      .filter((item) => new Date(item.startsAt).getTime() >= now.getTime())
-      .filter((item) => moodCategories[query.mood].includes(item.category))
-      .filter((item) => query.budget === "any" || !item.isPaid || (query.budget === "under_3000" && item.priceRub !== null && item.priceRub <= 3000))
-      .filter((item) => query.company !== "partner" || item.category !== "volunteering")
-      .filter((item) => query.company !== "kids" || (item.priceRub ?? 0) <= 3000)
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id))
-      .slice(0, 5)
-      .map((item) => ({ ...item, distanceKm: mockEventDistanceKm(item, origin) })),
-  };
+  const byStart = (left: (typeof mockEvents)[number], right: (typeof mockEvents)[number]) => left.startsAt.localeCompare(right.startsAt) || left.id.localeCompare(right.id);
+  const pool = mockEvents
+    .filter((item) => new Date(item.startsAt).getTime() >= now.getTime())
+    .filter((item) => query.budget === "any" || !item.isPaid || (query.budget === "under_3000" && item.priceRub !== null && item.priceRub <= 3000))
+    .filter((item) => query.company !== "partner" || item.category !== "volunteering")
+    .filter((item) => query.company !== "kids" || (item.priceRub ?? 0) <= 3000)
+    .sort(byStart);
+  const strict = pool.filter((item) => moodCategories[query.mood].includes(item.category));
+  const chosen = new Set(strict.map((item) => item.id));
+  const items = [...strict, ...pool.filter((item) => !chosen.has(item.id))].slice(0, 5);
+  return { items: items.map((item) => ({ ...item, distanceKm: mockEventDistanceKm(item, origin) })) };
 }
 
 /** Backend matchAssistEvents parity: events from MOCK_NOW filtered by the parsed criteria, soonest first, max 7 (fixtures carry no published flag). */

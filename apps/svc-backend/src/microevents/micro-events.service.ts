@@ -126,7 +126,7 @@ export class MicroEventsService implements OnModuleInit {
         startsAt: new Date(payload.startsAt),
         locationText: payload.locationText ?? null,
         placeId: payload.placeId ?? null,
-        participantsLimit: payload.participantsLimit,
+        participantsLimit: payload.participantsLimit ?? null,
         status: "open",
         published: true,
       }),
@@ -186,7 +186,7 @@ export class MicroEventsService implements OnModuleInit {
       const taken = await manager.find(MicroEventParticipantEntity, { where: { microEventId: id } });
       const ids = taken.map((row) => row.userId);
       if (ids.includes(userId)) return toMicroEventDto(event, ids, await this.friendsOf(ids));
-      if (ids.length >= event.participantsLimit) throw new ConflictException("No seats left");
+      if (event.participantsLimit !== null && ids.length >= event.participantsLimit) throw new ConflictException("No seats left");
       await manager.save(MicroEventParticipantEntity, manager.create(MicroEventParticipantEntity, { microEventId: id, userId }));
       const next = [...ids, userId];
       return toMicroEventDto(event, next, await this.friendsOf(next));

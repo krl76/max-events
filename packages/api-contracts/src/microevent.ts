@@ -30,7 +30,7 @@ export const MicroEventSchema = z
     startsAt: TimestampSchema,
     locationText: z.string().min(1).max(300).nullable().default(null),
     placeId: IdSchema.nullable().default(null),
-    participantsLimit: z.number().int().min(1),
+    participantsLimit: z.number().int().min(1).nullable(),
     participantsCount: z.number().int().min(0).default(0),
     // Who is in, so a client can tell whether the current user joined instead of guessing.
     participantIds: z.array(IdSchema).default([]),
@@ -42,7 +42,7 @@ export const MicroEventSchema = z
     message: "micro-event location must be exactly one of locationText or placeId",
     path: ["locationText"],
   })
-  .refine((data) => data.participantsCount <= data.participantsLimit, {
+  .refine((data) => data.participantsLimit === null || data.participantsCount <= data.participantsLimit, {
     message: "participantsCount cannot exceed participantsLimit",
     path: ["participantsCount"],
   })
@@ -58,7 +58,7 @@ export const CreateMicroEventWriteSchema = z
     startsAt: TimestampSchema,
     locationText: z.string().min(1).max(300).nullable().optional(),
     placeId: IdSchema.nullable().optional(),
-    participantsLimit: z.number().int().min(1),
+    participantsLimit: z.number().int().min(1).nullable().optional(),
     inviteeIds: z.array(IdSchema).max(30).optional(),
   })
   .refine((data) => (data.locationText != null) !== (data.placeId != null), {

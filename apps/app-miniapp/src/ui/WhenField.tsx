@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
@@ -29,91 +30,104 @@ function monthCells(cursor: Date): Array<{ day: number; outside: boolean }> {
   return cells;
 }
 
-export function WhenField({ value, label, onChange }: { value: string; label: string; onChange: (value: string) => void }) {
+export function WhenField({ value, label, title, onChange }: { value: string; label: string; title?: string; onChange: (value: string) => void }) {
   const parsed = value === "" || Number.isNaN(new Date(value).getTime()) ? new Date() : new Date(value);
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(() => new Date(parsed.getFullYear(), parsed.getMonth(), 1));
   const [hour, setHour] = useState(parsed.getHours());
   const [minute, setMinute] = useState(parsed.getMinutes() - (parsed.getMinutes() % 5));
+  const host = typeof document === "undefined" ? null : (document.querySelector(".app-root") ?? document.body);
 
   const pickDay = (day: number) => {
     const next = new Date(cursor.getFullYear(), cursor.getMonth(), day, hour, minute);
     onChange(whenValue(next));
   };
 
+  const sheet =
+    open && host !== null
+      ? createPortal(
+          <div className="app-picker" role="dialog" aria-modal="true" aria-label={title ?? label}>
+            <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={() => setOpen(false)} />
+            <div className="app-picker-sheet">
+              <div className="app-picker-head">
+                <h2 className="app-picker-title">{title ?? label}</h2>
+              </div>
+              <div className="app-when-month">
+                <button type="button" aria-label="Предыдущий месяц" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}>
+                  ‹
+                </button>
+                <span>{cursor.toLocaleString("ru-RU", { month: "long", year: "numeric" })}</span>
+                <button type="button" aria-label="Следующий месяц" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}>
+                  ›
+                </button>
+              </div>
+              <div className="app-when-week">
+                {WEEKDAYS.map((day) => (
+                  <span key={day}>{day}</span>
+                ))}
+              </div>
+              <div className="app-when-grid">
+                {monthCells(cursor).map((cell, index) =>
+                  cell.outside ? (
+                    <span key={`out-${index}`} className="app-when-day app-when-day--out" />
+                  ) : (
+                    <button key={cell.day} type="button" className={parsed.getDate() === cell.day && parsed.getMonth() === cursor.getMonth() && value !== "" ? "app-when-day app-when-day--on" : "app-when-day"} onClick={() => pickDay(cell.day)}>
+                      {cell.day}
+                    </button>
+                  ),
+                )}
+              </div>
+              <div className="app-when-dials">
+                <div className="app-when-dial" role="listbox" aria-label="Час">
+                  {Array.from({ length: 24 }, (_, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      role="option"
+                      aria-selected={hour === index}
+                      className={hour === index ? "app-when-tick app-when-tick--on" : "app-when-tick"}
+                      onClick={() => {
+                        setHour(index);
+                        if (value !== "") onChange(whenValue(new Date(cursor.getFullYear(), cursor.getMonth(), parsed.getDate(), index, minute)));
+                      }}
+                    >
+                      {pad(index)}
+                    </button>
+                  ))}
+                </div>
+                <div className="app-when-dial" role="listbox" aria-label="Минуты">
+                  {Array.from({ length: 12 }, (_, index) => index * 5).map((step) => (
+                    <button
+                      key={step}
+                      type="button"
+                      role="option"
+                      aria-selected={minute === step}
+                      className={minute === step ? "app-when-tick app-when-tick--on" : "app-when-tick"}
+                      onClick={() => {
+                        setMinute(step);
+                        if (value !== "") onChange(whenValue(new Date(cursor.getFullYear(), cursor.getMonth(), parsed.getDate(), hour, step)));
+                      }}
+                    >
+                      {pad(step)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button type="button" className="app-when-done" onClick={() => setOpen(false)}>
+                Готово
+              </button>
+            </div>
+          </div>,
+          host,
+        )
+      : null;
+
   return (
     <div className="app-when">
       <button type="button" className={value === "" ? "app-when-open app-when-open--empty" : "app-when-open"} aria-expanded={open} onClick={() => setOpen((current) => !current)}>
         {value === "" ? label : whenLabel(value)}
       </button>
-      {open && (
-        <div className="app-when-sheet" role="dialog" aria-label={label}>
-          <div className="app-when-month">
-            <button type="button" aria-label="Предыдущий месяц" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}>
-              ‹
-            </button>
-            <span>{cursor.toLocaleString("ru-RU", { month: "long", year: "numeric" })}</span>
-            <button type="button" aria-label="Следующий месяц" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}>
-              ›
-            </button>
-          </div>
-          <div className="app-when-week">
-            {WEEKDAYS.map((day) => (
-              <span key={day}>{day}</span>
-            ))}
-          </div>
-          <div className="app-when-grid">
-            {monthCells(cursor).map((cell, index) =>
-              cell.outside ? (
-                <span key={`out-${index}`} className="app-when-day app-when-day--out" />
-              ) : (
-                <button key={cell.day} type="button" className={parsed.getDate() === cell.day && parsed.getMonth() === cursor.getMonth() && value !== "" ? "app-when-day app-when-day--on" : "app-when-day"} onClick={() => pickDay(cell.day)}>
-                  {cell.day}
-                </button>
-              ),
-            )}
-          </div>
-          <div className="app-when-dials">
-            <div className="app-when-dial" role="listbox" aria-label="Час">
-              {Array.from({ length: 24 }, (_, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  role="option"
-                  aria-selected={hour === index}
-                  className={hour === index ? "app-when-tick app-when-tick--on" : "app-when-tick"}
-                  onClick={() => {
-                    setHour(index);
-                    if (value !== "") onChange(whenValue(new Date(cursor.getFullYear(), cursor.getMonth(), parsed.getDate(), index, minute)));
-                  }}
-                >
-                  {pad(index)}
-                </button>
-              ))}
-            </div>
-            <div className="app-when-dial" role="listbox" aria-label="Минуты">
-              {Array.from({ length: 12 }, (_, index) => index * 5).map((step) => (
-                <button
-                  key={step}
-                  type="button"
-                  role="option"
-                  aria-selected={minute === step}
-                  className={minute === step ? "app-when-tick app-when-tick--on" : "app-when-tick"}
-                  onClick={() => {
-                    setMinute(step);
-                    if (value !== "") {
-                      onChange(whenValue(new Date(cursor.getFullYear(), cursor.getMonth(), parsed.getDate(), hour, step)));
-                      setOpen(false);
-                    }
-                  }}
-                >
-                  {pad(step)}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {sheet}
     </div>
   );
 }

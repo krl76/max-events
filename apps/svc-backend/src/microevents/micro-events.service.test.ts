@@ -86,6 +86,15 @@ describe("MicroEventsService", () => {
     expect(listed).toHaveLength(1);
   });
 
+  it("leaves the door open when the gathering has no limit", async () => {
+    const { service } = createService();
+    const created = await service.create(author, { title: "Прогулка", startsAt: now.toISOString(), locationText: "парк", participantsLimit: null });
+    expect(created.participantsLimit).toBeNull();
+    await service.join(other, created.id);
+    const again = await service.join(third, created.id);
+    expect(again.participantsCount).toBe(3);
+  });
+
   it("enforces the participant limit on join", async () => {
     const { service } = createService();
     const created = await service.create(author, { title: "Баскетбол", startsAt: now.toISOString(), locationText: "двор", participantsLimit: 2 });

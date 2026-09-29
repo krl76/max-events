@@ -83,7 +83,9 @@ export function socialRoutes(url: URL, init: RequestInit | undefined): Response 
   }
   if (url.pathname === "/api/micro-events" && init?.method === "POST") {
     const payload = parseBookingBody(init) as CreateMicroEvent | undefined;
-    if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || typeof payload.title !== "string" || typeof payload.startsAt !== "string" || typeof payload.participantsLimit !== "number") return new Response(null, { status: 400 });
+    const limit = payload?.participantsLimit;
+    const limitOk = limit === undefined || limit === null || typeof limit === "number";
+    if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string" || typeof payload.title !== "string" || typeof payload.startsAt !== "string" || !limitOk) return new Response(null, { status: 400 });
     const result = createMockMicroEvent(payload);
     return result === "no_place" ? new Response(null, { status: 404 }) : result === "invalid" ? new Response(null, { status: 400 }) : Response.json(result);
   }
