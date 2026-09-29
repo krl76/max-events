@@ -53,7 +53,8 @@ export const MAX_FEED_PHOTO_URL_LENGTH = 16_000;
  * reader of the feed — or a `javascript:`/`data:text/html` value waiting for the first careless sink.
  */
 const PHOTO_URL_PATTERN = /^(data:image\/|https:\/\/)/;
-const photoUrlSchema = z.string().url().max(MAX_FEED_PHOTO_URL_LENGTH).regex(PHOTO_URL_PATTERN, "photo must be an image data URL or an https URL");
+const LOCAL_PHOTO_PATTERN = /^\/(?:covers|onboarding|api\/(?:media|uploads))\//;
+const photoUrlSchema = z.union([z.string().url().max(MAX_FEED_PHOTO_URL_LENGTH).regex(PHOTO_URL_PATTERN, "photo must be an image data URL or an https URL"), z.string().max(300).regex(LOCAL_PHOTO_PATTERN, "photo must be a same-origin cover")]);
 
 export const FeedCommentSchema = z.object({
   id: IdSchema,

@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
-import { ListPresetSchema } from "@max-events/api-contracts";
 import { EventEntity } from "../events/event.entity";
 import { FeedPostEntity } from "../feed/feed-post.entity";
 import { PlaceEntity } from "../places/place.entity";
@@ -93,11 +92,11 @@ function uniqueViolation(): QueryFailedError {
 }
 
 describe("ListsService", () => {
-  it("creates the six README presets on first list and keeps them on rerun", async () => {
+  it("creates the two shelves on first list and keeps them on rerun", async () => {
     const { service } = createService();
     const first = await service.list(userId);
-    expect(first.map((row) => row.list.preset)).toEqual([...ListPresetSchema.options]);
-    expect(first.map((row) => row.list.title)).toEqual(Object.values(LIST_PRESET_TITLES));
+    expect(first.map((row) => row.list.preset)).toEqual(["want_to_go", "favorites"]);
+    expect(first.map((row) => row.list.title)).toEqual(["Хочу сходить", "Избранное"]);
     expect(first.every((row) => row.itemsCount === 0 && row.savedItemId === null && row.participants.length === 0)).toBe(true);
     const second = await service.list(userId);
     expect(second.map((row) => row.list.id)).toEqual(first.map((row) => row.list.id));
@@ -111,7 +110,7 @@ describe("ListsService", () => {
 
     expect(created).toMatchObject({ preset: null, title: "Сводить маму" });
     // Presets first, the user's own after them — the order the screen reads top down.
-    expect(summaries.map((row) => row.list.preset)).toEqual([...ListPresetSchema.options, null]);
+    expect(summaries.map((row) => row.list.preset)).toEqual(["want_to_go", "favorites", null]);
     expect(summaries.at(-1)!.list.id).toBe(created.id);
   });
 
@@ -216,14 +215,14 @@ describe("ListsService", () => {
 
   it("forbids another user from mutating a list", async () => {
     const { service } = createService();
-    const want = (await service.list(userId)).find((row) => row.list.preset === "weekend")!;
+    const want = (await service.list(userId)).find((row) => row.list.preset === "want_to_go")!;
     await expect(service.addEvent(otherUserId, want.list.id, eventId)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("adds a place to a list and rewrites stale preset titles on read", async () => {
     const { service } = createService();
-    const want = (await service.list(userId)).find((row) => row.list.preset === "weekend")!;
-    expect(want.list.title).toBe("Выходные");
+    const want = (await service.list(userId)).find((row) => row.list.preset === "favorites")!;
+    expect(want.list.title).toBe("Избранное");
     const item = await service.addPlace(userId, want.list.id, placeId);
     expect(item.placeId).toBe(placeId);
     expect(item.eventId).toBeNull();

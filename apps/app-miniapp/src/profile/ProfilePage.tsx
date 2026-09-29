@@ -18,7 +18,7 @@
 // - listsHint - «6 готовых полок и 3 своих»; a zero half and an empty list are omitted
 // - achievementsHint - «1 из 4 собрано»; nothing collected yet has no hint
 // - weGroupsHint - «3 активные компании»; none open has no hint
-// - friendsHint - «24 из чатов MAX»; zero friends has no hint
+// - friendsHint - «25 друзей»; zero friends has no hint
 // - visitsLabel - «12 визитов» under an impression cell
 // - ProfileRow - one entry row: icon tile, title, counter hint, chevron
 // - ProfilePostGrid - the post grid of the profile with its three states: the tiles, the invitation to publish, the loading placeholders
@@ -155,7 +155,7 @@ export function weGroupsHint(groups: WeGroupScreen[]): string | null {
 
 export function friendsHint(friends: number): string | null {
   if (friends <= 0) return null;
-  return `${friends} из чатов MAX`;
+  return `${friends} ${pluralRu(friends, "друг", "друга", "друзей")}`;
 }
 
 export function visitsLabel(visits: number): string {

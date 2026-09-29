@@ -18,7 +18,9 @@ describe("feed post photo", () => {
 
     expect(FeedPostSchema.parse({ ...post, photoUrl: dataUrl }).photoUrl).toBe(dataUrl);
     expect(FeedPostSchema.parse({ ...post, photoUrl: "https://cdn.example.com/p.jpg" }).photoUrl).toBe("https://cdn.example.com/p.jpg");
+    expect(FeedPostSchema.parse({ ...post, photoUrl: "/covers/visits/tsaritsyno-me.jpg" }).photoUrl).toBe("/covers/visits/tsaritsyno-me.jpg");
     expect(FeedPostSchema.safeParse({ ...post, photoUrl: "нет" }).success).toBe(false);
+    expect(FeedPostSchema.safeParse({ ...post, photoUrl: "/etc/passwd" }).success).toBe(false);
   });
 
   it("caps the photo at the payload budget", () => {

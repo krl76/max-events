@@ -8,5 +8,5 @@ test("event page opens from a catalog card with the action panel", async ({ page
   await page.getByRole("button", { name: /Вечер Рахманинова.*Москва/ }).click();
   await expect(page.locator(".app-header-title")).toHaveText("Событие");
   await expect(page.getByRole("button", { name: "Записаться" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Я здесь" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Собрать план" })).toBeVisible();
 });

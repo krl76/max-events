@@ -13,18 +13,17 @@
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import type { MicroEvent, PlanCard } from "@max-events/api-contracts";
+import type { Event, Friend, MicroEvent } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { planWhenPlace } from "../plans/PlansPage";
-import { pictured } from "../ui/photos";
+import { showPhoto } from "../ui/photos";
 import type { Route } from "../routing/router";
 import { useRoute } from "../routing/router";
-import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { ActionIcon } from "../ui/icons";
 import { AppSection } from "../ui/primitives";
 
 export interface CreateEntry {
-  icon: ActionIconName;
+  image: string;
   label: string;
   description: string;
   route: Route;
@@ -32,11 +31,20 @@ export interface CreateEntry {
 
 /** Макет, экран 03: «Создать» opens публикация — история (05), пост (06), план. The micro-event joins them: it is the fourth thing a viewer publishes. */
 export const CREATE_ENTRIES: CreateEntry[] = [
-  { icon: "clock", label: "История", description: "Кадр, который друзья увидят сутки", route: { name: "story-new" } },
-  { icon: "comment", label: "Пост", description: "Фото и мысль к событию", route: { name: "feed-new", eventId: null } },
-  { icon: "bookmark", label: "План", description: "Собрать вечер из афиши", route: { name: "plan-new" } },
-  { icon: "user", label: "Микро-событие", description: "Короткая встреча со своими", route: { name: "micro-new" } },
+  { image: "/covers/visits/gorky-me.jpg", label: "История", description: "Кадр, который друзья увидят сутки", route: { name: "story-new" } },
+  { image: "/covers/visits/museum.jpg", label: "Пост", description: "Фото и мысль к событию", route: { name: "feed-new", eventId: null } },
+  { image: "/covers/concert.jpg", label: "План", description: "Собрать вечер из афиши", route: { name: "plan-new" } },
+  { image: "/covers/visits/cleanup.jpg", label: "Микро-событие", description: "Короткая встреча со своими", route: { name: "micro-new" } },
 ];
+
+const FACE_CAP = 4;
+
+export function eventWhen(startsAt: string): string {
+  const date = new Date(startsAt);
+  const day = date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  const time = date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  return `${day}, ${time}`;
+}
 
 export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
   return (
@@ -44,9 +52,7 @@ export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
       <div className="app-create-board">
         {CREATE_ENTRIES.map((entry, index) => (
           <button key={entry.label} type="button" className={`app-create-card app-create-card--${index}`} onClick={() => onPick(entry.route)}>
-            <span className="app-create-card-art" aria-hidden="true">
-              <ActionIcon name={entry.icon} size={22} />
-            </span>
+            <img className="app-create-card-photo" alt="" src={entry.image} />
             <span className="app-create-card-copy">
               <span className="app-create-card-label">{entry.label}</span>
               <span className="app-create-card-line">{entry.description}</span>
@@ -58,23 +64,45 @@ export function CreateView({ onPick }: { onPick: (route: Route) => void }) {
   );
 }
 
-export function CreateContinue({ plans, micros, onOpenPlan, onOpenMicro }: { plans: PlanCard[]; micros: MicroEvent[]; onOpenPlan: (id: string) => void; onOpenMicro: (id: string) => void }) {
-  if (plans.length === 0 && micros.length === 0) return null;
+function FaceRow({ people }: { people: readonly Friend[] }) {
+  const shown = people.slice(0, FACE_CAP);
+  const rest = people.length - shown.length;
+  if (shown.length === 0) return null;
+  return (
+    <span className="app-create-faces" aria-hidden="true">
+      {shown.map((person) => {
+        const face = showPhoto(person.avatarUrl);
+        return (
+          <span key={person.id} className="app-create-face">
+            {face ? <img alt="" src={face} /> : person.name.slice(0, 1)}
+          </span>
+        );
+      })}
+      {rest > 0 && <span className="app-create-faces-more">+{rest}</span>}
+    </span>
+  );
+}
+
+export function CreateContinue({ events, micros, onOpenEvent, onOpenMicro }: { events: Event[]; micros: MicroEvent[]; onOpenEvent: (id: string) => void; onOpenMicro: (id: string) => void }) {
+  if (events.length === 0 && micros.length === 0) return null;
   return (
     <div className="app-create-live">
-      {plans.length > 0 && (
+      {events.length > 0 && (
         <>
-          <p className="app-create-live-title">Ближайшие планы</p>
-          {plans.slice(0, 3).map((card) => (
-            <button key={card.plan.id} type="button" className="app-create-live-row" onClick={() => onOpenPlan(card.plan.id)}>
-              <img alt="" src={pictured(card.event.id, card.event.coverUrl)} />
-              <span className="app-create-live-copy">
-                <strong>{card.event.title}</strong>
-                <span>{planWhenPlace(card.plan)}</span>
-              </span>
-              <ActionIcon name="chevron" size={16} />
-            </button>
-          ))}
+          <p className="app-create-live-title">Ближайшие события</p>
+          {events.slice(0, 3).map((event) => {
+            const photo = showPhoto(event.coverUrl);
+            return (
+              <button key={event.id} type="button" className="app-create-live-row" onClick={() => onOpenEvent(event.id)}>
+                {photo ? <img alt="" src={photo} /> : <span className={`app-create-live-photo app-media--${event.category}`} />}
+                <span className="app-create-live-copy">
+                  <strong>{event.title}</strong>
+                  <span>{eventWhen(event.startsAt)}</span>
+                </span>
+                <ActionIcon name="chevron" size={16} />
+              </button>
+            );
+          })}
         </>
       )}
       {micros.length > 0 && (
@@ -84,10 +112,9 @@ export function CreateContinue({ plans, micros, onOpenPlan, onOpenMicro }: { pla
             <button key={item.id} type="button" className="app-create-live-row" onClick={() => onOpenMicro(item.id)}>
               <span className="app-create-live-copy">
                 <strong>{item.title}</strong>
-                <span>
-                  {item.participantsCount}/{item.participantsLimit} · присоединиться
-                </span>
+                <span>{eventWhen(item.startsAt)}</span>
               </span>
+              <FaceRow people={item.participants ?? []} />
               <ActionIcon name="chevron" size={16} />
             </button>
           ))}
@@ -100,14 +127,20 @@ export function CreateContinue({ plans, micros, onOpenPlan, onOpenMicro }: { pla
 export function CreatePage() {
   const { navigate } = useRoute();
   const auth = useAuth();
-  const [plans, setPlans] = useState<PlanCard[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [micros, setMicros] = useState<MicroEvent[]>([]);
 
   useEffect(() => {
     let alive = true;
-    apiClient.listPlans().then(
+    apiClient.listEvents().then(
       (list) => {
-        if (alive) setPlans(list.filter((card) => Date.parse(card.plan.meetingAt) >= Date.now()).slice(0, 3));
+        if (!alive) return;
+        setEvents(
+          list
+            .filter((event) => Date.parse(event.startsAt) >= Date.now())
+            .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))
+            .slice(0, 3),
+        );
       },
       () => {},
     );
@@ -127,7 +160,7 @@ export function CreatePage() {
   return (
     <>
       <CreateView onPick={navigate} />
-      <CreateContinue plans={plans} micros={micros} onOpenPlan={(id) => navigate({ name: "plan", id })} onOpenMicro={(id) => navigate({ name: "micro-event", id })} />
+      <CreateContinue events={events} micros={micros} onOpenEvent={(id) => navigate({ name: "event", id })} onOpenMicro={(id) => navigate({ name: "micro-event", id })} />
     </>
   );
 }

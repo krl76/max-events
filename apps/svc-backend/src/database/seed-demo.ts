@@ -26,7 +26,7 @@
 
 import "reflect-metadata";
 import { fakerRU } from "@faker-js/faker";
-import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, ListPresetSchema, type AchievementCode, type BookingStatus, type EventCategory, type GatheringStatus, type InviteeResponse, type ListPreset, type MicroEventStatus, type ParticipationStatus, type PaymentStatus, type PlaceCategory, type PlanParticipantStatus, type PromoCampaignStatus, type PromoCampaignType, type PromotionStatus, type PromotionType, type ReportReason, type ReportSource, type ReportStatus, type ReportTargetType, type WaitlistStatus, type WeGroupStatus } from "@max-events/api-contracts";
+import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, type AchievementCode, type BookingStatus, type EventCategory, type GatheringStatus, type InviteeResponse, type ListPreset, type MicroEventStatus, type ParticipationStatus, type PaymentStatus, type PlaceCategory, type PlanParticipantStatus, type PromoCampaignStatus, type PromoCampaignType, type PromotionStatus, type PromotionType, type ReportReason, type ReportSource, type ReportStatus, type ReportTargetType, type WaitlistStatus, type WeGroupStatus } from "@max-events/api-contracts";
 import type { DataSource, ObjectLiteral, Repository } from "typeorm";
 import { ACHIEVEMENT_CATALOG } from "../achievements/achievements.service";
 import { UserAchievementEntity } from "../achievements/user-achievement.entity";
@@ -39,7 +39,7 @@ import { GatheringEntity } from "../gatherings/gathering.entity";
 import { GatheringInviteeEntity } from "../gatherings/gathering-invitee.entity";
 import { ListItemEntity } from "../lists/list-item.entity";
 import { ListEntity } from "../lists/list.entity";
-import { LIST_PRESET_TITLES } from "../lists/lists.service";
+import { LIST_PRESET_TITLES, SHELF_PRESETS } from "../lists/lists.service";
 import { MicroEventEntity, MicroEventParticipantEntity } from "../microevents/micro-event.entity";
 import { districtKey } from "../mycity/my-city.service";
 import { DEFAULT_COMMISSION_BPS, splitTicketSale } from "../payments/commission";
@@ -410,7 +410,7 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
   const cancelledBookingEvent = takeBookingEvent(nextFuture);
 
   // Списки (37, 39): шесть пресетов с содержимым и один собственный список.
-  const lists: ListEntity[] = ListPresetSchema.options.map((preset: ListPreset) => ({ id: uuid(), userId: viewerId, preset, title: LIST_PRESET_TITLES[preset], visibility: "private", createdAt: shiftDays(now, -int(14, 40), 12), updatedAt: shiftDays(now, -int(1, 9), 12) }));
+  const lists: ListEntity[] = SHELF_PRESETS.map((preset: ListPreset) => ({ id: uuid(), userId: viewerId, preset, title: LIST_PRESET_TITLES[preset], visibility: "private", createdAt: shiftDays(now, -int(14, 40), 12), updatedAt: shiftDays(now, -int(1, 9), 12) }));
   lists.push({ id: uuid(), userId: viewerId, preset: null, title: VIEWER_CUSTOM_LIST_TITLE, visibility: "private", createdAt: shiftDays(now, -12, 12), updatedAt: shiftDays(now, -2, 12) });
   const listItems: ListItemEntity[] = [];
   const listTargets = new Set<string>();
@@ -990,8 +990,8 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     });
   }
 
-  // lists: the six preset lists of the demo owner
-  const lists: ListEntity[] = ListPresetSchema.options.map((preset: ListPreset) => ({
+  // lists: the two shelves of the demo owner
+  const lists: ListEntity[] = SHELF_PRESETS.map((preset: ListPreset) => ({
     id: uuid(),
     userId: ownerUserId,
     preset,

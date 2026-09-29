@@ -34,6 +34,7 @@ describe("AutoPlanView", () => {
     const html = viewHtml({ status: "idle" });
 
     expect(html).toContain("Собрать план");
+    expect(html).not.toContain("План на вечер");
     expect(html).not.toContain("Открыть план");
   });
 

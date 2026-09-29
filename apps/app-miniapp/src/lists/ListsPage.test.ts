@@ -44,8 +44,8 @@ describe("list labels", () => {
   it("counts the lists of one's own against the ceiling, presets excluded", () => {
     const shared = summary({ list: { ...list, id: "70000000-0000-4000-8000-0000000000c0", preset: null, title: "Куда с родителями" }, participants: [me, anna] });
 
-    expect(ownListsCounter([summary(), own, shared])).toBe("2 из 20");
-    expect(ownListsCounter([summary()])).toBe("0 из 20");
+    expect(ownListsCounter([summary(), own, shared])).toBe(2);
+    expect(ownListsCounter([summary()])).toBe(0);
   });
 
   it("puts the weekday and time before the entry condition", () => {
@@ -85,7 +85,7 @@ describe("ListsView", () => {
 
     expect(html).toContain("ГОТОВЫЕ ПОЛКИ");
     expect(html).toContain("МОИ СПИСКИ");
-    expect(html).toContain("1 из 20");
+    expect(html).not.toContain("из 20");
     expect(html).toContain("Хочу сходить");
     expect(html).toContain("Джаз по четвергам");
     expect(html).toContain("2 события");

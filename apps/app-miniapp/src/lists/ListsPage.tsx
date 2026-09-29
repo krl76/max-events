@@ -25,7 +25,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Event, Friend, List, ListVisibility } from "@max-events/api-contracts";
-import { ApiError, apiClient, type ListItemCard, type ListScreen, type ListSummary } from "../api/client";
+import { apiClient, type ListItemCard, type ListScreen, type ListSummary } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { shareResult, webApp, type ShareChannel } from "../max/bridge";
@@ -35,8 +35,10 @@ import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { useRoute } from "../routing/router";
 
-/** Mirrors MAX_CUSTOM_LISTS on the backend: the number the 409 is about and the number «3 из 20» counts up to. */
-const MAX_OWN_LISTS = 20;
+/** Mirrors MAX_CUSTOM_LISTS. The screen never prints the number. */
+const MAX_OWN_LISTS = 6;
+
+const SHELF_PRESETS = new Set(["want_to_go", "favorites"]);
 
 /** The design draws two faces per stack; a third would not fit the 36px corner of a tile. */
 const MAX_FACES = 2;
@@ -62,9 +64,9 @@ export function listCountLabel(count: number): string {
   return count === 0 ? "Пусто" : `${count} ${pluralRu(count, "событие", "события", "событий")}`;
 }
 
-/** The counter counts the tiles below it: every list without a preset, shared collections included. */
-export function ownListsCounter(summaries: ListSummary[]): string {
-  return `${summaries.filter((summary) => summary.list.preset === null).length} из ${MAX_OWN_LISTS}`;
+/** How many lists the person made, presets excluded. Shared collections count: they are not shelves. */
+export function ownListsCounter(summaries: ListSummary[]): number {
+  return summaries.filter((summary) => summary.list.preset === null).length;
 }
 
 /** «Сб 12:00 · 700 ₽» — the weekday and time of the event, then the entry condition. */
@@ -146,14 +148,15 @@ interface ListsViewProps {
 }
 
 export function ListsView({ state, onOpen, topbar = false, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, onCreateCancel = () => {}, busy = false, error = null, onToggleVisibility }: ListsViewProps) {
-  const presets = state.status === "ready" ? state.summaries.filter((summary) => summary.list.preset !== null) : [];
+  const presets = state.status === "ready" ? state.summaries.filter((summary) => summary.list.preset !== null && SHELF_PRESETS.has(summary.list.preset)) : [];
   const own = state.status === "ready" ? state.summaries.filter((summary) => summary.list.preset === null) : [];
+  const canCreate = own.length < MAX_OWN_LISTS;
   return (
     <section className="app-lists-screen" aria-label="Списки">
       {topbar && (
         <div className="app-lists-bar">
           <h1 className="app-lists-bar-title">Списки</h1>
-          <button type="button" className="app-lists-create" onClick={onCreateStart} disabled={busy}>
+          <button type="button" className="app-lists-create" onClick={onCreateStart} disabled={busy || !canCreate}>
             <ActionIcon name="plus" size={16} strokeWidth={2.8} />
             Создать
           </button>
@@ -190,16 +193,17 @@ export function ListsView({ state, onOpen, topbar = false, creating = false, new
           </div>
           <div className="app-lists-head">
             <span className="app-lists-head-label">МОИ СПИСКИ</span>
-            <span className="app-lists-head-count">{ownListsCounter(state.summaries)}</span>
           </div>
           <div className="app-lists-grid">
             {own.map((summary) => (
               <ListTile key={summary.list.id} summary={summary} onOpen={onOpen} onToggleVisibility={onToggleVisibility} />
             ))}
-            <button type="button" className="app-lists-new" onClick={onCreateStart} disabled={busy}>
-              <ActionIcon name="plus" size={20} strokeWidth={2.8} />
-              <span>Новый список</span>
-            </button>
+            {canCreate && (
+              <button type="button" className="app-lists-new" onClick={onCreateStart} disabled={busy}>
+                <ActionIcon name="plus" size={20} strokeWidth={2.8} />
+                <span>Новый список</span>
+              </button>
+            )}
           </div>
         </>
       )}
@@ -250,10 +254,8 @@ export function ListsPage({ topbar = false, userId: subjectId }: { topbar?: bool
         // The counters and the order come from the server, not from guesswork.
         setReloads((value) => value + 1);
       },
-      (reason: unknown) => {
-        // The ceiling has its own answer: «не удалось» would leave the user tapping a button that
-        // cannot ever work.
-        setError(reason instanceof ApiError && reason.status === 409 ? `Больше ${MAX_OWN_LISTS} своих списков не получится` : "Не удалось создать список.");
+      () => {
+        setError("Не удалось создать список.");
         setBusy(false);
       },
     );

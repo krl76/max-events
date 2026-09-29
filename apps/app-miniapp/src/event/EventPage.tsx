@@ -114,7 +114,6 @@ interface EventExtrasProps {
   paymentBusy: boolean;
   paymentFailed: boolean;
   onPay: () => void;
-  onCheckIn: () => void;
   onChanged: () => void;
   onCreatePost: () => void;
 }
@@ -126,16 +125,11 @@ interface EventExtrasProps {
  * report (#167). They sit under the design blocks rather than between them, so the card reads in the
  * order the design gives it.
  */
-export function EventExtras({ details, eventId, userId, payment, paymentBusy, paymentFailed, onPay, onCheckIn, onChanged, onCreatePost }: EventExtrasProps) {
+export function EventExtras({ details, eventId, userId, payment, paymentBusy, paymentFailed, onPay, onChanged, onCreatePost }: EventExtrasProps) {
   return (
     <div className="app-ev-extras">
       <PaymentSection payment={payment} busy={paymentBusy} error={paymentFailed} onPay={onPay} />
       {details.remainingSeats === 0 && details.activeBookingId === null && <WaitlistSection eventId={eventId} userId={userId} onChanged={onChanged} />}
-      <div className="app-ev-secondary">
-        <button type="button" className="app-ev-secondary-btn" disabled={details.checkInId !== null} onClick={onCheckIn}>
-          {details.checkInId !== null ? "Вы были здесь" : "Я здесь"}
-        </button>
-      </div>
       <FeedSection eventId={eventId} onCreate={onCreatePost} />
       <ReviewSection eventId={eventId} userId={userId} canReview={details.activeBookingId !== null && new Date(details.event.startsAt).getTime() < Date.now()} />
       <ReportButton target={{ eventId }} userId={userId} />
@@ -283,11 +277,6 @@ export function EventPage({ id }: { id: string }) {
     loadPayment(activeBookingId, true);
   }, [activeBookingId, paymentBusy, loadPayment]);
 
-  const checkIn = useCallback(() => {
-    if (userId === null) return;
-    apiClient.createCheckIn({ userId, eventId: id }).then(refetch, refetch);
-  }, [userId, id, refetch]);
-
   const joinWaitlist = useCallback(() => {
     if (userId === null) return;
     apiClient.joinWaitlist(id, userId).then(
@@ -338,13 +327,13 @@ export function EventPage({ id }: { id: string }) {
       {place !== null && <EventRouteCard address={place.address} hint={place.title} travel={travel} fromCenter={!travelPoint.fromViewer} onRoute={() => navigate({ name: "map", placeId: place.id, drawRoute: true })} />}
       {companions !== null && <EventWhoGoesRow companions={companions} onOpen={() => navigate({ name: "companions", eventId: id })} />}
       <EventOrganizerCard name={organizerName} eventsCount={details.organizerEventsCount ?? null} rating={rating} subscribe={details.organizer === null ? null : <SubscribeToggle target={{ type: "organizer", organizerUserId: details.organizer.id }} subscribeLabel="Подписаться" unsubscribeLabel="Отписаться" />} brief />
+      <AutoPlanSection eventId={id} />
       <details className="app-ev-more">
         <summary>Ещё о событии</summary>
         {forecast !== null && <EventForecastCard forecast={forecast} />}
-        <AutoPlanSection eventId={id} />
         <EventMoodTags tags={moods} />
         <EventNearbyList spots={nearby} onOpen={(spotId) => navigate({ name: "place", id: spotId })} />
-        <EventExtras details={details} eventId={id} userId={userId} payment={currentPayment} paymentBusy={paymentBusy} paymentFailed={paymentError !== null && paymentError === details.activeBookingId} onPay={pay} onCheckIn={checkIn} onChanged={refetch} onCreatePost={() => navigate({ name: "feed-new", eventId: id })} />
+        <EventExtras details={details} eventId={id} userId={userId} payment={currentPayment} paymentBusy={paymentBusy} paymentFailed={paymentError !== null && paymentError === details.activeBookingId} onPay={pay} onChanged={refetch} onCreatePost={() => navigate({ name: "feed-new", eventId: id })} />
       </details>
       <EventBookingBar details={details} chatLink={event.chatLink} onChat={() => event.chatLink !== null && openChatLink(event.chatLink)} onBook={() => setSheetOpen(true)} />
       {sheetOpen && <BookingSheet details={details} offer={offer} organizerName={organizerName} promo={promo} waitlist={details.remainingSeats === 0 && details.activeBookingId === null ? { ahead: offer?.waitlistAhead ?? 0, joined: queued, onJoin: joinWaitlist } : null} onClose={() => setSheetOpen(false)} onBook={book} onCancel={cancel} />}

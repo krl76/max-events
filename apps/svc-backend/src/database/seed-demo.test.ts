@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EventCategorySchema, ListPresetSchema } from "@max-events/api-contracts";
+import { EventCategorySchema } from "@max-events/api-contracts";
 import { assertLocalDatabaseUrl, buildDemoData, DEMO_COUNTS, parseDemoScale } from "./seed-demo";
 
 const now = new Date("2026-09-16T12:00:00Z");
@@ -74,7 +74,7 @@ describe("buildDemoData", () => {
     expect(data.microEvents.length).toBeGreaterThan(DEMO_COUNTS.normal.microEvents);
     expect(data.subscriptions.length).toBeGreaterThan(DEMO_COUNTS.normal.subscriptions);
     expect(data.waitlistEntries.length).toBeGreaterThan(DEMO_COUNTS.normal.waitlistEntries);
-    expect(data.lists.length).toBeGreaterThan(ListPresetSchema.options.length);
+    expect(data.lists.filter((row) => row.preset !== null).length).toBeGreaterThan(1);
   });
 
   it("scales the tables the viewer does not own with the demo scale", () => {

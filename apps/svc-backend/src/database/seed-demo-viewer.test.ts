@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { ListPresetSchema } from "@max-events/api-contracts";
 import { ACHIEVEMENT_CATALOG } from "../achievements/achievements.service";
 import { buildDemoData } from "./seed-demo";
 
@@ -120,7 +119,7 @@ describe("the viewer's lists, visits and company", () => {
   it("fills every preset list and adds a custom one", () => {
     const data = build();
     const mine = data.lists.filter((row) => row.userId === devUserId);
-    expect(mine.filter((row) => row.preset !== null)).toHaveLength(ListPresetSchema.options.length);
+    expect(mine.filter((row) => row.preset !== null)).toHaveLength(2);
     expect(mine.filter((row) => row.preset === null).length).toBeGreaterThanOrEqual(1);
     for (const list of mine) expect(data.listItems.filter((item) => item.listId === list.id).length).toBeGreaterThanOrEqual(1);
   });

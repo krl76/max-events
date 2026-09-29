@@ -181,7 +181,7 @@ function contactsWord(count: number): string {
 }
 
 export function contactsLine(count: number): string {
-  return `${count} ${contactsWord(count)} из чатов MAX пользуются Афишей. Добавьте их — взаимное добавление делает вас друзьями.`;
+  return `${count} ${contactsWord(count)} уже в Афише. Добавьте их — взаимное добавление делает вас друзьями.`;
 }
 
 export function followCtaLabel(count: number): string {

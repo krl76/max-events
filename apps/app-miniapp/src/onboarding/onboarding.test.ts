@@ -84,7 +84,7 @@ describe("city detection", () => {
 
 describe("onboarding labels", () => {
   it("declines the contact count instead of baking one ending into the string", () => {
-    expect(contactsLine(12)).toMatch(/^12 контактов из чатов MAX пользуются Афишей\./);
+    expect(contactsLine(12)).toMatch(/^12 контактов уже в Афише\./);
     expect(contactsLine(1)).toMatch(/^1 контакт /);
     expect(contactsLine(3)).toMatch(/^3 контакта /);
     expect(contactsLine(11)).toMatch(/^11 контактов /);

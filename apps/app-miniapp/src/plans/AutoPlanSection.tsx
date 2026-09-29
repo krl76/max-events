@@ -17,7 +17,7 @@ import type { AutoPlanProposal } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { useRoute } from "../routing/router";
-import { AppButton, AppTitle, AppState } from "../ui/primitives";
+import { AppState } from "../ui/primitives";
 
 export type AutoPlanState = { status: "idle" } | { status: "loading" } | { status: "error" } | { status: "ready"; proposal: AutoPlanProposal };
 
@@ -27,46 +27,41 @@ export function formatTimelineAt(at: string): string {
 
 export function AutoPlanView({ state, onBuild, onOpenPlan }: { state: AutoPlanState; onBuild: () => void; onOpenPlan: (planId: string) => void }) {
   return (
-    <section className="app-event">
-      <div className="app-event-body">
-        <AppTitle asChild>
-          <h2 className="app-section-title">План на вечер</h2>
-        </AppTitle>
-        {(state.status === "idle" || state.status === "error") && (
-          <AppButton onClick={onBuild} stretched>
-            Собрать план
-          </AppButton>
-        )}
-        {state.status === "error" && <AppState error>Не удалось собрать план.</AppState>}
-        {state.status === "loading" && <AppState>Собираем план…</AppState>}
-        {state.status === "ready" && (
-          <>
-            <ol className="app-plan-participants">
-              {state.proposal.timeline.map((step, index) => (
-                <li key={index} className="app-plan-participant">
-                  {formatTimelineAt(step.at)} · {step.label} — {step.detail}
-                </li>
-              ))}
-            </ol>
-            <p className="app-plan-meeting">{state.proposal.travelMinutes} мин до места</p>
-            {state.proposal.foodPlaces.length > 0 && (
-              <>
-                <AppState>Где поесть рядом:</AppState>
-                <ul className="app-plan-participants">
-                  {state.proposal.foodPlaces.map((place) => (
-                    <li key={place.id} className="app-plan-participant">
-                      {place.title} · {place.address}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <AppButton onClick={() => onOpenPlan(state.proposal.plan.plan.id)} stretched>
-              Открыть план
-            </AppButton>
-          </>
-        )}
-      </div>
+    <section className="app-ev-plan">
+      {(state.status === "idle" || state.status === "error") && (
+        <button type="button" className="app-ev-plan-btn" onClick={onBuild}>
+          Собрать план
+        </button>
+      )}
+      {state.status === "error" && <AppState error>Не удалось собрать план.</AppState>}
+      {state.status === "loading" && <AppState>Собираем план…</AppState>}
+      {state.status === "ready" && (
+        <>
+          <ol className="app-plan-participants">
+            {state.proposal.timeline.map((step, index) => (
+              <li key={index} className="app-plan-participant">
+                {formatTimelineAt(step.at)} · {step.label} — {step.detail}
+              </li>
+            ))}
+          </ol>
+          <p className="app-plan-meeting">{state.proposal.travelMinutes} мин до места</p>
+          {state.proposal.foodPlaces.length > 0 && (
+            <>
+              <AppState>Где поесть рядом:</AppState>
+              <ul className="app-plan-participants">
+                {state.proposal.foodPlaces.map((place) => (
+                  <li key={place.id} className="app-plan-participant">
+                    {place.title} · {place.address}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <button type="button" className="app-ev-plan-btn" onClick={() => onOpenPlan(state.proposal.plan.plan.id)}>
+            Открыть план
+          </button>
+        </>
+      )}
     </section>
   );
 }

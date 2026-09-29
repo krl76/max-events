@@ -16,7 +16,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
-import { ListPresetSchema, type Friend, type List, type ListItem, type ListItemCard, type ListPreset, type ListScreen, type ListSummary } from "@max-events/api-contracts";
+import { type Friend, type List, type ListItem, type ListItemCard, type ListPreset, type ListScreen, type ListSummary } from "@max-events/api-contracts";
 import { toEventDto } from "../events/events.service";
 import { EventEntity } from "../events/event.entity";
 import { FriendsService, toFriendDto } from "../friends/friends.service";
@@ -28,8 +28,14 @@ import { ListItemEntity } from "./list-item.entity";
 import { ListMemberEntity } from "./list-member.entity";
 import { ListEntity } from "./list.entity";
 
+/** The two shelves a person always has. The other preset values stay in the enum for old rows. */
+export const SHELF_PRESETS = ["want_to_go", "favorites"] as const satisfies readonly ListPreset[];
+
+/** Two shelves plus the lists a person creates, and no more. The apps do not print this number. */
+export const MAX_SAVED_CATEGORIES = 8;
+
 /** Nothing else bounds how many lists one user may create, and every list is read on the save sheet. */
-export const MAX_CUSTOM_LISTS = 20;
+export const MAX_CUSTOM_LISTS = MAX_SAVED_CATEGORIES - SHELF_PRESETS.length;
 
 export const LIST_PRESET_TITLES: Record<ListPreset, string> = {
   want_to_go: "Хочу сходить",
@@ -174,7 +180,7 @@ export class ListsService {
   async create(userId: string, title: string): Promise<List> {
     const own = (await this.lists.find({ where: { userId } })).filter((row) => row.preset === null);
     // A ceiling, because nothing else bounds this: the six presets are fixed, these are not.
-    if (own.length >= MAX_CUSTOM_LISTS) throw new ConflictException(`A user may keep at most ${MAX_CUSTOM_LISTS} lists of their own`);
+    if (own.length >= MAX_CUSTOM_LISTS) throw new ConflictException("Cannot create another list");
     return toListDto(await this.lists.save(this.lists.create({ userId, preset: null, title, visibility: "private" })));
   }
 
@@ -238,7 +244,7 @@ export class ListsService {
   private async ensurePresets(userId: string): Promise<ListEntity[]> {
     const existing = (await this.lists.find({ where: { userId } })).filter((row) => row.preset !== null);
     const byPreset = new Map(existing.map((row) => [row.preset, row]));
-    for (const preset of ListPresetSchema.options) {
+    for (const preset of SHELF_PRESETS) {
       const existing = byPreset.get(preset);
       if (existing) {
         if (existing.title !== LIST_PRESET_TITLES[preset]) {
@@ -250,7 +256,7 @@ export class ListsService {
       const saved = await this.lists.save(this.lists.create({ userId, preset, title: LIST_PRESET_TITLES[preset], visibility: "private" }));
       byPreset.set(preset, saved);
     }
-    return ListPresetSchema.options.map((preset) => byPreset.get(preset)!);
+    return SHELF_PRESETS.map((preset) => byPreset.get(preset)!);
   }
 
   private async requireAccessibleList(userId: string, listId: string): Promise<ListEntity> {

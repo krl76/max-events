@@ -3754,16 +3754,53 @@ html[data-theme="dark"] #root {
   transform: scale(0.98);
 }
 
-.app-create-card-art {
-  align-items: center;
-  background: var(--app-surface);
+.app-create-card-photo {
   border-radius: 12px;
-  color: inherit;
+  flex: 1;
+  min-height: 72px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-create-faces {
+  align-items: center;
   display: flex;
   flex: none;
-  height: 36px;
+  gap: 4px;
+}
+
+.app-create-face {
+  align-items: center;
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  border-radius: 999px;
+  color: var(--app-text);
+  display: flex;
+  font-size: 11px;
+  font-weight: 800;
+  height: 28px;
   justify-content: center;
-  width: 36px;
+  overflow: hidden;
+  width: 28px;
+}
+
+.app-create-face img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.app-create-faces-more {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.app-create-live-photo {
+  border-radius: 10px;
+  flex: none;
+  height: 44px;
+  width: 44px;
 }
 
 .app-create-card-copy {
@@ -3827,7 +3864,7 @@ html[data-theme="dark"] #root {
   width: 100%;
 }
 
-.app-create-live-row img {
+.app-create-live-row > img {
   border-radius: 10px;
   flex: none;
   height: 44px;
@@ -18113,6 +18150,27 @@ button.app-cal-peer-chip {
 
 /* Разделы, которых в макете нет, но функции за ними живые: оплата, автоплан, лист ожидания,
  * стена события, отзыв, отметка «я здесь» и жалоба */
+.app-ev-plan {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0 8px;
+}
+
+.app-ev-plan-btn {
+  background: var(--app-surface);
+  border: 1px solid var(--app-divider);
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  height: 40px;
+  padding: 0 16px;
+}
+
 .app-ev-more {
   border-top: var(--app-hairline);
   margin-top: var(--app-space-m);

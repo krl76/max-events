@@ -217,7 +217,8 @@ describe("row hints", () => {
   });
 
   it("says where the friends came from", () => {
-    expect(friendsHint(24)).toBe("24 из чатов MAX");
+    expect(friendsHint(24)).toBe("24 друга");
+    expect(friendsHint(25)).toBe("25 друзей");
     expect(friendsHint(0)).toBeNull();
   });
 
@@ -376,7 +377,7 @@ describe("ProfileView", () => {
 
     expect(html).toContain("Сохранённое · 1");
     expect(html).not.toContain("Списки");
-    expect(html).toContain("24 из чатов MAX");
+    expect(html).toContain("24 друга");
     expect(html).toContain("1 из 1 собрано");
   });
 

@@ -31,6 +31,7 @@ describe("CreateView", () => {
     for (const entry of CREATE_ENTRIES) {
       expect(html).toContain(entry.label);
       expect(html).toContain(entry.description);
+      expect(html).toContain(entry.image);
     }
   });
 });
