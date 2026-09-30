@@ -135,6 +135,40 @@ export const CABINET_TRAFFIC: Array<{ source: "chats" | "feed" | "search"; perce
 ];
 
 export const CABINET_ATTENDED_PERCENT = 74;
+export const CABINET_REPEAT_PERCENT = 28;
+export const CABINET_CANCELLED_PERCENT = 8;
+
+export function cabinetViews(tickets: number): number {
+  if (tickets <= 0) return 0;
+  return Math.max(tickets, Math.round(tickets * 5.6));
+}
+
+export const CABINET_LEAD: Array<{ bucket: "same_day" | "days_1_3" | "days_4_7" | "earlier"; percent: number }> = [
+  { bucket: "same_day", percent: 12 },
+  { bucket: "days_1_3", percent: 28 },
+  { bucket: "days_4_7", percent: 41 },
+  { bucket: "earlier", percent: 19 },
+];
+
+export const CABINET_LEAD_LABELS: Record<(typeof CABINET_LEAD)[number]["bucket"], string> = {
+  same_day: "В день",
+  days_1_3: "1–3 дня",
+  days_4_7: "За неделю",
+  earlier: "Раньше",
+};
+
+export function cabinetLeadTitle(lead: Array<{ bucket: "same_day" | "days_1_3" | "days_4_7" | "earlier"; percent: number }> = CABINET_LEAD): string {
+  const top = [...lead].sort((left, right) => right.percent - left.percent)[0];
+  if (top === undefined || top.percent === 0) return "Когда записываются";
+  if (top.bucket === "same_day") return `${top.percent}% в день`;
+  if (top.bucket === "days_1_3") return `${top.percent}% за 1–3 дня`;
+  if (top.bucket === "days_4_7") return `${top.percent}% за неделю`;
+  return `${top.percent}% заранее`;
+}
+
+export function cabinetSoldOut(events: CabinetEvent[], from: Date, to: Date): number {
+  return cabinetFillRows(events, from, to).filter((row) => row.capacity > 0 && row.booked >= row.capacity).length;
+}
 
 export const CABINET_TRAFFIC_LABELS: Record<(typeof CABINET_TRAFFIC)[number]["source"], string> = {
   chats: "Чаты MAX",
@@ -142,7 +176,7 @@ export const CABINET_TRAFFIC_LABELS: Record<(typeof CABINET_TRAFFIC)[number]["so
   search: "Поиск",
 };
 
-export function cabinetTrafficLead(sources: typeof CABINET_TRAFFIC = CABINET_TRAFFIC): string {
+export function cabinetTrafficLead(sources: Array<{ source: "chats" | "feed" | "search"; percent: number }> = CABINET_TRAFFIC): string {
   const lead = [...sources].sort((left, right) => right.percent - left.percent)[0];
   if (lead === undefined) return "Пока не из чего считать";
   return `${lead.percent}% ${lead.source === "chats" ? "из чатов" : lead.source === "feed" ? "из ленты" : "из поиска"}`;

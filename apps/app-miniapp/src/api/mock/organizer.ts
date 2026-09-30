@@ -85,7 +85,7 @@ export const MOCK_ORGANIZER_PAID_EVENT_ID = "c00000f2-0000-4000-8000-0000000000f
 
 function seedMockOrganizer(): { events: MockOrganizerEvent[]; places: MockOrganizerPlace[] } {
   return {
-    events: [{ ...event({ id: "c00000f1-0000-4000-8000-0000000000f1", title: "Акустический вечер в «Депо»", category: "afisha", city: "Москва", startsAt: "2026-10-11T19:00:00+03:00", isPaid: false, priceRub: null, capacity: 40 }), published: false }, { ...event({ id: MOCK_ORGANIZER_PAID_EVENT_ID, title: "Квиз «Мозгобойня»", category: "afisha", city: "Москва", startsAt: "2026-09-06T19:00:00+03:00", isPaid: true, priceRub: 500, paymentUrl: "https://tickets.example.com/mozgoboynya", capacity: 60 }), published: true }, ...CABINET_EVENTS.map((item) => ({ ...event({ id: item.id, title: item.title, description: item.description, category: item.category, city: item.city, startsAt: item.startsAt, endsAt: item.endsAt, isPaid: item.isPaid, priceRub: item.priceRub, paymentUrl: item.isPaid ? "https://afisha.moscow/pay" : null, capacity: item.capacity }), published: !item.draft }))],
+    events: [{ ...event({ id: "c00000f1-0000-4000-8000-0000000000f1", title: "Акустический вечер в «Депо»", category: "afisha", city: "Москва", startsAt: "2026-10-11T19:00:00+03:00", isPaid: false, priceRub: null, capacity: 40 }), published: false }, { ...event({ id: MOCK_ORGANIZER_PAID_EVENT_ID, title: "Квиз «Мозгобойня»", category: "afisha", city: "Москва", startsAt: "2026-09-06T19:00:00+03:00", isPaid: true, priceRub: 500, paymentUrl: "https://tickets.example.com/mozgoboynya", capacity: 60, bookedCount: 48 }), published: true }, ...CABINET_EVENTS.map((item) => ({ ...event({ id: item.id, title: item.title, description: item.description, category: item.category, city: item.city, startsAt: item.startsAt, endsAt: item.endsAt, isPaid: item.isPaid, priceRub: item.priceRub, paymentUrl: item.isPaid ? "https://afisha.moscow/pay" : null, capacity: item.capacity, bookedCount: item.draft ? 0 : item.sold }), published: !item.draft }))],
     places: [{ ...place({ id: "b00000f1-0000-4000-8000-0000000000f1", title: "Лофт на Бауманской", address: "ул. Бауманская, 5", city: "Москва", category: "other", latitude: 55.7717, longitude: 37.6879 }), published: false }],
   };
 }
@@ -473,7 +473,19 @@ export function setMockEarlyAccess(eventId: string, bookingOpensAt: string): { b
  * summary of экраны 45 и 48 rides a fixed demo baseline (Monday first). The store's own organizer
  * bookings are added on top, so the screens still move when something is actually booked here.
  */
-export const MOCK_ORGANIZER_BASELINE = { byWeekday: [18, 26, 22, 37, 48, 61, 33], previousBookings: 208, sources: [62, 24, 14], attended: 228, cancelled: 10 } as const;
+export const MOCK_ORGANIZER_BASELINE = {
+  byWeekday: [18, 26, 22, 37, 48, 61, 33],
+  previousBookings: 208,
+  sources: [62, 24, 14],
+  attended: 228,
+  cancelled: 10,
+  views: 1240,
+  repeatGuestPercent: 28,
+  newGuestPercent: 72,
+  uniqueGuests: 186,
+  waitlist: 4,
+  lead: [12, 28, 41, 19],
+} as const;
 
 const MOCK_TRAFFIC_SOURCES = ["chats", "feed", "search"] as const;
 
@@ -493,6 +505,12 @@ export function mockOrganizerSummary(period: StatsPeriod = ALL_TIME): OrganizerS
   const cancelled = MOCK_ORGANIZER_BASELINE.cancelled + bookings.filter((booking) => booking.status === "cancelled").length;
   const attended = MOCK_ORGANIZER_BASELINE.attended + mockCheckIns.filter((item) => item.eventId !== null && ownedIds.has(item.eventId)).length;
   const previous: number = MOCK_ORGANIZER_BASELINE.previousBookings;
+  const views = MOCK_ORGANIZER_BASELINE.views + mockPageViews.filter((view) => view.targetType === "event" && ownedIds.has(view.targetId) && mockInPeriod(view.viewedOn, period)).length;
+  const periodEvents = mockOrganizerState.events.filter((item) => item.published && mockInPeriod(item.startsAt, period));
+  const capped = periodEvents.filter((item) => item.capacity !== null && item.capacity > 0);
+  const seatsCapacity = capped.reduce((sum, item) => sum + (item.capacity ?? 0), 0);
+  const seatsBooked = capped.reduce((sum, item) => sum + Math.min(item.bookedCount ?? 0, item.capacity ?? 0), 0);
+  const leadBuckets = ["same_day", "days_1_3", "days_4_7", "earlier"] as const;
   return {
     bookings: total,
     bookingsDeltaPercent: previous === 0 ? null : Math.round(((total - previous) / previous) * 100),
@@ -500,6 +518,18 @@ export function mockOrganizerSummary(period: StatsPeriod = ALL_TIME): OrganizerS
     cancelledPercent: total === 0 ? null : Math.round((cancelled / total) * 100),
     byWeekday,
     sources: MOCK_TRAFFIC_SOURCES.map((source, index) => ({ source, percent: MOCK_ORGANIZER_BASELINE.sources[index] })),
+    views,
+    conversionPercent: views === 0 ? null : Math.round((total / views) * 100),
+    occupancyPercent: seatsCapacity === 0 ? null : Math.round((seatsBooked / seatsCapacity) * 100),
+    seatsBooked,
+    seatsCapacity,
+    events: periodEvents.length,
+    soldOut: capped.filter((item) => (item.bookedCount ?? 0) >= (item.capacity ?? 0)).length,
+    uniqueGuests: MOCK_ORGANIZER_BASELINE.uniqueGuests,
+    repeatGuestPercent: MOCK_ORGANIZER_BASELINE.repeatGuestPercent,
+    newGuestPercent: MOCK_ORGANIZER_BASELINE.newGuestPercent,
+    waitlist: MOCK_ORGANIZER_BASELINE.waitlist,
+    lead: leadBuckets.map((bucket, index) => ({ bucket, percent: MOCK_ORGANIZER_BASELINE.lead[index] ?? 0 })),
   };
 }
 

@@ -4,6 +4,7 @@ import { QueryFailedError, type Repository } from "typeorm";
 import { BookingEntity } from "../bookings/booking.entity";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
+import { WaitlistEntryEntity } from "../waitlist/waitlist-entry.entity";
 import { PageViewEntity } from "./page-view.entity";
 import { parseStatsPeriod } from "./stats.controller";
 import { inPeriod, StatsService } from "./stats.service";
@@ -42,7 +43,7 @@ describe("StatsService", () => {
     const views = createStoreRepo<PageViewEntity>();
     const events = createStoreRepo<EventEntity>([{ id: eventId, organizerUserId: owner, isPaid: true } as EventEntity]);
     const bookings = createStoreRepo<BookingEntity>([{ id: "b1", eventId, status: "active" } as BookingEntity, { id: "b2", eventId, status: "cancelled" } as BookingEntity]);
-    const service = new StatsService(views as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>);
+    const service = new StatsService(views as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>, createStoreRepo<WaitlistEntryEntity>() as unknown as Repository<WaitlistEntryEntity>);
     expect(await service.recordView(owner, "event", eventId, now)).toEqual({ recorded: true });
     expect(await service.recordView(owner, "event", eventId, now)).toEqual({ recorded: false });
     const stats = await service.eventStats(owner, eventId);
@@ -54,7 +55,7 @@ describe("StatsService", () => {
     const views = createStoreRepo<PageViewEntity>([{ userId: owner, targetType: "event", targetId: eventId, createdAt: august } as PageViewEntity, { userId: other, targetType: "event", targetId: eventId, createdAt: september } as PageViewEntity]);
     const events = createStoreRepo<EventEntity>([{ id: eventId, organizerUserId: owner, isPaid: true } as EventEntity]);
     const bookings = createStoreRepo<BookingEntity>([{ id: "b1", eventId, status: "active", createdAt: august } as BookingEntity, { id: "b2", eventId, status: "cancelled", createdAt: september } as BookingEntity, { id: "b3", eventId, status: "active", createdAt: september } as BookingEntity]);
-    const service = new StatsService(views as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>);
+    const service = new StatsService(views as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, createStoreRepo<CheckInEntity>() as unknown as Repository<CheckInEntity>, createStoreRepo<WaitlistEntryEntity>() as unknown as Repository<WaitlistEntryEntity>);
 
     const wholeTime = await service.eventStats(owner, eventId);
     expect(wholeTime).toMatchObject({ views: 2, bookings: 3, cancellations: 1, paidBookings: 2 });
@@ -71,17 +72,37 @@ describe("StatsService", () => {
 
 describe("organizationSummary", () => {
   it("splits traffic sources, weekdays and the previous window", async () => {
-    const events = createStoreRepo<EventEntity>([{ id: eventId, organizerOrganizationId: owner, organizerUserId: owner } as EventEntity]);
-    const bookings = createStoreRepo<BookingEntity>([{ id: "b1", eventId, status: "active", source: "chats", createdAt: september } as BookingEntity, { id: "b2", eventId, status: "cancelled", source: "feed", createdAt: september } as BookingEntity, { id: "b3", eventId, status: "active", source: "chats", createdAt: august } as BookingEntity]);
+    const events = createStoreRepo<EventEntity>([{ id: eventId, organizerOrganizationId: owner, organizerUserId: owner, published: true, startsAt: september, capacity: 40, bookedCount: 20 } as EventEntity]);
+    const bookings = createStoreRepo<BookingEntity>([
+      { id: "b1", eventId, userId: other, status: "active", source: "chats", createdAt: september } as BookingEntity,
+      { id: "b2", eventId, userId: owner, status: "cancelled", source: "feed", createdAt: september } as BookingEntity,
+      { id: "b3", eventId, userId: other, status: "active", source: "chats", createdAt: august } as BookingEntity,
+    ]);
     const checkIns = createStoreRepo<CheckInEntity>([{ userId: other, eventId } as CheckInEntity]);
-    const service = new StatsService(createStoreRepo<PageViewEntity>() as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, checkIns as unknown as Repository<CheckInEntity>);
+    const views = createStoreRepo<PageViewEntity>([{ userId: other, targetType: "event", targetId: eventId, createdAt: september } as PageViewEntity, { userId: owner, targetType: "event", targetId: eventId, createdAt: september } as PageViewEntity]);
+    const waitlist = createStoreRepo<WaitlistEntryEntity>([{ eventId, status: "waiting" } as WaitlistEntryEntity]);
+    const service = new StatsService(views as unknown as Repository<PageViewEntity>, events as unknown as Repository<EventEntity>, bookings as unknown as Repository<BookingEntity>, checkIns as unknown as Repository<CheckInEntity>, waitlist as unknown as Repository<WaitlistEntryEntity>);
     const period = { from: "2026-09-01T00:00:00.000Z", to: "2026-09-30T23:59:59.000Z" };
     const summary = await service.organizationSummary(owner, period);
     expect(summary.bookings).toBe(2);
     expect(summary.cancelledPercent).toBe(50);
     expect(summary.sources.find((row) => row.source === "chats")?.percent).toBe(50);
     expect(summary.byWeekday.reduce((sum, count) => sum + count, 0)).toBe(2);
+    expect(summary.views).toBe(2);
+    expect(summary.conversionPercent).toBe(100);
+    expect(summary.occupancyPercent).toBe(50);
+    expect(summary.seatsBooked).toBe(20);
+    expect(summary.seatsCapacity).toBe(40);
+    expect(summary.repeatGuestPercent).toBe(50);
+    expect(summary.newGuestPercent).toBe(50);
+    expect(summary.uniqueGuests).toBe(2);
+    expect(summary.events).toBe(1);
+    expect(summary.soldOut).toBe(0);
+    expect(summary.lead.find((row) => row.bucket === "same_day")?.percent).toBe(100);
+    expect(summary.waitlist).toBe(1);
     expect(service.exportCsv(summary)).toContain("bookings,2");
+    expect(service.exportCsv(summary)).toContain("waitlist,1");
+    expect(service.exportCsv(summary)).toContain("lead_same_day_percent,100");
   });
 });
 

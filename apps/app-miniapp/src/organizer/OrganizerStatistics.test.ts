@@ -62,18 +62,29 @@ describe("cabinetWeakUpcoming", () => {
 });
 
 describe("OrganizerStatistics", () => {
-  it("opens as a CRM infographic: occupancy once, sources on home, no event catalog or money", () => {
+  it("opens as a light CRM infographic: occupancy track, guest funnel, sources, no event catalog or money", () => {
     const html = renderToStaticMarkup(createElement(OrganizerStatistics, { onCreateEvent: noop, onPromote: noop }));
 
     expect(html).toContain("Статистика");
     expect(html).toContain("регистрации");
-    expect(html).toContain("Заполняемость");
-    expect(html).toContain("Дошли до входа");
+    expect(html).toContain("из просмотров");
+    expect(html).toContain("Путь гостя");
+    expect(html).toContain("Просмотры");
+    expect(html).toContain("Дошли");
+    expect(html).toContain("Отмены");
+    expect(html).toContain("Места");
+    expect(html).toContain("Занято");
+    expect(html).toContain("гостей");
+    expect(html).toContain("Повторно");
+    expect(html).toContain("Новые");
     expect(html).toContain("Источники регистраций");
     expect(html).toContain(cabinetTrafficLead());
-    expect(html).toContain("занято");
+    expect(html).toContain("Когда записываются");
     expect(html).toContain("Продвинуть");
     expect(html).toContain("Уведомления");
+    expect(html).not.toContain("Заполняемость");
+    expect(html).not.toContain("Занятость мест");
+    expect(html).not.toContain("app-org-way--dark");
     expect(html).not.toContain("Разбор");
     expect(html).not.toContain("Органный вечер в соборе");
     expect(html).not.toContain("к прошлому периоду");
@@ -82,6 +93,5 @@ describe("OrganizerStatistics", () => {
     expect(html).not.toContain("Общий доход");
     expect(html).not.toContain("Средний чек");
     expect(html).not.toContain("Создать событие");
-    expect((html.match(/Заполняемость/g) ?? []).length).toBe(1);
   });
 });

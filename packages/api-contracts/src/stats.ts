@@ -18,7 +18,11 @@
 // - OrganizerTrafficSource - traffic source type
 // - OrganizerTrafficShareSchema - one source and its percentage of the whole
 // - OrganizerTrafficShare - traffic share type
-// - OrganizerSummarySchema - organizer dashboard: bookings and their delta, attendance, cancellations, weekday spread and traffic sources
+// - OrganizerLeadBucketSchema - how far ahead of the event a booking was made
+// - OrganizerLeadBucket - lead bucket type
+// - OrganizerLeadShareSchema - one lead bucket and its percentage of dated bookings
+// - OrganizerLeadShare - lead share type
+// - OrganizerSummarySchema - organizer dashboard: bookings, funnel, occupancy, guests, lead time, waitlist, weekday spread and traffic sources
 // - OrganizerSummary - organizer summary type
 // END_MODULE_MAP
 
@@ -65,6 +69,15 @@ export const OrganizerTrafficShareSchema = z.object({
 });
 export type OrganizerTrafficShare = z.infer<typeof OrganizerTrafficShareSchema>;
 
+export const OrganizerLeadBucketSchema = z.enum(["same_day", "days_1_3", "days_4_7", "earlier"]);
+export type OrganizerLeadBucket = z.infer<typeof OrganizerLeadBucketSchema>;
+
+export const OrganizerLeadShareSchema = z.object({
+  bucket: OrganizerLeadBucketSchema,
+  percent: z.number().min(0).max(100),
+});
+export type OrganizerLeadShare = z.infer<typeof OrganizerLeadShareSchema>;
+
 export const OrganizerSummarySchema = z.object({
   bookings: z.number().int().min(0),
   bookingsDeltaPercent: z.number().nullable(),
@@ -72,5 +85,17 @@ export const OrganizerSummarySchema = z.object({
   cancelledPercent: z.number().nullable(),
   byWeekday: z.array(z.number().int().min(0)).length(7),
   sources: z.array(OrganizerTrafficShareSchema),
+  views: z.number().int().min(0),
+  conversionPercent: z.number().nullable(),
+  occupancyPercent: z.number().nullable(),
+  seatsBooked: z.number().int().min(0),
+  seatsCapacity: z.number().int().min(0),
+  events: z.number().int().min(0),
+  soldOut: z.number().int().min(0),
+  uniqueGuests: z.number().int().min(0),
+  repeatGuestPercent: z.number().nullable(),
+  newGuestPercent: z.number().nullable(),
+  waitlist: z.number().int().min(0),
+  lead: z.array(OrganizerLeadShareSchema).length(4),
 });
 export type OrganizerSummary = z.infer<typeof OrganizerSummarySchema>;

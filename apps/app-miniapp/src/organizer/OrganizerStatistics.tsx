@@ -1,21 +1,21 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Organizer «Статистика» tab — CRM home: period, registrations hero, occupancy ring, attendance, weekday chart, traffic sources, today’s door, and cabinet actions.
-// SCOPE: Presentational screen over the cabinet mock. Occupancy is one aggregate visual; per-event fill lives on the event hub. Rubles stay on Finance.
-// DEPENDS: react, ../ui/icons.js, ../ui/theme.css, ./cabinet-catalog.js
+// PURPOSE: Organizer «Статистика» tab — CRM home: period, registrations, guest funnel, occupancy, returning guests, weekday chart, traffic sources, lead time, today’s door, and cabinet actions.
+// SCOPE: Presentational screen over GET /organizer/summary with cabinet fallback. Occupancy is one aggregate visual; per-event fill lives on the event hub. Rubles stay on Finance.
+// DEPENDS: react, ../api/client.js, ../ui/icons.js, ../ui/theme.css, ./cabinet-catalog.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 
-import { useState } from "react";
-import type { OrganizerEvent } from "../api/client";
+import { useEffect, useState } from "react";
+import { apiClient, type OrganizerEvent, type OrganizerLeadShare, type OrganizerSummary, type OrganizerTrafficShare } from "../api/client";
 import { SettingsGroup } from "../profile/SettingsPage";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { AppChip, AppMedia } from "../ui/primitives";
-import { CABINET_ATTENDED_PERCENT, CABINET_EVENTS, CABINET_TRAFFIC, CABINET_TRAFFIC_LABELS, cabinetAsOrganizerEvent, cabinetOccupancy, cabinetStats, cabinetTrafficLead, cabinetWeakUpcoming, cabinetWeekdayBookings, defaultStatsRange, fillCaption } from "./cabinet-catalog";
+import { CABINET_ATTENDED_PERCENT, CABINET_CANCELLED_PERCENT, CABINET_EVENTS, CABINET_LEAD, CABINET_LEAD_LABELS, CABINET_REPEAT_PERCENT, CABINET_TRAFFIC, CABINET_TRAFFIC_LABELS, cabinetAsOrganizerEvent, cabinetLeadTitle, cabinetOccupancy, cabinetSoldOut, cabinetStats, cabinetTrafficLead, cabinetViews, cabinetWeakUpcoming, cabinetWeekdayBookings, defaultStatsRange } from "./cabinet-catalog";
 import { useOrganizerNativeBack } from "./organizer-native-back";
 
 const WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"] as const;
-const RING = 2 * Math.PI * 28;
+const WEEKDAY_PEAK = ["в понедельник", "во вторник", "в среду", "в четверг", "в пятницу", "в субботу", "в воскресенье"] as const;
 
 function countLabel(value: number): string {
   return value.toLocaleString("ru-RU").replace(/\s/g, "\u00a0");
@@ -31,16 +31,30 @@ function occupancyBars(values: number[]): Array<{ height: number; accent: boolea
   }));
 }
 
-function OccupancyRing({ percent }: { percent: number }) {
-  const clamped = Math.min(100, Math.max(0, percent));
+function weekdayLead(values: number[]): string {
+  const max = Math.max(...values, 0);
+  if (max === 0) return "Регистрации по дням недели";
+  return `Пик ${WEEKDAY_PEAK[values.indexOf(max)] ?? "за неделю"}`;
+}
+
+function periodQueryFor(days: number, now = new Date()): { from: string; to: string } {
+  return { from: new Date(now.getTime() - days * 86_400_000).toISOString(), to: now.toISOString() };
+}
+
+function shareOf(value: number, max: number): number {
+  if (max <= 0) return 0;
+  return Math.max(6, Math.round((value / max) * 100));
+}
+
+function StatTrack({ label, value, width }: { label: string; value: string; width: number }) {
   return (
-    <span className="app-org-ring-wrap">
-      <svg className="app-org-ring" viewBox="0 0 72 72" aria-hidden="true">
-        <circle className="app-org-ring-track" cx="36" cy="36" r="28" />
-        <circle className="app-org-ring-fill" cx="36" cy="36" r="28" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamped / 100)} />
-      </svg>
-      <span className="app-org-ring-value">{clamped}%</span>
-    </span>
+    <div className="app-org-source">
+      <span className="app-org-source-label">{label}</span>
+      <span className="app-org-source-track" aria-hidden="true">
+        <span className="app-org-source-fill app-org-source-fill--chats" style={{ width: `${Math.min(100, Math.max(0, width))}%` }} />
+      </span>
+      <span className="app-org-source-value">{value}</span>
+    </div>
   );
 }
 
@@ -203,6 +217,7 @@ export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote }: { on
   const [to] = useState(initial.to);
   const from = new Date(new Date(`${to}T12:00:00+03:00`).getTime() - days * 86_400_000).toISOString().slice(0, 10);
   const [pane, setPane] = useState<"home" | "notices">("home");
+  const [summary, setSummary] = useState<OrganizerSummary | null>(null);
   const rangeFrom = new Date(`${from}T00:00:00+03:00`);
   const rangeTo = new Date(`${to}T23:59:59+03:00`);
   const now = new Date(`${to}T12:00:00+03:00`);
@@ -211,9 +226,42 @@ export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote }: { on
   const weak = cabinetWeakUpcoming(CABINET_EVENTS, now);
   const today = CABINET_EVENTS.find((item) => !item.draft && item.startsAt.slice(0, 10) === to);
   const drafts = CABINET_EVENTS.filter((item) => item.draft).length;
-  const weekdays = cabinetWeekdayBookings(CABINET_EVENTS, rangeFrom, rangeTo);
-  const trafficLead = cabinetTrafficLead();
+  const bookings = summary?.bookings ?? snapshot.tickets;
+  const seatsBooked = summary?.seatsBooked ?? occupancy.booked;
+  const seatsCapacity = summary?.seatsCapacity ?? occupancy.capacity;
+  const occupancyPercent = summary?.occupancyPercent ?? occupancy.fill;
+  const attendedPercent = summary?.attendedPercent ?? CABINET_ATTENDED_PERCENT;
+  const cancelledPercent = summary?.cancelledPercent ?? CABINET_CANCELLED_PERCENT;
+  const repeatPercent = summary?.repeatGuestPercent ?? CABINET_REPEAT_PERCENT;
+  const views = summary?.views ?? cabinetViews(bookings);
+  const conversion = summary?.conversionPercent ?? (views <= 0 ? null : Math.round((bookings / views) * 100));
+  const bookingsDelta = summary?.bookingsDeltaPercent ?? snapshot.ticketsDelta;
+  const waitlist = summary?.waitlist ?? 0;
+  const uniqueGuests = summary?.uniqueGuests ?? Math.max(0, Math.round(bookings * 0.85));
+  const newPercent = summary?.newGuestPercent ?? (repeatPercent === null ? null : Math.max(0, 100 - repeatPercent));
+  const eventsCount = summary?.events ?? snapshot.events;
+  const soldOut = summary?.soldOut ?? cabinetSoldOut(CABINET_EVENTS, rangeFrom, rangeTo);
+  const weekdays = summary?.byWeekday ?? cabinetWeekdayBookings(CABINET_EVENTS, rangeFrom, rangeTo);
+  const sources: OrganizerTrafficShare[] = summary?.sources ?? CABINET_TRAFFIC;
+  const lead: OrganizerLeadShare[] = summary?.lead ?? CABINET_LEAD;
+  const attended = attendedPercent === null ? 0 : Math.round((bookings * attendedPercent) / 100);
+  const cancelled = cancelledPercent === null ? 0 : Math.round((bookings * cancelledPercent) / 100);
+  const funnelMax = Math.max(views, bookings, 1);
   useOrganizerNativeBack(pane !== "home", () => setPane("home"));
+  useEffect(() => {
+    let alive = true;
+    apiClient.getOrganizerSummary(periodQueryFor(days)).then(
+      (payload) => {
+        if (alive) setSummary(payload);
+      },
+      () => {
+        if (alive) setSummary(null);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [days]);
 
   if (pane === "notices") {
     return (
@@ -249,27 +297,41 @@ export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote }: { on
         ))}
       </div>
       <div className="app-org-kpi">
-        <span className="app-org-kpi-value">{countLabel(snapshot.tickets)}</span>
+        <span className="app-org-kpi-value">{countLabel(bookings)}</span>
         <span className="app-org-kpi-label">регистрации</span>
+        {(conversion !== null || bookingsDelta !== null) && (
+          <span className="app-org-kpi-note">
+            {conversion !== null && <span>{conversion}% из просмотров</span>}
+            {bookingsDelta !== null && <span className="app-org-kpi-delta">{bookingsDelta > 0 ? `+${bookingsDelta}%` : `${bookingsDelta}%`}</span>}
+          </span>
+        )}
       </div>
-      <div className="app-org-ways">
-        <div className="app-org-way app-org-way--dark">
-          <span className="app-org-way-head">
-            <OccupancyRing percent={occupancy.fill} />
-            <span className="app-org-way-copy">
-              <span className="app-org-way-label">Заполняемость</span>
-              <span className="app-org-way-note">{fillCaption(occupancy.booked, occupancy.capacity, occupancy.fill)}</span>
-            </span>
+      <div className="app-org-sources" aria-label="Путь гостя">
+        <span className="app-org-chart-title">Путь гостя</span>
+        <StatTrack label="Просмотры" value={countLabel(views)} width={shareOf(views, funnelMax)} />
+        <StatTrack label="Записи" value={countLabel(bookings)} width={shareOf(bookings, funnelMax)} />
+        <StatTrack label="Дошли" value={countLabel(attended)} width={shareOf(attended, funnelMax)} />
+        <StatTrack label="Отмены" value={countLabel(cancelled)} width={shareOf(cancelled, funnelMax)} />
+      </div>
+      {seatsCapacity > 0 && (
+        <div className="app-org-sources" aria-label="Места">
+          <span className="app-org-chart-title">Места</span>
+          <StatTrack label="Занято" value={`${occupancyPercent ?? 0}%`} width={occupancyPercent ?? 0} />
+          {soldOut > 0 && <StatTrack label="Без мест" value={countLabel(soldOut)} width={shareOf(soldOut, Math.max(eventsCount, 1))} />}
+          <span className="app-org-source-note">
+            {countLabel(seatsBooked)} из {countLabel(seatsCapacity)}
           </span>
         </div>
-        <div className="app-org-way">
-          <span className="app-org-way-value">{CABINET_ATTENDED_PERCENT}%</span>
-          <span className="app-org-way-label">Дошли до входа</span>
-          <span className="app-org-way-note">из {countLabel(snapshot.tickets)} записей</span>
+      )}
+      {(repeatPercent !== null || newPercent !== null) && (
+        <div className="app-org-sources" aria-label="Гости">
+          <span className="app-org-chart-title">{uniqueGuests > 0 ? `${countLabel(uniqueGuests)} гостей` : "Гости"}</span>
+          {repeatPercent !== null && <StatTrack label="Повторно" value={`${repeatPercent}%`} width={repeatPercent} />}
+          {newPercent !== null && <StatTrack label="Новые" value={`${newPercent}%`} width={newPercent} />}
         </div>
-      </div>
+      )}
       <div className="app-org-chart">
-        <span className="app-org-chart-title">Регистрации по дням недели</span>
+        <span className="app-org-chart-title">{weekdayLead(weekdays)}</span>
         <span className="app-org-chart-bars" aria-hidden="true">
           {occupancyBars(weekdays).map((bar, index) => (
             <span key={WEEKDAYS[index]} className={bar.accent ? "app-org-bar app-org-bar--on" : "app-org-bar"} style={{ height: `${bar.height}%` }} />
@@ -282,8 +344,8 @@ export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote }: { on
         </span>
       </div>
       <div className="app-org-sources" aria-label="Источники регистраций">
-        <span className="app-org-chart-title">{trafficLead}</span>
-        {CABINET_TRAFFIC.map((row) => (
+        <span className="app-org-chart-title">{cabinetTrafficLead(sources)}</span>
+        {sources.map((row) => (
           <div key={row.source} className="app-org-source">
             <span className="app-org-source-label">{CABINET_TRAFFIC_LABELS[row.source]}</span>
             <span className="app-org-source-track" aria-hidden="true">
@@ -291,6 +353,12 @@ export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote }: { on
             </span>
             <span className="app-org-source-value">{row.percent}%</span>
           </div>
+        ))}
+      </div>
+      <div className="app-org-sources" aria-label="Когда записываются">
+        <span className="app-org-chart-title">{cabinetLeadTitle(lead)}</span>
+        {lead.map((row) => (
+          <StatTrack key={row.bucket} label={CABINET_LEAD_LABELS[row.bucket]} value={`${row.percent}%`} width={row.percent} />
         ))}
       </div>
       {today !== undefined && onCheckIn !== undefined && (
@@ -304,7 +372,7 @@ export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote }: { on
           </span>
         </button>
       )}
-      {((weak.length > 0 && onPromote !== undefined) || (drafts > 0 && onShowDrafts !== undefined)) && (
+      {((weak.length > 0 && onPromote !== undefined) || (drafts > 0 && onShowDrafts !== undefined) || waitlist > 0) && (
         <SettingsGroup title="Кабинет">
           {weak.length > 0 && onPromote !== undefined && (
             <button type="button" className="app-set-row" onClick={onPromote}>
@@ -316,6 +384,14 @@ export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote }: { on
                 <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
               </span>
             </button>
+          )}
+          {waitlist > 0 && (
+            <div className="app-set-row">
+              <span className="app-set-row-text">
+                <span className="app-set-row-title">Лист ожидания</span>
+              </span>
+              <span className="app-set-row-value">{waitlist}</span>
+            </div>
           )}
           {drafts > 0 && onShowDrafts !== undefined && (
             <button type="button" className="app-set-row" onClick={onShowDrafts}>

@@ -156,6 +156,14 @@ export interface OrganizerTrafficShare {
   percent: number;
 }
 
+export const ORGANIZER_LEAD_BUCKETS = ["same_day", "days_1_3", "days_4_7", "earlier"] as const;
+export type OrganizerLeadBucket = (typeof ORGANIZER_LEAD_BUCKETS)[number];
+
+export interface OrganizerLeadShare {
+  bucket: OrganizerLeadBucket;
+  percent: number;
+}
+
 /** Organizer-wide report over a period: the numbers экран 45 puts in its hero and экран 48 in its tiles and charts. */
 export interface OrganizerSummary {
   bookings: number;
@@ -166,6 +174,18 @@ export interface OrganizerSummary {
   /** Seven booking counts, Monday first — the bars of «Заполнение за неделю» and «Записи по дням». */
   byWeekday: number[];
   sources: OrganizerTrafficShare[];
+  views: number;
+  conversionPercent: number | null;
+  occupancyPercent: number | null;
+  seatsBooked: number;
+  seatsCapacity: number;
+  events: number;
+  soldOut: number;
+  uniqueGuests: number;
+  repeatGuestPercent: number | null;
+  newGuestPercent: number | null;
+  waitlist: number;
+  lead: OrganizerLeadShare[];
 }
 
 function trafficShare(raw: Record<string, unknown>): OrganizerTrafficShare | null {
@@ -175,10 +195,18 @@ function trafficShare(raw: Record<string, unknown>): OrganizerTrafficShare | nul
   return { source: source as OrganizerTrafficSource, percent: raw.percent };
 }
 
+function leadShare(raw: Record<string, unknown>): OrganizerLeadShare | null {
+  const bucket = raw.bucket;
+  if (typeof bucket !== "string" || !ORGANIZER_LEAD_BUCKETS.includes(bucket as OrganizerLeadBucket)) return null;
+  if (typeof raw.percent !== "number") return null;
+  return { bucket: bucket as OrganizerLeadBucket, percent: raw.percent };
+}
+
 const OrganizerSummarySchema: ZodSchema<OrganizerSummary> = {
   safeParse(data: unknown) {
     const raw = record(data);
     if (raw === null || typeof raw.bookings !== "number" || !nullableNumber(raw.bookingsDeltaPercent) || !nullableNumber(raw.attendedPercent) || !nullableNumber(raw.cancelledPercent)) return { success: false as const, error: "expected an organizer summary" };
+    if (typeof raw.views !== "number" || !nullableNumber(raw.conversionPercent) || !nullableNumber(raw.occupancyPercent) || typeof raw.seatsBooked !== "number" || typeof raw.seatsCapacity !== "number" || typeof raw.events !== "number" || typeof raw.soldOut !== "number" || typeof raw.uniqueGuests !== "number" || !nullableNumber(raw.repeatGuestPercent) || !nullableNumber(raw.newGuestPercent) || typeof raw.waitlist !== "number") return { success: false as const, error: "expected organizer funnel counters" };
     if (!Array.isArray(raw.byWeekday) || raw.byWeekday.length !== 7 || raw.byWeekday.some((value) => typeof value !== "number")) return { success: false as const, error: "expected seven weekday counters" };
     if (!Array.isArray(raw.sources)) return { success: false as const, error: "expected traffic sources" };
     const sources: OrganizerTrafficShare[] = [];
@@ -187,7 +215,36 @@ const OrganizerSummarySchema: ZodSchema<OrganizerSummary> = {
       if (parsed === null) return { success: false as const, error: "invalid traffic source" };
       sources.push(parsed);
     }
-    return { success: true as const, data: { bookings: raw.bookings, bookingsDeltaPercent: raw.bookingsDeltaPercent as number | null, attendedPercent: raw.attendedPercent as number | null, cancelledPercent: raw.cancelledPercent as number | null, byWeekday: raw.byWeekday as number[], sources } };
+    if (!Array.isArray(raw.lead) || raw.lead.length !== 4) return { success: false as const, error: "expected four lead buckets" };
+    const lead: OrganizerLeadShare[] = [];
+    for (const entry of raw.lead) {
+      const parsed = record(entry) === null ? null : leadShare(entry as Record<string, unknown>);
+      if (parsed === null) return { success: false as const, error: "invalid lead bucket" };
+      lead.push(parsed);
+    }
+    return {
+      success: true as const,
+      data: {
+        bookings: raw.bookings,
+        bookingsDeltaPercent: raw.bookingsDeltaPercent as number | null,
+        attendedPercent: raw.attendedPercent as number | null,
+        cancelledPercent: raw.cancelledPercent as number | null,
+        byWeekday: raw.byWeekday as number[],
+        sources,
+        views: raw.views,
+        conversionPercent: raw.conversionPercent as number | null,
+        occupancyPercent: raw.occupancyPercent as number | null,
+        seatsBooked: raw.seatsBooked,
+        seatsCapacity: raw.seatsCapacity,
+        events: raw.events,
+        soldOut: raw.soldOut,
+        uniqueGuests: raw.uniqueGuests,
+        repeatGuestPercent: raw.repeatGuestPercent as number | null,
+        newGuestPercent: raw.newGuestPercent as number | null,
+        waitlist: raw.waitlist,
+        lead,
+      },
+    };
   },
 };
 
