@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DEFAULT_SMART_ALERTS, type Achievement, type Friend, type Profile, type Subscription, type User, type WeGroupScreen } from "@max-events/api-contracts";
 import type { ListSummary, ProfileCounters, ProfilePost, VisitedPlace } from "../api/client";
-import { ProfileMediaDialog, ProfileView, achievementsHint, bookingsHint, followMetrics, friendsHint, isCustomProfileAvatar, listsHint, profileAbout, profileInterestLine, profileMetrics, profileTabLabel, socialEntryLabel, socialMetrics, visitsLabel, weGroupsHint } from "./ProfilePage";
+import { ProfileMediaDialog, ProfileView, achievementsHint, bookingsHint, followMetrics, friendsHint, guestRelationKind, guestRelationLabel, isCustomProfileAvatar, listsHint, profileAbout, profileInterestLine, profileMetrics, profileTabLabel, socialEntryLabel, socialMetrics, visitsLabel, weGroupsHint } from "./ProfilePage";
 
 const user: User = {
   id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
@@ -235,6 +235,16 @@ describe("row hints", () => {
     expect(visitsLabel(1)).toBe("1 визит");
     expect(visitsLabel(2)).toBe("2 визита");
   });
+
+  it("labels a guest as subscribe, following or friends", () => {
+    expect(guestRelationKind({})).toBe("none");
+    expect(guestRelationKind({ followingThem: true })).toBe("following");
+    expect(guestRelationKind({ areFriends: true })).toBe("friends");
+    expect(guestRelationKind({ followingThem: true, followsYou: true })).toBe("friends");
+    expect(guestRelationLabel("none")).toBe("Подписаться");
+    expect(guestRelationLabel("following")).toBe("Вы подписаны");
+    expect(guestRelationLabel("friends")).toBe("Вы в друзьях");
+  });
 });
 
 describe("ProfileView", () => {
@@ -264,10 +274,13 @@ describe("ProfileView", () => {
       onResetAvatar: () => {},
     });
 
-    expect(html).toContain("Добавить");
-    expect(html).toContain("После «Добавить» вы оба появитесь в друзьях.");
+    expect(html).toContain("Подписаться");
     expect(html).toContain("Написать");
-    expect(html).toContain("Позвать");
+    expect(html).toContain("Добавить в близкие");
+    expect(html).toContain("Ещё");
+    expect(html).toContain("app-me--guest");
+    expect(html).not.toContain("После «Добавить»");
+    expect(html).not.toContain("Сохранённое");
     expect(html).not.toContain("Настройки");
     expect(html).not.toContain("Планы");
     expect(html).not.toContain("Календарь планов");
@@ -276,16 +289,34 @@ describe("ProfileView", () => {
     expect(html).not.toContain("Фото профиля");
     expect(html).not.toContain("Шапка профиля");
     expect(html).not.toContain("Удалить");
+    expect(renderProfileView({ own: false, profile: { ...profile, bio: "Люблю падел" } })).not.toContain("Люблю падел");
   });
 
   it("calls the pair friends after they add each other", () => {
     const friends = renderProfileView({ own: false, areFriends: true });
     const oneWay = renderProfileView({ own: false, followingThem: true });
 
-    expect(friends).toContain("Друзья");
-    expect(friends).not.toContain(">Добавить<");
-    expect(oneWay).toContain("Добавить");
-    expect(oneWay).not.toContain("Друзья");
+    expect(friends).toContain("Вы в друзьях");
+    expect(friends).not.toContain("Подписаться");
+    expect(oneWay).toContain("Вы подписаны");
+    expect(oneWay).not.toContain("Вы в друзьях");
+    expect(oneWay).not.toContain("Подписаться");
+  });
+
+  it("explains someone else's empty posts instead of inviting to publish", () => {
+    const html = renderProfileView({ own: false, posts: [] });
+
+    expect(html).toContain("Постов пока нет");
+    expect(html).toContain("Здесь появятся публикации пользователя");
+    expect(html).not.toContain("Опубликовать впечатление");
+  });
+
+  it("explains someone else's empty places without first-person copy", () => {
+    const html = renderProfileView({ own: false, tab: "places", visitedPlaces: [] });
+
+    expect(html).toContain("Мест пока нет");
+    expect(html).toContain("где бывал пользователь");
+    expect(html).not.toContain("отметьтесь");
   });
 
   it("prints 0 when nobody follows the profile yet", () => {

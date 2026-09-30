@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 36 «Профиль»: обложка со шапкой и меню, аватар без бейджа, имя и строка подписок, для своего профиля — строчные переходы в календарь, прогулки, планы, брони, достижения, группы и друзья, затем вкладки «Посты» / «Места» / «Сохранённое». Чужой профиль вместо переходов показывает действия с человеком.
+// PURPOSE: Экран 36 «Профиль»: обложка со шапкой и меню, аватар без бейджа, имя и строка подписок, для своего профиля — строчные переходы в календарь, прогулки, планы, брони, достижения, группы и друзья, затем вкладки «Посты» / «Места» / «Сохранённое». Чужой профиль: «Подписаться» / «Вы в друзьях», плитки «Написать», «Добавить в близкие», «Ещё», вкладки «Посты» / «Места».
 // SCOPE: The profile screen only — data via apiClient.getProfile/getProfileCounters/listUserPosts/listVisitedPlaces/listLists/listSubscriptions/listFollowing/listFollowers/getAchievements/listWeGroups/listFriends/listCalendar; «Добавить» writes apiClient.addFriend so both people land in GET /friends. Editing lives on the settings route (./SettingsPage.tsx), the follow lists on ../subscriptions/.
 // DEPENDS: ../api/client.js (apiClient, ListSummary, ProfileCounters, ProfilePost, VisitedPlace), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../feed/photo.js (readFeedPhoto), ../max/bridge.js (shareResult, webApp), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, @max-events/api-contracts (Achievement, Friend, Profile, Subscription, User, WeGroupScreen), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -30,7 +30,8 @@
 // - ProfileEntries - куда ведут счётчики, карточки и сетки экрана 36
 // - isCustomProfileAvatar - in-app pick is /api/uploads or a data URL; MAX photo_url is another https host
 // - ProfileMediaDialog - popup to add/change a photo or delete it back to the original (avatar or cover)
-// - ProfileView - presentational: hero, sheet, avatar without a badge, follow line, own-profile cards, the grid switch and the grid under it
+// - guestRelationKind / guestRelationLabel - чужой профиль: подписаться, уже подписаны или уже друзья
+// - ProfileView - presentational: hero, sheet, avatar without a badge, follow line, own-profile cards or guest actions, the grid switch and the grid under it
 // - ProfilePage - route container: resolves auth, loads the profile and every counter the screen shows, wires the navigation and the share action
 // END_MODULE_MAP
 
@@ -46,7 +47,7 @@ import { maxIdCaption, maxUserChatUrl, sharePayload } from "../max/links";
 import { logError } from "../ui/log-error";
 import { readLaunchStartParam, useRoute } from "../routing/router";
 import { ListsPage } from "../lists/ListsPage";
-import { ActionIcon } from "../ui/icons";
+import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured, showPhoto } from "../ui/photos";
 import { AppMedia, AppSkeleton, AppState } from "../ui/primitives";
 import { ConfirmSheet } from "../ui/ConfirmSheet";
@@ -89,6 +90,21 @@ export function profileMetrics(counters: ProfileCounters | null): { value: numbe
  * the list behind it shows all four kinds. A direction whose request has not answered yet is left out
  * entirely — a counter stuck on zero reads as «никто», which is worse than no counter at all.
  */
+export type GuestRelationKind = "none" | "following" | "friends";
+
+/** Mutual add is friends. A one-way follow stays «Вы подписаны» until they add back. */
+export function guestRelationKind(input: { areFriends?: boolean; followingThem?: boolean; followsYou?: boolean }): GuestRelationKind {
+  if (input.areFriends === true || (input.followingThem === true && input.followsYou === true)) return "friends";
+  if (input.followingThem === true) return "following";
+  return "none";
+}
+
+export function guestRelationLabel(kind: GuestRelationKind): string {
+  if (kind === "friends") return "Вы в друзьях";
+  if (kind === "following") return "Вы подписаны";
+  return "Подписаться";
+}
+
 export function followMetrics(input: { subscriptions: Subscription[] | null; following: Friend[] | null; followers: Friend[] | null }): { id: "subscriptions" | "followers"; value: number; label: string }[] {
   const metrics: { id: "subscriptions" | "followers"; value: number; label: string }[] = [];
   if (input.subscriptions !== null && input.following !== null) {
@@ -213,8 +229,11 @@ export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost, canPubli
       </div>
     );
   if (posts.length === 0) {
+    if (!canPublish) {
+      return <ProfileGuestEmpty icon="list" title="Постов пока нет" hint="Здесь появятся публикации пользователя" />;
+    }
     return (
-      <AppState hint={canPublish ? "Впечатление с фотографией или без — оно встанет плиткой сюда." : undefined} action={canPublish ? { label: "Опубликовать впечатление", onClick: onNewPost } : undefined}>
+      <AppState hint="Впечатление с фотографией или без — оно встанет плиткой сюда." action={{ label: "Опубликовать впечатление", onClick: onNewPost }}>
         Постов пока нет
       </AppState>
     );
@@ -243,6 +262,137 @@ export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost, canPubli
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+function ProfileGuestEmpty({ icon, title, hint }: { icon: ActionIconName; title: string; hint: string }) {
+  return (
+    <div className="app-me-guest-empty">
+      <span className="app-me-guest-empty-mark" aria-hidden="true">
+        <ActionIcon name={icon} size={28} />
+      </span>
+      <p className="app-me-guest-empty-title">{title}</p>
+      <p className="app-me-guest-empty-hint">{hint}</p>
+    </div>
+  );
+}
+
+function GuestSheet({ title, actions, onClose }: { title: string; actions: { id: string; label: string; danger?: boolean; onClick: () => void }[]; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="app-me-pop" role="dialog" aria-modal="true" aria-labelledby="app-me-guest-sheet-title">
+      <button type="button" className="app-me-pop-scrim" aria-label="Закрыть" onClick={onClose} />
+      <div className="app-me-pop-card">
+        <p id="app-me-guest-sheet-title" className="app-me-pop-title">
+          {title}
+        </p>
+        {actions.map((action) => (
+          <button key={action.id} type="button" className={action.danger === true ? "app-me-pop-action app-me-pop-action--danger" : "app-me-pop-action"} onClick={action.onClick}>
+            {action.label}
+          </button>
+        ))}
+        <button type="button" className="app-me-pop-action app-me-pop-action--ghost" onClick={onClose}>
+          Отмена
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ProfileGuestActions({
+  kind,
+  pending,
+  closeFriend,
+  onSubscribe,
+  onWrite,
+  onToggleClose,
+  onInvite,
+}: {
+  kind: GuestRelationKind;
+  pending: boolean;
+  closeFriend?: boolean;
+  onSubscribe: () => void;
+  onWrite: () => void;
+  onToggleClose?: () => void;
+  onInvite: () => void;
+}) {
+  const [menu, setMenu] = useState<"relation" | "more" | null>(null);
+  const related = kind !== "none";
+  return (
+    <div className="app-me-guest">
+      <button
+        type="button"
+        className={kind === "none" ? "app-me-guest-rel app-me-guest-rel--go" : "app-me-guest-rel"}
+        disabled={pending}
+        aria-haspopup={related ? "dialog" : undefined}
+        aria-expanded={related ? menu === "relation" : undefined}
+        onClick={() => {
+          if (related) setMenu("relation");
+          else onSubscribe();
+        }}
+      >
+        <ActionIcon name="friends" size={20} />
+        {guestRelationLabel(kind)}
+        {related && (
+          <span className="app-me-guest-rel-more" aria-hidden="true">
+            <ActionIcon name="chevronDown" size={18} />
+          </span>
+        )}
+      </button>
+      <div className="app-me-guest-tools">
+        <button type="button" className="app-me-guest-tool" onClick={onWrite}>
+          <ActionIcon name="comment" size={22} />
+          Написать
+        </button>
+        <button type="button" className="app-me-guest-tool" aria-pressed={closeFriend === true} disabled={onToggleClose === undefined} onClick={onToggleClose}>
+          <ActionIcon name="userPlus" size={22} />
+          {closeFriend === true ? "В близких" : "Добавить в близкие"}
+        </button>
+        <button type="button" className="app-me-guest-tool" aria-haspopup="dialog" aria-expanded={menu === "more"} onClick={() => setMenu("more")}>
+          <ActionIcon name="dots" size={22} />
+          Ещё
+        </button>
+      </div>
+      {menu === "relation" && (
+        <GuestSheet
+          title={guestRelationLabel(kind)}
+          actions={[
+            {
+              id: "drop",
+              label: kind === "friends" ? "Удалить из друзей" : "Отписаться",
+              danger: true,
+              onClick: () => {
+                onSubscribe();
+                setMenu(null);
+              },
+            },
+          ]}
+          onClose={() => setMenu(null)}
+        />
+      )}
+      {menu === "more" && (
+        <GuestSheet
+          title="Ещё"
+          actions={[
+            {
+              id: "invite",
+              label: "Позвать",
+              onClick: () => {
+                onInvite();
+                setMenu(null);
+              },
+            },
+          ]}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </div>
   );
 }
@@ -424,9 +574,9 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
   const about = profileAbout(profile);
   const customAvatar = isCustomProfileAvatar(user.avatarUrl);
   const customCover = profile.coverUrl !== null;
-  const shownTabs = PROFILE_TABS.filter((candidate) => candidate.id !== "saved" || own || (lists ?? []).some((summary) => summary.list.visibility === "public"));
+  const shownTabs = PROFILE_TABS.filter((candidate) => candidate.id !== "saved" || own);
   return (
-    <section className="app-me app-me--user">
+    <section className={own ? "app-me app-me--user" : "app-me app-me--user app-me--guest"}>
       <header className="app-me-head">
         <div className="app-me-hero">
           {profile.coverUrl !== null ? <img className="app-me-hero-cover" src={showPhoto(profile.coverUrl) ?? profile.coverUrl} alt="" /> : null}
@@ -509,7 +659,7 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
               <span key={metric.id} className="app-me-follows-item">
                 {index > 0 && (
                   <span className="app-me-follow-sep" aria-hidden="true">
-                    |
+                    •
                   </span>
                 )}
                 <button type="button" className="app-me-follow" onClick={openList[metric.id]}>
@@ -519,26 +669,18 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
             ))}
           </p>
         )}
-        {about !== "" && <p className="app-me-about">{about}</p>}
+        {own && about !== "" && <p className="app-me-about">{about}</p>}
         {!own && (
-          <div className="app-me-actions">
-            <button type="button" className="app-me-action app-me-action--primary" disabled={subscribePending} onClick={entries.onSubscribe}>
-              {areFriends || (followingThem && followsYou) ? "Друзья" : "Добавить"}
-            </button>
-            <button type="button" className="app-me-action" onClick={entries.onWrite}>
-              Написать
-            </button>
-            {entries.onToggleClose !== undefined && (
-              <button type="button" className="app-me-action" aria-pressed={entries.closeFriend === true} onClick={entries.onToggleClose}>
-                {entries.closeFriend ? "В близких" : "В близкие"}
-              </button>
-            )}
-            <button type="button" className="app-me-action" onClick={entries.onInvite}>
-              Позвать
-            </button>
-          </div>
+          <ProfileGuestActions
+            kind={guestRelationKind({ areFriends, followingThem, followsYou })}
+            pending={subscribePending}
+            closeFriend={entries.closeFriend}
+            onSubscribe={entries.onSubscribe}
+            onWrite={entries.onWrite}
+            onToggleClose={entries.onToggleClose}
+            onInvite={entries.onInvite}
+          />
         )}
-        {!own && <p className="app-me-link-hint">После «Добавить» вы оба появитесь в друзьях.</p>}
         {own && <ProfileDashboard achievements={achievements} weGroups={weGroups} friendsCount={friendsCount} bookingsCount={bookingsCount} onPlans={entries.onPlans} onBookings={entries.onBookings} onCalendar={entries.onCalendar} onWalks={entries.onWalks} onAchievements={entries.onAchievements} onWeGroups={entries.onWeGroups} onFriends={entries.onFriends} />}
         <div
           className="app-me-tabs"
@@ -577,17 +719,19 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
           <span className="app-me-tab-pill" aria-hidden="true" />
           {shownTabs.map((candidate) => (
             <button key={candidate.id} type="button" role="tab" id={`app-me-tab-${candidate.id}`} aria-selected={tab === candidate.id} aria-controls="app-me-tabpanel" className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => entries.onTab(candidate.id)}>
-              <ActionIcon name={TAB_ICON[candidate.id]} size={15} />
+              <ActionIcon name={!own && candidate.id === "posts" ? "list" : TAB_ICON[candidate.id]} size={15} />
               {profileTabLabel(candidate.id)}
             </button>
           ))}
         </div>
         <div id="app-me-tabpanel" className="app-me-panel" role="tabpanel" aria-labelledby={`app-me-tab-${tab}`}>
           {tab === "posts" && <ProfilePostGrid posts={posts} failed={postsFailed} onOpenPost={entries.onOpenPost} onNewPost={entries.onNewPost} canPublish={own} onAskDelete={own && entries.onDeletePost !== undefined ? setPendingDelete : undefined} />}
-          <div hidden={tab !== "saved"}>
-            <ListsPage userId={user.id} />
-          </div>
-          {tab === "places" && visitedPlaces.length === 0 && <AppState>Мест пока нет — отметьтесь где-нибудь, и они появятся здесь.</AppState>}
+          {own && (
+            <div hidden={tab !== "saved"}>
+              <ListsPage userId={user.id} />
+            </div>
+          )}
+          {tab === "places" && visitedPlaces.length === 0 && (own ? <AppState>Мест пока нет — отметьтесь где-нибудь, и они появятся здесь.</AppState> : <ProfileGuestEmpty icon="pin" title="Мест пока нет" hint="Здесь появятся места, где бывал пользователь" />)}
           {tab === "places" && visitedPlaces.length > 0 && (
             <div className="app-me-grid">
               {visitedPlaces.map((place, index) => (
