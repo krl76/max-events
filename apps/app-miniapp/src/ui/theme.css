@@ -27290,6 +27290,142 @@ button.app-fin-op--btn {
   padding-top: 8px;
 }
 
+.app-me--user .app-org-reviews {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+  padding-top: 12px;
+}
+
+@media (min-width: 720px) {
+  .app-me--user .app-org-reviews {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.app-me--user .app-org-review {
+  background: var(--app-card);
+  border: var(--app-hairline);
+  border-radius: 22px;
+  box-shadow: 0 8px 24px rgba(6, 7, 8, 0.05);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 16px;
+}
+
+.app-me--user .app-org-review-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.app-me--user .app-org-review-name {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0;
+  min-width: 0;
+}
+
+.app-me--user .app-org-review-stars {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.app-me--user .app-org-review-star {
+  color: var(--app-divider);
+  display: flex;
+}
+
+.app-me--user .app-org-review-star--on {
+  color: #f5b301;
+}
+
+.app-me--user .app-org-review-meta,
+.app-me--user .app-org-review-text {
+  margin: 0;
+}
+
+.app-me--user .app-org-review-meta {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-me--user .app-org-review-text {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.app-me--user .app-org-review-chip {
+  align-self: flex-start;
+  background: rgba(18, 168, 90, 0.14);
+  border-radius: 999px;
+  color: #128a4a;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+}
+
+.app-me--user .app-org-review-chip--muted {
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+}
+
+.app-me--user .app-org-review-scores {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+}
+
+.app-me--user .app-org-review-score {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 12px;
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 8px 10px;
+}
+
+.app-me--user .app-org-review-score dt,
+.app-me--user .app-org-review-score dd {
+  margin: 0;
+}
+
+.app-me--user .app-org-review-score dt {
+  color: var(--app-text-secondary);
+  font-weight: 600;
+}
+
+.app-me--user .app-org-review-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-me--user .app-org-review-tag {
+  background: var(--app-surface);
+  border-radius: 999px;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+
 .app-me--user .app-me-pair {
   display: grid;
   gap: 10px;
