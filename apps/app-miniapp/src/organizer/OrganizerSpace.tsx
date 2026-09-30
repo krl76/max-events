@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import type { OrganizerEvent } from "../api/client";
 import { apiClient } from "../api/client";
 import { AuthProvider } from "../auth/AuthContext";
+import { NotificationsPage } from "../notifications/NotificationsPage";
 import { AfishaWordmark } from "../auth/EntryPage";
 import { LeaveEntryProvider } from "../auth/leave-entry";
 import { OnboardingFlow } from "../onboarding/OnboardingFlow";
@@ -135,10 +136,12 @@ interface OrganizerSectionContentProps {
   draftsTick: number;
   onComposer?: (title: string | null) => void;
   closeComposerTick?: number;
+  onNotices?: () => void;
+  noticesOpen?: boolean;
 }
 
-export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenSettings, onOpenStats, onCheckIn, onShowDrafts, onOpenPlaces, onOpenEvent, onComposer, closeComposerTick, editRequestId, onEditHandled, placesTick, draftsTick }: OrganizerSectionContentProps) {
-  if (section === "dashboard") return <OrganizerDashboard organizationId={organizationId} organizationName={organizationName} onOpenEvent={onManage} onCreateEvent={onCreateEvent} onOpenOrganization={onOpenOrganization} onStats={onOpenStats} onPlaces={onOpenPlaces} onCheckIn={onCheckIn} onShowDrafts={onShowDrafts} onPromote={() => onSection("promo")} />;
+export function OrganizerSectionContent({ section, organizationId, organizationName, promoIntent, promoEventId, createEvent, onSection, onManage, onCreateEvent, onOpenOrganization, onOpenSettings, onOpenStats, onCheckIn, onShowDrafts, onOpenPlaces, onOpenEvent, onComposer, closeComposerTick, editRequestId, onEditHandled, placesTick, draftsTick, onNotices, noticesOpen }: OrganizerSectionContentProps) {
+  if (section === "dashboard") return <OrganizerDashboard organizationId={organizationId} organizationName={organizationName} onOpenEvent={onManage} onCreateEvent={onCreateEvent} onOpenOrganization={onOpenOrganization} onStats={onOpenStats} onPlaces={onOpenPlaces} onCheckIn={onCheckIn} onShowDrafts={onShowDrafts} onPromote={() => onSection("promo")} onNotices={onNotices} noticesOpen={noticesOpen} />;
   if (section === "finance") return <OrganizerFinance />;
   if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} eventId={promoEventId} onOpenEvent={() => onSection("events")} />;
   if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onSettings={onOpenSettings} />;
@@ -226,6 +229,28 @@ function OrganizerUserSettings({ onLeave, onOrganizer, onReplay }: { onLeave: ()
   );
 }
 
+/** The cabinet bearer is the organization. The inbox is the MAX user's, so the token is lifted for this screen and put back on the way out. */
+function OrganizerVisitorNotices() {
+  const { state } = useOrganizerAuth();
+  const token = state.status === "authenticated" ? state.session.token : null;
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    apiClient.setOrganizerToken(null);
+    setReady(true);
+    return () => {
+      if (token !== null) apiClient.setOrganizerToken(token);
+    };
+  }, [token]);
+
+  if (!ready) return <AppState>Загрузка…</AppState>;
+  return (
+    <AuthProvider>
+      <NotificationsPage />
+    </AuthProvider>
+  );
+}
+
 function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const { state, logout } = useOrganizerAuth();
   const [section, setSection] = useState<OrganizerSection>("dashboard");
@@ -236,6 +261,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const [settingsReplay, setSettingsReplay] = useState(false);
   const onSettingsReplay = useCallback((active: boolean) => setSettingsReplay(active), []);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [noticesOpen, setNoticesOpen] = useState(false);
   const [createEvent, setCreateEvent] = useState(false);
   const [editRequestId, setEditRequestId] = useState<string | null>(null);
   const [placesTick, setPlacesTick] = useState(0);
@@ -252,9 +278,13 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   // в браузере вне MAX кнопки мессенджера нет, и без неё промах запирал бы приложение.
   useOrganizerNativeBack(state.status !== "authenticated", onExit, 0);
   useOrganizerNativeBack(
-    pushed,
+    pushed || noticesOpen,
     () => {
-      if (manage !== null && manageScreen !== "hub") {
+      if (noticesOpen) {
+        setNoticesOpen(false);
+        return;
+      }
+      if (manage !== null && manageScreen !== "hub" && manageScreen !== "tickets" && manageScreen !== "stats") {
         setManageScreen("hub");
         return;
       }
@@ -280,7 +310,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
       }
       setCloseComposerTick((tick) => tick + 1);
     },
-    covered ? ORGANIZER_BACK_COVER : 0,
+    covered || noticesOpen ? ORGANIZER_BACK_COVER : 0,
   );
   const openManage = (event: OrganizerEvent, screen: ManageScreen) => {
     setManageScreen(screen);
@@ -291,11 +321,12 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   };
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
-  const ownChrome = (section === "profile" || section === "finance" || section === "dashboard" || section === "promo" || section === "events") && !pushed;
-  const flush = composerTitle !== null || settingsReplay || (ownChrome && (section === "promo" || section === "finance"));
+  const dossier = manage !== null && (manageScreen === "hub" || manageScreen === "tickets" || manageScreen === "stats");
+  const ownChrome = ((section === "profile" || section === "finance" || section === "dashboard" || section === "promo" || section === "events") && !pushed) || dossier;
+  const flush = composerTitle !== null || settingsReplay || noticesOpen || (ownChrome && (section === "promo" || section === "finance")) || dossier;
   const manageTitle = manageScreen === "checkin" ? "Контроль входа" : manageScreen === "participants" ? "Участники" : manageScreen === "tickets" ? "Билеты и регистрация" : manageScreen === "stats" ? "Статистика" : manageScreen === "reviews" ? "Отзывы" : "Событие";
   const title = composerTitle ?? (statsOpen ? "Статистика" : manage !== null ? manageTitle : organizationOpen ? "Организация" : settingsOpen ? "Настройки" : ORGANIZER_SECTION_TITLES[section]);
-  const hideTabs = settingsReplay || composerTitle !== null || (manage !== null && manageScreen === "checkin");
+  const hideTabs = settingsReplay || composerTitle !== null || noticesOpen || (manage !== null && manageScreen === "checkin");
   const openPromotion = (eventId: string, intent: OrganizerPromoIntent | null) => {
     setManage(null);
     setOrganizationOpen(false);
@@ -316,8 +347,8 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
           <span className="app-header-title">{title}</span>
         </header>
       )}
-      <main className={`${flush ? "app-content app-content--flush" : "app-content"}${settingsReplay ? " app-content--full" : ""}`}>
-        <div hidden={manage !== null || organizationOpen || settingsOpen || statsOpen}>
+      <main className={`${flush ? "app-content app-content--flush" : "app-content"}${settingsReplay || noticesOpen ? " app-content--full" : ""}`}>
+        <div hidden={manage !== null || organizationOpen || settingsOpen || statsOpen || noticesOpen}>
           <OrganizerSectionContent
             section={section}
             organizationId={state.session.organization.id}
@@ -363,8 +394,15 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
             onEditHandled={onEditHandled}
             placesTick={placesTick}
             draftsTick={draftsTick}
+            onNotices={() => setNoticesOpen(true)}
+            noticesOpen={noticesOpen}
           />
         </div>
+        {noticesOpen && (
+          <div className="app-org-notices">
+            <OrganizerVisitorNotices />
+          </div>
+        )}
         {statsOpen && <OrganizerStats />}
         {manage !== null && (
           <OrganizerEventManage
@@ -379,6 +417,10 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
               setSection("events");
             }}
             onPublished={setManage}
+            onBack={() => {
+              setManage(null);
+              setManageScreen("hub");
+            }}
           />
         )}
         {settingsOpen && !organizationOpen && (
@@ -414,6 +456,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
             setOrganizationOpen(false);
             setSettingsOpen(false);
             setStatsOpen(false);
+            setNoticesOpen(false);
             if (next !== "promo") {
               setPromoIntent(null);
               setPromoEventId(null);

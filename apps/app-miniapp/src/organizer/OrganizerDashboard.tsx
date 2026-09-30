@@ -119,6 +119,6 @@ export function nearestEventReason(item: OrganizerEvent, fill: OrganizerEventFil
   return `${when} · зарегистрировано ${seats}`;
 }
 
-export function OrganizerDashboard({ onOpenEvent, onCreateEvent, onCheckIn, onShowDrafts, onPromote }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onCreateEvent: () => void; onOpenOrganization: () => void; onStats: () => void; onPlaces: () => void; onCheckIn: (event: OrganizerEvent) => void; onShowDrafts: () => void; onPromote?: () => void }) {
-  return <OrganizerStatistics onCreateEvent={onCreateEvent} onOpenEvent={onOpenEvent} onCheckIn={onCheckIn} onShowDrafts={onShowDrafts} onPromote={onPromote} />;
+export function OrganizerDashboard({ onOpenEvent, onCreateEvent, onCheckIn, onShowDrafts, onPromote, onNotices, noticesOpen }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onCreateEvent: () => void; onOpenOrganization: () => void; onStats: () => void; onPlaces: () => void; onCheckIn: (event: OrganizerEvent) => void; onShowDrafts: () => void; onPromote?: () => void; onNotices?: () => void; noticesOpen?: boolean }) {
+  return <OrganizerStatistics onCreateEvent={onCreateEvent} onOpenEvent={onOpenEvent} onCheckIn={onCheckIn} onShowDrafts={onShowDrafts} onPromote={onPromote} onNotices={onNotices} noticesOpen={noticesOpen} />;
 }

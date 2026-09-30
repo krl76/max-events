@@ -40,8 +40,8 @@ export function withNotifications<TBase extends ApiMixin>(Base: TBase) {
     }
 
     /** Unread count behind the header bell: a separate path because the feed must not fetch the whole inbox to draw a badge. */
-    getNotificationsSummary(userId: string): Promise<NotificationsSummary> {
-      return this.request(`/notifications/summary?userId=${encodeURIComponent(userId)}`, NotificationsSummarySchema);
+    getNotificationsSummary(userId: string, options: { asVisitor?: boolean } = {}): Promise<NotificationsSummary> {
+      return this.request(`/notifications/summary?userId=${encodeURIComponent(userId)}`, NotificationsSummarySchema, { asVisitor: options.asVisitor === true });
     }
 
     /** Marks one entry read — what tapping a row that navigates away does; idempotent, keeps the first readAt. */

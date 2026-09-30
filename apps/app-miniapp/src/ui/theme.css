@@ -17193,6 +17193,10 @@ button.app-cal-peer-chip {
   margin: 0;
 }
 
+.app-org-head .app-section-title {
+  margin: 0;
+}
+
 .app-org-head-link {
   background: none;
   border: none;
@@ -17202,6 +17206,19 @@ button.app-cal-peer-chip {
   font-size: var(--app-font-size-description);
   font-weight: 700;
   padding: 0;
+}
+
+/* Уведомления кабинета открываются тем же экраном, что колокольчик ленты, и закрывают таббар. */
+.app-content--full > .app-org-notices {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.app-org-notices > .app-notify {
+  flex: 1;
+  min-height: 100%;
 }
 
 .app-org-events {

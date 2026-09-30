@@ -37,6 +37,8 @@ export interface MethodOptions {
   method?: "DELETE" | "PATCH" | "PUT" | "POST";
   /** JSON body for POST/PATCH requests; serialized and sent as application/json. */
   body?: unknown;
+  /** Send the call as the MAX user even while the cabinet bearer is attached. */
+  asVisitor?: boolean;
 }
 
 const TRANSIENT_STATUSES = new Set([0, 429, 502, 503, 504]);
@@ -95,7 +97,7 @@ export class ApiTransport {
     if (live) this.initData = live;
     const headers: Record<string, string> = { accept: "application/json" };
     if (this.initData !== null) headers["x-max-init-data"] = this.initData;
-    if (this.organizerToken !== null) headers["authorization"] = `Bearer ${this.organizerToken}`;
+    if (this.organizerToken !== null && options.asVisitor !== true) headers["authorization"] = `Bearer ${this.organizerToken}`;
     if (options.body !== undefined) headers["content-type"] = "application/json";
     return headers;
   }

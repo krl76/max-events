@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Organizer «Статистика» tab — CRM home: period, registrations, guest funnel, occupancy, returning guests, weekday chart, traffic sources, lead time, today’s door, and cabinet actions.
-// SCOPE: Presentational screen over GET /organizer/summary with cabinet fallback. Occupancy is one aggregate visual; per-event fill lives on the event hub. Rubles stay on Finance.
+// PURPOSE: Organizer «Статистика» tab — CRM home: period, registrations, guest funnel, occupancy, returning guests, weekday chart, traffic sources, lead time, today’s door, and cabinet actions. The header bell is the visitor one and opens the same inbox.
+// SCOPE: Presentational screen over GET /organizer/summary with cabinet fallback. Occupancy is one aggregate visual; per-event fill lives on the event hub. Rubles stay on Finance. The bell count is the MAX user's unread summary.
 // DEPENDS: react, ../api/client.js, ../ui/icons.js, ../ui/theme.css, ./cabinet-catalog.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -12,7 +12,6 @@ import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { AppChip, AppMedia } from "../ui/primitives";
 import { CABINET_ATTENDED_PERCENT, CABINET_CANCELLED_PERCENT, CABINET_EVENTS, CABINET_LEAD, CABINET_LEAD_LABELS, CABINET_REPEAT_PERCENT, CABINET_TRAFFIC, CABINET_TRAFFIC_LABELS, cabinetAsOrganizerEvent, cabinetLeadTitle, cabinetOccupancy, cabinetSoldOut, cabinetStats, cabinetTrafficLead, cabinetViews, cabinetWeakUpcoming, cabinetWeekdayBookings, defaultStatsRange } from "./cabinet-catalog";
-import { useOrganizerNativeBack } from "./organizer-native-back";
 
 const WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"] as const;
 const WEEKDAY_PEAK = ["в понедельник", "во вторник", "в среду", "в четверг", "в пятницу", "в субботу", "в воскресенье"] as const;
@@ -192,12 +191,6 @@ export const INCOME_CHART: Record<StatsWindow, IncomePoint[]> = {
   ],
 };
 
-export const STATS_NOTICES = [
-  { id: "jazz", title: "Новая запись на «Вечер джаза»", when: "2 ч назад" },
-  { id: "code", title: "Промокод ОСЕНЬ2027 использовали 12 раз", when: "вчера" },
-  { id: "reach", title: "Охват ленты вырос на 28%", when: "29.09" },
-] as const;
-
 export function periodCaption(window: StatsWindow): string {
   return `Последние ${window} дней`;
 }
@@ -211,12 +204,12 @@ export function axisTop(points: IncomePoint[]): number {
   return Math.max(10_000, Math.ceil(peak / 10_000) * 10_000);
 }
 
-export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote }: { onCreateEvent?: () => void; onOpenEvent?: (event: OrganizerEvent) => void; onCheckIn?: (event: OrganizerEvent) => void; onShowDrafts?: () => void; onPromote?: () => void }) {
+export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote, onNotices, noticesOpen = false }: { onCreateEvent?: () => void; onOpenEvent?: (event: OrganizerEvent) => void; onCheckIn?: (event: OrganizerEvent) => void; onShowDrafts?: () => void; onPromote?: () => void; onNotices?: () => void; noticesOpen?: boolean }) {
   const initial = defaultStatsRange();
   const [days, setDays] = useState<StatsWindow>(30);
   const [to] = useState(initial.to);
   const from = new Date(new Date(`${to}T12:00:00+03:00`).getTime() - days * 86_400_000).toISOString().slice(0, 10);
-  const [pane, setPane] = useState<"home" | "notices">("home");
+  const [unread, setUnread] = useState(0);
   const [summary, setSummary] = useState<OrganizerSummary | null>(null);
   const rangeFrom = new Date(`${from}T00:00:00+03:00`);
   const rangeTo = new Date(`${to}T23:59:59+03:00`);
@@ -247,7 +240,19 @@ export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote }: { on
   const attended = attendedPercent === null ? 0 : Math.round((bookings * attendedPercent) / 100);
   const cancelled = cancelledPercent === null ? 0 : Math.round((bookings * cancelledPercent) / 100);
   const funnelMax = Math.max(views, bookings, 1);
-  useOrganizerNativeBack(pane !== "home", () => setPane("home"));
+  useEffect(() => {
+    if (noticesOpen) return;
+    let alive = true;
+    apiClient.getNotificationsSummary("", { asVisitor: true }).then(
+      (payload) => {
+        if (alive) setUnread(payload.unreadCount);
+      },
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [noticesOpen]);
   useEffect(() => {
     let alive = true;
     apiClient.getOrganizerSummary(periodQueryFor(days)).then(
@@ -263,30 +268,13 @@ export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote }: { on
     };
   }, [days]);
 
-  if (pane === "notices") {
-    return (
-      <section className="app-gathering" aria-label="Уведомления">
-        <h1 className="app-section-title">Уведомления</h1>
-        <SettingsGroup title="Кабинет">
-          {STATS_NOTICES.map((item) => (
-            <div key={item.id} className="app-set-row">
-              <span className="app-set-row-text">
-                <span className="app-set-row-title">{item.title}</span>
-                <span className="app-set-row-hint">{item.when}</span>
-              </span>
-            </div>
-          ))}
-        </SettingsGroup>
-      </section>
-    );
-  }
-
   return (
     <section className="app-gathering" aria-label="Статистика">
       <div className="app-org-head">
         <h1 className="app-section-title">Статистика</h1>
-        <button type="button" className="app-org-head-link" onClick={() => setPane("notices")}>
-          Уведомления
+        <button type="button" className="app-header-bell" aria-label={unread === 0 ? "Уведомления" : `Уведомления: ${unread} новых`} onClick={() => onNotices?.()}>
+          <ActionIcon name="bell" size={24} />
+          {unread > 0 && <span className="app-header-bell-dot" aria-hidden="true" />}
         </button>
       </div>
       <div className="app-filters-chips" role="group" aria-label="Период">

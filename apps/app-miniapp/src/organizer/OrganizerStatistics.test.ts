@@ -81,7 +81,10 @@ describe("OrganizerStatistics", () => {
     expect(html).toContain(cabinetTrafficLead());
     expect(html).toContain("Когда записываются");
     expect(html).toContain("Продвинуть");
-    expect(html).toContain("Уведомления");
+    expect(html).toContain('class="app-header-bell"');
+    expect(html).toContain('aria-label="Уведомления"');
+    expect(html).not.toContain("app-org-head-link");
+    expect(html).not.toContain("Новая запись на «Вечер джаза»");
     expect(html).not.toContain("Заполняемость");
     expect(html).not.toContain("Занятость мест");
     expect(html).not.toContain("app-org-way--dark");
