@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 41 «Настройки»: the MAX identity row and the grouped sections — Приложение, Приватность, Близкие, Уведомления, Мини-приложение — plus «Отключить мини-приложение». Organizer settings only when organizer mode is already on. Close friends are assembled from people who follow the viewer.
 // SCOPE: The settings screen only. What the Profile contract carries (city, interests, privacy, smart alerts) is written with apiClient.updateProfile; the rest is apiClient.getAppSettings/updateAppSettings; the colour scheme is the useAppTheme preference, not a server field. Pickers are inline disclosures — no separate screen per row. Close friends open the same bottom sheet as friend pickers.
-// DEPENDS: ../api/client.js (apiClient, AppSettings), ../auth/AuthContext.js, ../friends/invite.js, ../max/bridge.js (getWebApp), ../onboarding/onboarding.js (ONBOARDING_CITIES, ONBOARDING_INTERESTS), ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.js (useAppTheme, ThemePreference), @max-events/api-contracts (Profile, UpdateProfile, User), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, AppSettings), ../auth/AuthContext.js, ../auth/entry-mode.js (ENTRY_MODE_STORAGE_KEY), ../friends/invite.js, ../max/bridge.js (getWebApp), ../onboarding/onboarding.js (ONBOARDING_CITIES, ONBOARDING_INTERESTS), ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.js (useAppTheme, ThemePreference), @max-events/api-contracts (Profile, UpdateProfile, User), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -37,6 +37,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, 
 import { PROFILE_BIO_MAX, type Friend, type Profile, type UpdateProfile, type User } from "@max-events/api-contracts";
 import { apiClient, type AppSettings } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { ENTRY_MODE_STORAGE_KEY } from "../auth/entry-mode";
 import { isCustomProfileAvatar } from "./ProfilePage";
 import { pluralRu } from "../catalog/format";
 import { readFeedPhoto } from "../feed/photo";
@@ -98,8 +99,8 @@ export function identityHint(user: Pick<User, "username">): string {
   return user.username === null ? "Профиль MAX" : `Профиль MAX · @${user.username}`;
 }
 
-/** Settings, not cache: the scheme, the "onboarding already ran" flag, the map basemap, the organizer session and the dev initData survive «Очистить кеш». */
-export const APP_PREFERENCE_KEYS: readonly string[] = ["max-events:theme", "max-events:onboarding", "max-events:basemap", "max-events.organizer-session", "max-events.dev-init-data"];
+/** Settings, not cache: the scheme, the "onboarding already ran" flag, the chosen entry, the map basemap, the organizer session and the dev initData survive «Очистить кеш». */
+export const APP_PREFERENCE_KEYS: readonly string[] = ["max-events:theme", "max-events:onboarding", ENTRY_MODE_STORAGE_KEY, "max-events:basemap", "max-events.organizer-session", "max-events.dev-init-data"];
 
 function appCacheKeys(storage: Pick<Storage, "length" | "key">): string[] {
   const keys: string[] = [];

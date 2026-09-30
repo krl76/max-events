@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Entry screen (макет, экран 01): full-bleed branded backdrop under a darkening veil, the афиша·MAX wordmark, «Войти через MAX» / «Вход организатора» and the terms line.
+// PURPOSE: Entry screen (макет, экран 01): full-bleed branded backdrop under a darkening veil, the афиша·MAX wordmark, «Вход пользователя» / «Вход организатора» and the terms line.
 // SCOPE: Presentational screen; the chosen mode is handed to the caller. The wordmark lives here because the entry screen owns it and the onboarding intro reuses it.
 // DEPENDS: ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -26,7 +26,7 @@ export function AfishaWordmark({ className }: { className?: string }) {
   );
 }
 
-export function EntryPage({ onSelect, userLabel = "Войти через MAX" }: { onSelect: (mode: EntryMode) => void; userLabel?: string }) {
+export function EntryPage({ onSelect, userLabel = "Вход пользователя" }: { onSelect: (mode: EntryMode) => void; userLabel?: string }) {
   return (
     <section className="app-entry">
       {/* Макет ставит здесь фотографию города вечером под затемнением. Фото в продукте нет и по

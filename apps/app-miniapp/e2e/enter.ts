@@ -1,8 +1,9 @@
 import { type Page } from "@playwright/test";
 
-/** Mock/dev shell shows EntryPage; live MAX contour skips it. */
+/** First open shows the chooser. A stored choice in this profile skips it. */
 export async function enterAsUser(page: Page): Promise<void> {
   await page.goto("/");
-  const login = page.getByRole("button", { name: /Войти/ });
-  if (await login.count()) await login.first().click();
+  const login = page.getByRole("button", { name: "Вход пользователя" });
+  const visible = await login.waitFor({ state: "visible", timeout: 8000 }).then(() => true, () => false);
+  if (visible) await login.click();
 }
