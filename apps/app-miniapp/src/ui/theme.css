@@ -29514,6 +29514,116 @@ button.app-pcodes-iconbtn {
   transform: rotate(-90deg);
 }
 
+.app-pcodes-select-btn.app-pcodes-period {
+  justify-content: flex-start;
+}
+
+.app-pcodes-select-btn.app-pcodes-period svg,
+.app-pcodes-select--open .app-pcodes-select-btn.app-pcodes-period svg {
+  transform: none;
+}
+
+.app-pcodes-cal {
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: 18px;
+  box-shadow: var(--app-shadow-lift);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  left: 0;
+  padding: 10px 10px 8px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 31;
+}
+
+.app-pcodes-select--up .app-pcodes-cal {
+  bottom: calc(100% + 6px);
+  top: auto;
+}
+
+.app-pcodes-cal-head {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+}
+
+.app-pcodes-cal-head span {
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.app-pcodes-cal-head button {
+  background: var(--app-surface);
+  border: none;
+  border-radius: 10px;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 20px;
+  height: 32px;
+  line-height: 1;
+}
+
+.app-pcodes-cal-week,
+.app-pcodes-cal-grid {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.app-pcodes-cal-week span {
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.app-pcodes-cal-day {
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  height: 32px;
+  padding: 0;
+}
+
+.app-pcodes-cal-day--out {
+  color: var(--app-text-tertiary);
+}
+
+.app-pcodes-cal-day--in {
+  background: color-mix(in srgb, var(--app-accent) 16%, var(--app-card));
+  border-radius: 0;
+}
+
+.app-pcodes-cal-day--on {
+  background: var(--app-accent);
+  border-radius: 10px;
+  color: var(--app-accent-contrast);
+}
+
+.app-pcodes-cal-day--today:not(.app-pcodes-cal-day--on) {
+  box-shadow: inset 0 0 0 1.5px var(--app-accent);
+}
+
+.app-pcodes-cal-hint {
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+}
+
 .app-pcodes-menu {
   background: #ffffff;
   border: 1px solid #e4ebf5;

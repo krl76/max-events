@@ -11,7 +11,7 @@ import { EventPicker } from "../ui/EventPicker";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { mergeCabinetEvents, posterEvents } from "./cabinet-catalog";
 import { EMPTY_MAILING_DRAFT, MailingCreate, MailingListScreen, MailingResults, mailingBlock, mailingRows, saveMailing, type MailingDraft, type MailingRow } from "./OrganizerMailing";
-import { useOrganizerNativeBack } from "./organizer-native-back";
+import { ORGANIZER_BACK_SECTION, useOrganizerNativeBack } from "./organizer-native-back";
 
 export type PromoPane = "active" | "scheduled";
 export type PromoTool = "campaign" | "code" | "mail";
@@ -175,14 +175,13 @@ export function createdPromoCode(draft: PromoDraft, id: string): { row: PromoCod
   const code = draft.code.trim().toUpperCase();
   const amount = draft.discountKind === "Процент" ? `${draft.discount}%` : `${draft.discount} ₽`;
   const discountLabel = `Скидка ${amount}`;
-  const period = draft.period.trim();
-  const until = period === "" ? "" : period.toLowerCase().startsWith("до ") ? period : `до ${period}`;
+  const period = promoPeriodPhrase(draft.period);
   return {
     row: {
       id,
       phase: "active",
       code,
-      detail: until === "" ? discountLabel : `${discountLabel} · ${until}`,
+      detail: period === "" ? discountLabel : `${discountLabel} · ${period}`,
       uses: "0 использований",
       delta: "+0%",
     },
@@ -299,6 +298,178 @@ export function PromoCodesScreen({ rows = PROMO_CODE_ROWS, onBack, onCreate }: {
         </div>
       )}
     </section>
+  );
+}
+
+const PERIOD_WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"] as const;
+
+function padPeriod(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function periodDayStamp(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+export function formatPromoDay(date: Date): string {
+  return `${padPeriod(date.getDate())}.${padPeriod(date.getMonth() + 1)}.${date.getFullYear()}`;
+}
+
+function parsePromoDay(value: string): Date | null {
+  const match = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(value.trim());
+  if (match === null) return null;
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return date;
+}
+
+/** A single day reads as «до дд.мм.гггг». A range already names both ends, so it stays as chosen. */
+export function promoPeriodPhrase(period: string): string {
+  const trimmed = period.trim();
+  if (trimmed === "") return "";
+  if (trimmed.includes("—") || /^до\s/i.test(trimmed)) return trimmed;
+  return `до ${trimmed}`;
+}
+
+function parsePromoPeriod(period: string): { from: Date | null; to: Date | null } {
+  const trimmed = period.trim().replace(/^до\s+/i, "");
+  if (trimmed === "") return { from: null, to: null };
+  const [startRaw, endRaw] = trimmed.split("—").map((part) => part.trim());
+  const from = parsePromoDay(startRaw ?? "");
+  if (endRaw === undefined) return { from, to: from };
+  return { from, to: parsePromoDay(endRaw) };
+}
+
+function promoMonthTitle(cursor: Date): string {
+  const label = cursor.toLocaleDateString("ru-RU", { month: "long" });
+  const title = label.length === 0 ? label : `${label.charAt(0).toUpperCase()}${label.slice(1)}`;
+  return `${title} ${cursor.getFullYear()}`;
+}
+
+function promoMonthCells(cursor: Date): Date[] {
+  const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  const lead = (first.getDay() + 6) % 7;
+  const start = new Date(cursor.getFullYear(), cursor.getMonth(), 1 - lead);
+  return Array.from({ length: 42 }, (_, index) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + index));
+}
+
+function PromoPeriodField({ value, onChange }: { value: string; onChange: (period: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
+  const [pendingStart, setPendingStart] = useState<Date | null>(null);
+  const parsed = parsePromoPeriod(value);
+  const [cursor, setCursor] = useState(() => {
+    const seed = parsed.from ?? new Date();
+    return new Date(seed.getFullYear(), seed.getMonth(), 1);
+  });
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+  useOrganizerNativeBack(open, () => setOpen(false), ORGANIZER_BACK_SECTION + 1);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const button = rootRef.current?.querySelector(".app-pcodes-period");
+    const menu = rootRef.current?.querySelector(".app-pcodes-cal");
+    if (!(button instanceof HTMLElement) || !(menu instanceof HTMLElement)) return;
+    const rect = button.getBoundingClientRect();
+    const height = menu.getBoundingClientRect().height;
+    const spaceBelow = window.innerHeight - rect.bottom - 96;
+    setDropUp(spaceBelow < height + 8 && rect.top > height + 8);
+  }, [open, cursor]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const rangeStart = pendingStart ?? parsed.from;
+  const rangeEnd = pendingStart ?? parsed.to;
+
+  const pick = (day: Date) => {
+    if (day.getMonth() !== cursor.getMonth()) setCursor(new Date(day.getFullYear(), day.getMonth(), 1));
+    if (pendingStart === null) {
+      setPendingStart(day);
+      onChange(formatPromoDay(day));
+      return;
+    }
+    const start = periodDayStamp(pendingStart) <= periodDayStamp(day) ? pendingStart : day;
+    const end = periodDayStamp(pendingStart) <= periodDayStamp(day) ? day : pendingStart;
+    setPendingStart(null);
+    onChange(periodDayStamp(start) === periodDayStamp(end) ? formatPromoDay(start) : `${formatPromoDay(start)} — ${formatPromoDay(end)}`);
+    setOpen(false);
+  };
+
+  const today = periodDayStamp(new Date());
+
+  return (
+    <div className={open ? `app-pcodes-select app-pcodes-select--open${dropUp ? " app-pcodes-select--up" : ""}` : "app-pcodes-select"} ref={rootRef}>
+      <button
+        type="button"
+        className={value.trim() === "" ? "app-pcodes-select-btn app-pcodes-select-btn--placeholder app-pcodes-period" : "app-pcodes-select-btn app-pcodes-period"}
+        aria-label="Период действия"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => {
+          setPendingStart(null);
+          const seed = parsePromoPeriod(value).from ?? new Date();
+          setCursor(new Date(seed.getFullYear(), seed.getMonth(), 1));
+          setOpen((current) => !current);
+        }}
+      >
+        <ActionIcon name="calendar" size={18} strokeWidth={1.9} />
+        <span>{value.trim() === "" ? "Выберите даты" : promoPeriodPhrase(value)}</span>
+      </button>
+      {open && (
+        <div className="app-pcodes-cal" id={panelId} role="dialog" aria-label="Календарь периода">
+          <div className="app-pcodes-cal-head">
+            <button type="button" aria-label="Предыдущий месяц" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}>
+              ‹
+            </button>
+            <span>{promoMonthTitle(cursor)}</span>
+            <button type="button" aria-label="Следующий месяц" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}>
+              ›
+            </button>
+          </div>
+          <div className="app-pcodes-cal-week">
+            {PERIOD_WEEKDAYS.map((day) => (
+              <span key={day}>{day}</span>
+            ))}
+          </div>
+          <div className="app-pcodes-cal-grid">
+            {promoMonthCells(cursor).map((day) => {
+              const stamp = periodDayStamp(day);
+              const start = rangeStart === null ? null : periodDayStamp(rangeStart);
+              const end = rangeEnd === null ? null : periodDayStamp(rangeEnd);
+              const on = start !== null && (stamp === start || stamp === end);
+              const inside = start !== null && end !== null && stamp > Math.min(start, end) && stamp < Math.max(start, end);
+              const outside = day.getMonth() !== cursor.getMonth();
+              const className = ["app-pcodes-cal-day", outside ? "app-pcodes-cal-day--out" : "", inside ? "app-pcodes-cal-day--in" : "", on ? "app-pcodes-cal-day--on" : "", stamp === today ? "app-pcodes-cal-day--today" : ""].filter(Boolean).join(" ");
+              return (
+                <button key={stamp} type="button" className={className} aria-pressed={on} onClick={() => pick(day)}>
+                  {day.getDate()}
+                </button>
+              );
+            })}
+          </div>
+          <p className="app-pcodes-cal-hint">{pendingStart === null ? "Выберите начало и конец" : "Выберите конец периода"}</p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -431,13 +602,10 @@ export function PromoCodeCreate({ draft, block, events, onChange, onSubmit, onBa
           <ActionIcon name="chevron" size={16} strokeWidth={2.2} />
         </button>
       </div>
-      <label className="app-pcodes-field">
+      <div className="app-pcodes-field">
         <span>Период действия</span>
-        <span className="app-pcodes-control app-pcodes-control--icon">
-          <ActionIcon name="calendar" size={18} strokeWidth={1.9} />
-          <input aria-label="Период действия" autoComplete="off" value={draft.period} onChange={(change) => onChange({ period: change.target.value })} />
-        </span>
-      </label>
+        <PromoPeriodField value={draft.period} onChange={(period) => onChange({ period })} />
+      </div>
       <div className="app-pcodes-field">
         <span>Лимит использований</span>
         <PromoSelect label="Лимит использований" value={draft.limitMode} options={LIMIT_MODES} onChange={(limitMode) => onChange({ limitMode })} />

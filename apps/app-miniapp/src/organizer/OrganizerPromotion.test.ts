@@ -61,6 +61,10 @@ describe("createdPromoCode", () => {
   it("omits the date when the period is empty", () => {
     expect(createdPromoCode({ ...EMPTY_PROMO_DRAFT, code: "nodate", discount: "10" }, "code-3").row.detail).toBe("Скидка 10%");
   });
+
+  it("keeps a chosen range without an extra until-prefix", () => {
+    expect(createdPromoCode({ ...EMPTY_PROMO_DRAFT, code: "range", discount: "10", period: "01.10.2026 — 15.10.2026" }, "code-4").row.detail).toBe("Скидка 10% · 01.10.2026 — 15.10.2026");
+  });
 });
 
 async function mount(node: ReactElement): Promise<{ host: HTMLDivElement; root: Root }> {
@@ -107,11 +111,26 @@ describe("creating a promo code", () => {
     const inputs = [...host.querySelectorAll("input")];
     const code = inputs[0];
     const discount = inputs[1];
-    const period = host.querySelector<HTMLInputElement>('input[aria-label="Период действия"]');
-    if (code === undefined || discount === undefined || period === null) throw new Error("promo form inputs missing");
+    if (code === undefined || discount === undefined) throw new Error("promo form inputs missing");
     await typeInto(code, "autumn25");
     await typeInto(discount, "25");
-    await typeInto(period, "01.10.2026");
+    await act(async () => {
+      buttonNamed(host, "Период действия").click();
+    });
+    const days = [...host.querySelectorAll<HTMLButtonElement>(".app-pcodes-cal-day:not(.app-pcodes-cal-day--out)")];
+    const start = days[0];
+    const end = days[9];
+    if (start === undefined || end === undefined) throw new Error("calendar days missing");
+    await act(async () => {
+      start.click();
+    });
+    expect(host.querySelector(".app-pcodes-cal")).not.toBeNull();
+    await act(async () => {
+      end.click();
+    });
+    expect(host.querySelector(".app-pcodes-cal")).toBeNull();
+    const chosen = (buttonNamed(host, "Период действия").textContent ?? "").replace(/\s+/g, " ").trim();
+    expect(chosen).toMatch(/^\d{2}\.\d{2}\.\d{4} — \d{2}\.\d{2}\.\d{4}$/);
 
     await act(async () => {
       buttonNamed(host, "Создать промокод").click();
@@ -119,7 +138,7 @@ describe("creating a promo code", () => {
 
     expect(host.textContent).toContain("Список промокодов");
     expect(host.textContent).toContain("AUTUMN25");
-    expect(host.textContent).toContain("Скидка 25% · до 01.10.2026");
+    expect(host.textContent).toContain(`Скидка 25% · ${chosen}`);
     expect(host.textContent).toContain("0 использований");
     for (const row of PROMO_CODE_ROWS) expect(host.textContent).toContain(row.code);
 
@@ -234,6 +253,10 @@ describe("OrganizerPromotion", () => {
     expect(form).toContain('placeholder="Например, 20"');
     expect(form).toContain("Процент");
     expect(form).toContain("Выберите событие");
+    expect(form).toContain("Выберите даты");
+    expect(form).toContain('aria-label="Период действия"');
+    expect(form).not.toContain('<input aria-label="Период действия"');
+    expect(form).not.toContain("app-pcodes-cal");
     expect(form).toContain("Без ограничений");
     expect(form).toContain("Применять ко всем билетам");
     expect(form).toContain('aria-checked="true"');
