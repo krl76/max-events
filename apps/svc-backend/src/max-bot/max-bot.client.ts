@@ -9,7 +9,7 @@
 // - MaxBotChat - chat id + invite link
 // - MaxBotFetch - injectable fetch for tests
 // - MaxBotUpdate - one raw update row as MAX delivers it (parsed into BotInbound by bot.types)
-// - MaxBotClient - createChat, sendMessage, sendRich, sendChatMessage, answerCallback, getUpdates, subscribe, unsubscribe, sendTyping, setCommands, botName, listFriends
+// - MaxBotClient - createChat, sendMessage, sendRich, sendRichId, editMessage, sendChatMessage, answerCallback, getUpdates, subscribe, unsubscribe, sendTyping, setCommands, botName, listFriends
 // - MAX_BOT_API_BASE_URL - documented Bot API host
 // - MAX_WEBHOOK_SECRET_HEADER - header MAX sets on every webhook delivery when a subscription secret is configured
 // - MAX_LONGPOLL_TIMEOUT_SECONDS - long-poll hold time (dev contour)
@@ -82,7 +82,33 @@ export class MaxBotClient {
    * rich path the conversational bot uses; sendMessage stays the plain-text path existing callers use.
    */
   async sendRich(maxUserId: string, body: BotMessageBody): Promise<boolean> {
-    return this.postToUser(maxUserId, body);
+    return (await this.sendRichId(maxUserId, body)) !== null;
+  }
+
+  /**
+   * Send a rich message and return its MAX `mid`, so a later PUT can turn a «подбираю» card into
+   * the real reply. Null when the send failed; empty string when MAX accepted the message but
+   * did not echo an id.
+   */
+  async sendRichId(maxUserId: string, body: BotMessageBody): Promise<string | null> {
+    if (!this.token) return null;
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}/messages?user_id=${encodeURIComponent(maxUserId)}`, {
+        method: "POST",
+        headers: this.jsonHeaders(),
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) return null;
+      return messageIdFromSend(await response.json());
+    } catch {
+      return null;
+    }
+  }
+
+  /** Replace an existing bot message (the working card) with the finished reply. */
+  async editMessage(messageId: string, body: BotMessageBody): Promise<boolean> {
+    if (!this.token || messageId.trim() === "") return false;
+    return this.post(`${this.baseUrl}/messages?message_id=${encodeURIComponent(messageId)}`, body, "PUT");
   }
 
   async sendChatMessage(chatId: number, text: string): Promise<boolean> {
@@ -195,6 +221,21 @@ export class MaxBotClient {
   private jsonHeaders(): Record<string, string> {
     return { Authorization: this.token ?? "", "content-type": "application/json" };
   }
+}
+
+function messageIdFromSend(body: unknown): string {
+  if (typeof body !== "object" || body === null) return "";
+  const raw = body as Record<string, unknown>;
+  const nested = raw.message;
+  const message = typeof nested === "object" && nested !== null ? (nested as Record<string, unknown>) : raw;
+  if (typeof message.mid === "string" && message.mid !== "") return message.mid;
+  if (typeof message.message_id === "string" && message.message_id !== "") return message.message_id;
+  const inner = message.body;
+  if (typeof inner === "object" && inner !== null) {
+    const mid = (inner as Record<string, unknown>).mid;
+    if (typeof mid === "string" && mid !== "") return mid;
+  }
+  return "";
 }
 
 function parseChat(body: unknown): MaxBotChat | null {

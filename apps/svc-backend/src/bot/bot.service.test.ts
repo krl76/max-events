@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Event } from "@max-events/api-contracts";
 import type { MaxBotClient } from "../max-bot/max-bot.client";
 import { botPayload } from "./bot-payloads";
-import { BotService, commandOf, isDialog, isMenuWord, BOT_COMMANDS } from "./bot.service";
+import { BotService, commandOf, isDialog, isMenuWord, workingKind, BOT_COMMANDS } from "./bot.service";
 import type { BotMessageBody } from "./bot.types";
 
 const userId = "00000000-0000-4000-8000-00000000000a";
@@ -18,6 +18,7 @@ function event(overrides: Partial<Event> = {}): Event {
 /** Records every outbound message and callback answer so a test can assert on the delivery, not the render. */
 type Sent = Array<{ to: string; body: BotMessageBody }>;
 type Answered = Array<{ callbackId: string; body: BotMessageBody }>;
+type Edited = Array<{ messageId: string; body: BotMessageBody }>;
 
 function createHarness(
   overrides: {
@@ -35,6 +36,7 @@ function createHarness(
 ) {
   const sent: Sent = [];
   const answered: Answered = [];
+  const edited: Edited = [];
   const typing: number[] = [];
   const bot = {
     sendTyping: async (chatId: number) => {
@@ -43,6 +45,15 @@ function createHarness(
     },
     sendRich: async (to: string, body: BotMessageBody) => {
       sent.push({ to, body });
+      return true;
+    },
+    sendRichId: async (to: string, body: BotMessageBody) => {
+      sent.push({ to, body });
+      return "mid-work";
+    },
+    editMessage: async (messageId: string, body: BotMessageBody) => {
+      if (overrides.answerOk === false) return false;
+      edited.push({ messageId, body });
       return true;
     },
     answerCallback: async (callbackId: string, answer: { message?: BotMessageBody }) => {
@@ -65,12 +76,12 @@ function createHarness(
 
   // BotService's constructor is positional; the harness mirrors that order exactly.
   const service = new BotService(config, bot, users as never, today as never, whereto as never, assist as never, calendar as never, plans as never, bookings as never, waitlist as never, events as never);
-  return { service, sent, answered, typing };
+  return { service, sent, answered, edited, typing };
 }
 
 describe("isDialog", () => {
   it("answers DMs and a missing chat_type, not groups or channels", () => {
-    const base = { maxUserId: "1", userName: null, text: "", callbackPayload: "", callbackId: "", startPayload: "", chatId: null };
+    const base = { maxUserId: "1", userName: null, text: "", callbackPayload: "", callbackId: "", startPayload: "", messageId: "", chatId: null };
     expect(isDialog({ ...base, kind: "text", chatType: "dialog" })).toBe(true);
     expect(isDialog({ ...base, kind: "text", chatType: null })).toBe(true);
     expect(isDialog({ ...base, kind: "text", chatType: "chat" })).toBe(false);
@@ -97,10 +108,25 @@ describe("isMenuWord / commandOf", () => {
   });
 });
 
+describe("workingKind", () => {
+  const text = (value: string) => ({ kind: "text" as const, maxUserId: "1", userName: null, chatId: null, chatType: "dialog", text: value, callbackPayload: "", callbackId: "", startPayload: "", messageId: "" });
+  const callback = (payload: string) => ({ kind: "callback" as const, maxUserId: "1", userName: null, chatId: null, chatType: "dialog", text: "", callbackPayload: payload, callbackId: "cb", startPayload: "", messageId: "" });
+
+  it("speaks on slow paths and stays quiet on the start card and menu", () => {
+    expect(workingKind(text("джаз вечером"))).toBe("assist");
+    expect(workingKind(text("/today"))).toBe("today");
+    expect(workingKind(callback(botPayload({ id: "whereto", step: "go", company: "friends", mood: "calm", budget: "free" })))).toBe("whereto");
+    expect(workingKind(callback(botPayload({ id: "book", eventId })))).toBe("book");
+    expect(workingKind(text("/start"))).toBeNull();
+    expect(workingKind(text("/help"))).toBeNull();
+    expect(workingKind(callback(botPayload({ id: "whereto", step: "company" })))).toBeNull();
+  });
+});
+
 describe("BotService.handleInbound", () => {
-  const startInbound = { kind: "start", maxUserId: "67890", userName: "Михаил", chatId: 555, chatType: "dialog", text: "", callbackPayload: "", callbackId: "", startPayload: "" } as const;
-  const textInbound = (text: string) => ({ kind: "text", maxUserId: "67890", userName: "Михаил", chatId: 555, chatType: "dialog", text, callbackPayload: "", callbackId: "" }) as never;
-  const callbackInbound = (payload: string) => ({ kind: "callback", maxUserId: "67890", userName: null, chatId: 555, chatType: "dialog", text: "", callbackPayload: payload, callbackId: "cb-1" }) as never;
+  const startInbound = { kind: "start", maxUserId: "67890", userName: "Михаил", chatId: 555, chatType: "dialog", text: "", callbackPayload: "", callbackId: "", startPayload: "", messageId: "" } as const;
+  const textInbound = (text: string) => ({ kind: "text", maxUserId: "67890", userName: "Михаил", chatId: 555, chatType: "dialog", text, callbackPayload: "", callbackId: "", messageId: "" }) as never;
+  const callbackInbound = (payload: string) => ({ kind: "callback", maxUserId: "67890", userName: null, chatId: 555, chatType: "dialog", text: "", callbackPayload: payload, callbackId: "cb-1", messageId: "mid-pressed" }) as never;
 
   it("welcomes a first-time visitor and shows the typing indicator in the dialog", async () => {
     const { service, sent, typing } = createHarness();
@@ -134,11 +160,12 @@ describe("BotService.handleInbound", () => {
   });
 
   it("answers a button press by editing the pressed message in place", async () => {
-    const { service, sent, answered } = createHarness();
+    const { service, sent, answered, edited } = createHarness();
     await service.handleInbound(callbackInbound(botPayload({ id: "today" })));
     expect(answered).toHaveLength(1);
     expect(answered[0]?.callbackId).toBe("cb-1");
-    expect(answered[0]?.body.text).toContain("Что сегодня");
+    expect(answered[0]?.body.text).toContain("Смотрю, что сегодня рядом");
+    expect(edited[0]?.body.text).toContain("Что сегодня");
     expect(sent).toHaveLength(0);
   });
 
@@ -147,12 +174,14 @@ describe("BotService.handleInbound", () => {
     await service.handleInbound(callbackInbound(botPayload({ id: "today" })));
     expect(answered).toHaveLength(0);
     expect(sent).toHaveLength(1);
+    expect(sent[0]?.body.text).toContain("Что сегодня");
   });
 
   it("runs a natural-language message through the assist and renders its picks", async () => {
-    const { service, sent } = createHarness();
+    const { service, sent, edited } = createHarness();
     await service.handleInbound(textInbound("джаз вечером до 3000"));
-    expect(sent[0]?.body.text).toContain("Нашел 1 вариант");
+    expect(sent[0]?.body.text).toContain("Подбираю варианты");
+    expect(edited[0]?.body.text).toContain("Нашел 1 вариант");
   });
 
   it("routes /help to the help card, not the greeting menu", async () => {
@@ -165,22 +194,23 @@ describe("BotService.handleInbound", () => {
   it("routes /today and /plans commands to their screens instead of an NL search", async () => {
     const plansHarness = createHarness({ plans: { list: async () => [] } });
     await plansHarness.service.handleInbound(textInbound("/plans"));
-    expect(plansHarness.sent[0]?.body.text).toContain("Мои планы");
+    expect(plansHarness.edited[0]?.body.text).toContain("Мои планы");
 
     const todayHarness = createHarness();
     await todayHarness.service.handleInbound(textInbound("/today"));
-    expect(todayHarness.sent[0]?.body.text).toContain("Что сегодня");
+    expect(todayHarness.edited[0]?.body.text).toContain("Что сегодня");
   });
 
   it("books an event from a callback and confirms with the reminder promise", async () => {
-    const { service, answered } = createHarness({ events: { getPublished: async () => event({ capacity: 10, bookedCount: 1 }) }, bookings: { create: async () => ({ freeSeats: 8 }) } });
+    const { service, answered, edited } = createHarness({ events: { getPublished: async () => event({ capacity: 10, bookedCount: 1 }) }, bookings: { create: async () => ({ freeSeats: 8 }) } });
     await service.handleInbound(callbackInbound(botPayload({ id: "book", eventId })));
-    expect(answered[0]?.body.text).toContain("Готово, ты записан");
-    expect(answered[0]?.body.text).toContain("Свободных мест осталось: 8");
+    expect(answered[0]?.body.text).toContain("Записываю");
+    expect(edited[0]?.body.text).toContain("Готово, ты записан");
+    expect(edited[0]?.body.text).toContain("Свободных мест осталось: 8");
   });
 
   it("tells a person who is already booked instead of failing", async () => {
-    const { service, answered } = createHarness({
+    const { service, edited } = createHarness({
       bookings: {
         create: async () => {
           throw new ConflictException("Booking already exists");
@@ -188,11 +218,11 @@ describe("BotService.handleInbound", () => {
       },
     });
     await service.handleInbound(callbackInbound(botPayload({ id: "book", eventId })));
-    expect(answered[0]?.body.text).toContain("Ты уже записан");
+    expect(edited[0]?.body.text).toContain("Ты уже записан");
   });
 
   it("offers the waitlist when the event is full", async () => {
-    const { service, answered } = createHarness({
+    const { service, edited } = createHarness({
       bookings: {
         create: async () => {
           throw new ConflictException("No seats left");
@@ -200,17 +230,17 @@ describe("BotService.handleInbound", () => {
       },
     });
     await service.handleInbound(callbackInbound(botPayload({ id: "book", eventId })));
-    expect(answered[0]?.body.text).toContain("Мест не осталось");
+    expect(edited[0]?.body.text).toContain("Мест не осталось");
   });
 
   it("joins the waitlist and reports the position", async () => {
-    const { service, answered } = createHarness({ waitlist: { join: async () => ({ position: 3 }) } });
+    const { service, edited } = createHarness({ waitlist: { join: async () => ({ position: 3 }) } });
     await service.handleInbound(callbackInbound(botPayload({ id: "waitlist", eventId })));
-    expect(answered[0]?.body.text).toContain("Ты 3-й в очереди");
+    expect(edited[0]?.body.text).toContain("Ты 3-й в очереди");
   });
 
   it("redirects a waitlist press to booking when seats are actually free", async () => {
-    const { service, answered } = createHarness({
+    const { service, edited } = createHarness({
       waitlist: {
         join: async () => {
           throw new ConflictException("Seats are still available");
@@ -218,7 +248,7 @@ describe("BotService.handleInbound", () => {
       },
     });
     await service.handleInbound(callbackInbound(botPayload({ id: "waitlist", eventId })));
-    expect(answered[0]?.body.text).toContain("Записаться?");
+    expect(edited[0]?.body.text).toContain("Записаться?");
   });
 
   it("says the event is gone when it cannot be loaded", async () => {
@@ -240,7 +270,7 @@ describe("BotService.handleInbound", () => {
   });
 
   it("turns a 429 from the assist into an honest slow-down card, not a crash", async () => {
-    const { service, sent } = createHarness({
+    const { service, edited } = createHarness({
       assist: {
         suggest: async () => {
           throw new HttpException("Assist rate limit exceeded", HttpStatus.TOO_MANY_REQUESTS);
@@ -248,11 +278,11 @@ describe("BotService.handleInbound", () => {
       },
     });
     await service.handleInbound(textInbound("джаз"));
-    expect(sent[0]?.body.text).toContain("Слишком часто");
+    expect(edited[0]?.body.text).toContain("Слишком часто");
   });
 
   it("renders the honest failure card when a dependency throws, and never lets the error escape", async () => {
-    const { service, answered } = createHarness({
+    const { service, edited } = createHarness({
       today: {
         digest: async () => {
           throw new Error("db down");
@@ -260,12 +290,12 @@ describe("BotService.handleInbound", () => {
       },
     });
     await expect(service.handleInbound(callbackInbound(botPayload({ id: "today" })))).resolves.toBeUndefined();
-    expect(answered[0]?.body.text).toContain("Что-то пошло не так");
+    expect(edited[0]?.body.text).toContain("Что-то пошло не так");
   });
 
   it("shows the empty-catalog card when the city itself has no events, not a search miss", async () => {
-    const { service, answered } = createHarness({ today: { digest: async () => ({ summary: { nearbyCount: 0, suitableCount: 0, withFriendsCount: 0 }, cards: [], buckets: { nearbyIds: [], suitableIds: [], friendIds: [] } }) } });
+    const { service, edited } = createHarness({ today: { digest: async () => ({ summary: { nearbyCount: 0, suitableCount: 0, withFriendsCount: 0 }, cards: [], buckets: { nearbyIds: [], suitableIds: [], friendIds: [] } }) } });
     await service.handleInbound(callbackInbound(botPayload({ id: "today" })));
-    expect(answered[0]?.body.text).toContain("Афиша пуста");
+    expect(edited[0]?.body.text).toContain("Афиша пуста");
   });
 });

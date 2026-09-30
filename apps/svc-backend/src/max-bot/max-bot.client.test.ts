@@ -102,7 +102,7 @@ describe("MaxBotClient.sendRich", () => {
     const calls: Array<{ url: string; init: { method: string; headers: Record<string, string>; body?: string } }> = [];
     const client = new MaxBotClient(token, MAX_BOT_API_BASE_URL, async (url, init) => {
       calls.push({ url, init });
-      return jsonResponse(200, {});
+      return jsonResponse(200, { message: { body: { mid: "mid-1" } } });
     });
     const body = { text: "меню", format: "markdown" as const, attachments: [{ type: "image" as const, payload: { url: "https://cdn.example/hero.jpg" } }] };
     await expect(client.sendRich("67890", body)).resolves.toBe(true);
@@ -111,6 +111,25 @@ describe("MaxBotClient.sendRich", () => {
 
     const bare = new MaxBotClient(undefined, MAX_BOT_API_BASE_URL, async () => jsonResponse(200, {}));
     await expect(bare.sendRich("1", { text: "x" })).resolves.toBe(false);
+  });
+
+  it("returns the MAX mid so a working card can be edited into the reply", async () => {
+    const client = new MaxBotClient(token, MAX_BOT_API_BASE_URL, async () => jsonResponse(200, { message: { body: { mid: "mid-1" } } }));
+    await expect(client.sendRichId("67890", { text: "Подбираю варианты…" })).resolves.toBe("mid-1");
+  });
+});
+
+describe("MaxBotClient.editMessage", () => {
+  it("puts the new body on /messages?message_id=", async () => {
+    const calls: Array<{ url: string; init: { method: string; body?: string } }> = [];
+    const client = new MaxBotClient(token, MAX_BOT_API_BASE_URL, async (url, init) => {
+      calls.push({ url, init });
+      return jsonResponse(200, {});
+    });
+    await expect(client.editMessage("mid-1", { text: "готово" })).resolves.toBe(true);
+    expect(calls[0]?.url).toBe(`${MAX_BOT_API_BASE_URL}/messages?message_id=mid-1`);
+    expect(calls[0]?.init.method).toBe("PUT");
+    expect(JSON.parse(calls[0]?.init.body ?? "{}")).toEqual({ text: "готово" });
   });
 });
 

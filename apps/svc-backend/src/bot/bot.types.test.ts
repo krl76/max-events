@@ -23,7 +23,7 @@ const pressed = {
   update_type: "message_callback",
   timestamp: 1_700_000_002_000,
   callback: { callback_id: "cb-1", payload: "today", user: { user_id: 67_890, first_name: "Михаил", is_bot: false } },
-  message: { recipient: { chat_id: 555, chat_type: "dialog" }, body: { text: "старое меню" } },
+  message: { recipient: { chat_id: 555, chat_type: "dialog" }, body: { mid: "mid-pressed", text: "старое меню" } },
 };
 
 describe("parseUpdates", () => {
@@ -32,7 +32,7 @@ describe("parseUpdates", () => {
     expect(inbound).toHaveLength(3);
     expect(inbound[0]).toMatchObject({ kind: "start", maxUserId: "67890", userName: "Михаил", chatId: 555, startPayload: "event-abc" });
     expect(inbound[1]).toMatchObject({ kind: "text", text: "куда сходить вечером", chatType: "dialog" });
-    expect(inbound[2]).toMatchObject({ kind: "callback", callbackPayload: "today", callbackId: "cb-1", chatId: 555 });
+    expect(inbound[2]).toMatchObject({ kind: "callback", callbackPayload: "today", callbackId: "cb-1", chatId: 555, messageId: "mid-pressed" });
   });
 
   it("accepts a bare array as well as the { updates } envelope", () => {

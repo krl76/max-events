@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AssistPick, CalendarEntry, Event, PlanCard, TodayResponse } from "@max-events/api-contracts";
 import { botPayload } from "./bot-payloads";
-import { absoluteCover, alreadyBookedMessage, coverUrls, bookedMessage, bookingsMessage, confirmBookMessage, emptyCatalogMessage, eventCard, eventNotFoundMessage, failureMessage, helpMessage, heroUrl, menuKeyboard, menuMessage, noSeatsMessage, nothingFoundMessage, picksMessage, plansMessage, rateLimitMessage, todayMessage, unknownTextMessage, waitlistMessage, welcomeMessage, wheretoQuestion, wheretoResultMessage, type BotMedia } from "./bot-renderer";
+import { absoluteCover, alreadyBookedMessage, coverUrls, bookedMessage, bookingsMessage, confirmBookMessage, emptyCatalogMessage, eventCard, eventNotFoundMessage, failureMessage, helpMessage, heroUrl, menuKeyboard, menuMessage, noSeatsMessage, nothingFoundMessage, picksMessage, plansMessage, rateLimitMessage, todayMessage, unknownTextMessage, waitlistMessage, welcomeMessage, wheretoQuestion, wheretoResultMessage, workingMessage, type BotMedia } from "./bot-renderer";
 import type { BotButton, BotInlineKeyboardAttachment, BotMessageBody } from "./bot.types";
 
 const eventId = "00000000-0000-4000-8000-0000000000e1";
@@ -104,6 +104,14 @@ describe("eventCard", () => {
   it("shows the price of a paid event and appends the context line", () => {
     expect(eventCard(event({ isPaid: true, priceRub: 1800, paymentUrl: "https://pay.example" }), now, "Идёт Анна")).toContain("1 800 ₽");
     expect(eventCard(event(), now, "10 мин пешком")).toContain("10 мин пешком");
+  });
+});
+
+describe("workingMessage", () => {
+  it("tells the person the bot is picking, without a keyboard", () => {
+    expect(workingMessage("assist").text).toBe("Подбираю варианты…");
+    expect(workingMessage("today").text).toBe("Смотрю, что сегодня рядом…");
+    expect(keyboardOf(workingMessage("whereto"))).toEqual([]);
   });
 });
 

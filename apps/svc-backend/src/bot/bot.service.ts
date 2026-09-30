@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: The conversational MAX bot — route an inbound update (start / text / button press) to the product services that already power the mini-app, and answer in chat.
-// SCOPE: handleInbound resolves the MAX user to an app account (upsert, so a first-time bot visitor who never opened the mini-app still gets one), shows the typing indicator, dispatches by kind, and delivers the reply: a button press edits the pressed message in place (POST /answers) with a new-message fallback, start/text send a fresh message. Reuses TodayService, WheretoService, AssistService, CalendarService, PlansService, BookingsService, WaitlistService, EventsService — no product logic duplicated. Never throws to the caller: the webhook must answer 200 so MAX does not retry for hours. Answers dialogs only.
+// SCOPE: handleInbound resolves the MAX user to an app account (upsert, so a first-time bot visitor who never opened the mini-app still gets one), shows the typing indicator, puts a «подбираю…» card on slow paths, dispatches by kind, and delivers the reply by editing that card (or POST /answers, then a new message). Reuses TodayService, WheretoService, AssistService, CalendarService, PlansService, BookingsService, WaitlistService, EventsService — no product logic duplicated. Never throws to the caller: the webhook must answer 200 so MAX does not retry for hours. Answers dialogs only.
 // DEPENDS: @nestjs/common, @nestjs/config, @max-events/api-contracts, ../max-bot/max-bot.client, ../users/users.service, ../today/today.service, ../whereto/whereto.service, ../assist/assist.service, ../calendar/calendar.service, ../plans/plans.service, ../bookings/bookings.service, ../waitlist/waitlist.service, ../events/events.service, ../time/human-when, ./bot-renderer, ./bot-payloads, ./bot.types
 // LINKS: M-SVC-BACKEND, https://dev.max.ru/docs-api
 // END_MODULE_CONTRACT
@@ -11,6 +11,7 @@
 // - isDialog - the bot answers DMs, not group chats or channels
 // - isMenuWord - greeting / command / "what can you do" that should not run an NL search
 // - commandOf - the leading slash-command word of a text message, null when there is none
+// - workingKind - which slow path should speak «подбираю…» before the real card
 // END_MODULE_MAP
 
 import { HttpException, Inject, Injectable, Logger } from "@nestjs/common";
@@ -29,7 +30,7 @@ import { WaitlistService } from "../waitlist/waitlist.service";
 import { WheretoService } from "../whereto/whereto.service";
 import { botPayload, parseBotPayload, type BotPayload } from "./bot-payloads";
 import { stackOrigin } from "./bot-stack";
-import { alreadyBookedMessage, bookedMessage, bookingsMessage, confirmBookMessage, emptyCatalogMessage, eventNotFoundMessage, failureMessage, helpMessage, menuMessage, noSeatsMessage, nothingFoundMessage, picksMessage, plansMessage, rateLimitMessage, todayMessage, unknownTextMessage, waitlistMessage, welcomeMessage, wheretoQuestion, wheretoResultMessage, type BotMedia } from "./bot-renderer";
+import { alreadyBookedMessage, bookedMessage, bookingsMessage, confirmBookMessage, emptyCatalogMessage, eventNotFoundMessage, failureMessage, helpMessage, menuMessage, noSeatsMessage, nothingFoundMessage, picksMessage, plansMessage, rateLimitMessage, todayMessage, unknownTextMessage, waitlistMessage, welcomeMessage, wheretoQuestion, wheretoResultMessage, workingMessage, type BotMedia, type BotWorkingKind } from "./bot-renderer";
 import { type BotInbound, type BotMessageBody, parseUpdates } from "./bot.types";
 
 /** The command menu MAX shows above the input. Names are slash-command labels, descriptions ≤128 chars. */
@@ -70,6 +71,30 @@ export function isMenuWord(text: string): boolean {
   return MENU_PHRASES.some((candidate) => phrase === candidate || phrase === `/${candidate}`);
 }
 
+/** Slow paths that should speak before they finish: assist, digests, booking writes. Instant cards skip this. */
+export function workingKind(inbound: BotInbound): BotWorkingKind | null {
+  if (inbound.kind === "start") return null;
+  if (inbound.kind === "callback") {
+    const payload = parseBotPayload(inbound.callbackPayload);
+    if (payload === null) return null;
+    if (payload.id === "today") return "today";
+    if (payload.id === "plans") return "plans";
+    if (payload.id === "bookings") return "bookings";
+    if (payload.id === "whereto" && payload.step === "go") return "whereto";
+    if (payload.id === "book") return "book";
+    if (payload.id === "waitlist") return "waitlist";
+    return null;
+  }
+  const command = commandOf(inbound.text);
+  if (command !== null && START_WORDS.has(command)) return null;
+  if (command === "today") return "today";
+  if (command === "plans") return "plans";
+  if (command === "bookings") return "bookings";
+  if (command === "whereto" || command === "help" || command === "menu") return null;
+  if (inbound.text.trim() === "" || isMenuWord(inbound.text)) return null;
+  return "assist";
+}
+
 @Injectable()
 export class BotService {
   private readonly logger = new Logger(BotService.name);
@@ -100,13 +125,14 @@ export class BotService {
   async handleInbound(inbound: BotInbound): Promise<void> {
     if (!isDialog(inbound)) return;
     if (inbound.chatId !== null) void this.bot.sendTyping(inbound.chatId);
+    const status = await this.showWorking(inbound);
     try {
       const user = await this.users.upsertFromMax({ id: Number(inbound.maxUserId), first_name: inbound.userName ?? "Гость" });
       const body = await this.route(user.id, inbound);
-      await this.deliver(inbound, body);
+      await this.deliver(inbound, body, status);
     } catch (error: unknown) {
       this.logger.warn(`Bot update failed: ${describe(error)}`);
-      await this.deliver(inbound, failureMessage(this.media()));
+      await this.deliver(inbound, failureMessage(this.media()), status);
     }
   }
 
@@ -254,10 +280,30 @@ export class BotService {
     return failureMessage(media);
   }
 
-  private async deliver(inbound: BotInbound, body: BotMessageBody): Promise<void> {
-    // A button press edits the message that carried the keyboard, so the chat reads as one evolving
-    // card. If the edit fails (message deleted, or the client refused), fall back to a new message.
+  /**
+   * Put a «подбираю…» card on screen before the slow work. Button presses reuse the pressed
+   * message (and consume callback_id); typed search sends a new card we later edit.
+   */
+  private async showWorking(inbound: BotInbound): Promise<{ messageId: string | null; callbackUsed: boolean }> {
+    const kind = workingKind(inbound);
+    if (kind === null) return { messageId: null, callbackUsed: false };
+    const body = workingMessage(kind);
     if (inbound.kind === "callback" && inbound.callbackId !== "") {
+      const edited = await this.bot.answerCallback(inbound.callbackId, { message: body });
+      return { messageId: inbound.messageId || null, callbackUsed: edited };
+    }
+    const messageId = await this.bot.sendRichId(inbound.maxUserId, body);
+    return { messageId, callbackUsed: false };
+  }
+
+  private async deliver(inbound: BotInbound, body: BotMessageBody, status: { messageId: string | null; callbackUsed: boolean }): Promise<void> {
+    if (status.messageId) {
+      const edited = await this.bot.editMessage(status.messageId, body);
+      if (edited) return;
+    }
+    // A button press edits the message that carried the keyboard, so the chat reads as one evolving
+    // card. If the working card already consumed callback_id, fall through to a new message.
+    if (!status.callbackUsed && inbound.kind === "callback" && inbound.callbackId !== "") {
       const edited = await this.bot.answerCallback(inbound.callbackId, { message: body });
       if (edited) return;
     }

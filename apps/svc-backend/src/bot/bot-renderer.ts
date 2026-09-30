@@ -9,6 +9,7 @@
 // - BotMedia - public origin + bot name; absoluteCover/heroUrl/bannerUrl/coverUrls turn stored paths into URLs MAX can fetch
 // - CATEGORY_LABELS - ru labels per event category, same words the mini-app shows
 // - eventCard - one event as a markdown block: title, category, when, price, optional context labels
+// - workingMessage - short «подбираю…» card shown while a slow path runs
 // - welcomeMessage - first hello: invite into the mini-app, then say both the app and the bot work; no Назад
 // - menuMessage - the main keyboard: today, where-to, plans, bookings, help, open app, Назад
 // - todayMessage - TodayService digest: summary counters + top cards with their context labels
@@ -197,6 +198,23 @@ export function backButton(payload: BotPayload = { id: "start" }): BotButton {
 
 export function withBack(keyboard: BotKeyboard, payload: BotPayload = { id: "start" }): BotKeyboard {
   return [...keyboard, [backButton(payload)]];
+}
+
+/** Shown immediately while a slow path (assist, digest, booking) runs, then edited into the real card. */
+export type BotWorkingKind = "assist" | "today" | "whereto" | "plans" | "bookings" | "book" | "waitlist";
+
+const WORKING_COPY: Record<BotWorkingKind, string> = {
+  assist: "Подбираю варианты…",
+  today: "Смотрю, что сегодня рядом…",
+  whereto: "Подбираю, куда пойти…",
+  plans: "Смотрю планы…",
+  bookings: "Смотрю брони…",
+  book: "Записываю…",
+  waitlist: "Ставлю в очередь…",
+};
+
+export function workingMessage(kind: BotWorkingKind): BotMessageBody {
+  return botRich(WORKING_COPY[kind]);
 }
 
 export function welcomeMessage(media: BotMedia, firstName: string | null): BotMessageBody {

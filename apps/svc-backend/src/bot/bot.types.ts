@@ -36,6 +36,8 @@ export type MaxUser = z.infer<typeof MaxUserSchema>;
 /** MessageBody.text as delivered: a plain string for everything the bot sends and reads. */
 const MessageBodySchema = z.object({
   text: z.string().nullish(),
+  /** MAX message id (`mid`) — needed to edit a «подбираю» card into the real reply. */
+  mid: z.string().nullish(),
 });
 
 /** recipient.chat_id — where a dialog message lives; null for group/channel rows we ignore. */
@@ -48,6 +50,8 @@ const MessageSchema = z.object({
   sender: MaxUserSchema.nullish(),
   recipient: RecipientSchema.nullish(),
   body: MessageBodySchema.nullish(),
+  mid: z.string().nullish(),
+  message_id: z.string().nullish(),
 });
 
 /** callback.payload is the button data; callback_id identifies the press for POST /answers. */
@@ -95,6 +99,8 @@ export type BotInbound = {
   callbackId: string;
   /** Deep-link payload carried by bot_started (?startapp= that launched the bot); empty otherwise. */
   startPayload: string;
+  /** MAX `mid` of the inbound message, when present — used to edit a working card in place. */
+  messageId: string;
 };
 
 function userIdOf(update: z.infer<typeof UpdateSchema>): string | null {
@@ -123,10 +129,19 @@ function chatTypeOf(update: z.infer<typeof UpdateSchema>): string | null {
   return typeof type === "string" ? type : null;
 }
 
+function messageIdOf(message: z.infer<typeof MessageSchema> | null | undefined): string {
+  const fromBody = message?.body?.mid?.trim();
+  if (fromBody) return fromBody;
+  const fromMid = message?.mid?.trim();
+  if (fromMid) return fromMid;
+  const fromField = message?.message_id?.trim();
+  return fromField ?? "";
+}
+
 function toInbound(update: z.infer<typeof UpdateSchema>): BotInbound | null {
   const maxUserId = userIdOf(update);
   if (maxUserId === null) return null;
-  const base = { maxUserId, userName: nameOf(update), chatId: chatIdOf(update), chatType: chatTypeOf(update), text: "", callbackPayload: "", callbackId: "", startPayload: "" };
+  const base = { maxUserId, userName: nameOf(update), chatId: chatIdOf(update), chatType: chatTypeOf(update), text: "", callbackPayload: "", callbackId: "", startPayload: "", messageId: messageIdOf(update.message) };
   if (update.update_type === "bot_started") {
     const payload = typeof update.payload === "string" ? update.payload : "";
     return { ...base, kind: "start", startPayload: payload };
