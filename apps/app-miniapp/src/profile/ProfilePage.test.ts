@@ -242,6 +242,7 @@ describe("ProfileView", () => {
     const html = renderProfileView();
 
     expect(html).toContain("Кирилл Соколов");
+    expect(html).toContain("MAX id 1001");
     expect(html).not.toContain("Москва · джаз, падел");
     expect(html).not.toContain(">112</span>");
     expect(html).not.toContain("компаний");

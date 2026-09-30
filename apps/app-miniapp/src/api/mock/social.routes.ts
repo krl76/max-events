@@ -26,10 +26,9 @@ export function socialRoutes(url: URL, init: RequestInit | undefined): Response 
     return Response.json(friendSuggestions());
   }
   if (url.pathname === "/api/friends/find") {
-    const query = url.searchParams.get("maxUserId") ?? "";
+    const query = url.searchParams.get("q") ?? url.searchParams.get("maxUserId") ?? "";
     if (query.trim() === "") return new Response(null, { status: 400 });
-    const found = findMockFriendByMaxId(query);
-    return found === null ? new Response(null, { status: 404 }) : Response.json(found);
+    return Response.json(findMockFriendByMaxId(query));
   }
   if (url.pathname === "/api/friends/close") {
     return Response.json(mockCloseFriendsOf());

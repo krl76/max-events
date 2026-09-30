@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTabRoute, nextHistory, routeFromHistoryState, routeFromStartParam, startParamFromHash, startParamFromSearch, transitionFromIdx } from "./router";
+import { isTabRoute, nextHistory, resolveLaunchStartParam, routeFromHistoryState, routeFromStartParam, startParamFromHash, startParamFromSearch, transitionFromIdx } from "./router";
 
 describe("routeFromStartParam", () => {
   it("opens the event route from an event-* deep link", () => {
@@ -54,6 +54,13 @@ describe("routeFromStartParam", () => {
     const hash = `#WebAppData=${encodeURIComponent("user=%7B%7D&start_param=event-1983291f-3aa3-4118-a96b-031f5c653eb0")}&WebAppPlatform=ios`;
     expect(startParamFromHash(hash)).toBe("event-1983291f-3aa3-4118-a96b-031f5c653eb0");
     expect(startParamFromHash("")).toBeNull();
+  });
+
+  it("falls back to the URL hash when WebApp omitted start_param, so a user- invite still opens", () => {
+    const hash = `#WebAppData=${encodeURIComponent("user=%7B%7D&start_param=user-u1")}&WebAppPlatform=ios`;
+    expect(resolveLaunchStartParam(null, "", hash)).toBe("user-u1");
+    expect(resolveLaunchStartParam(null, "?startapp=user-u1", "")).toBe("user-u1");
+    expect(resolveLaunchStartParam("user-from-bridge", "?startapp=user-u1", hash)).toBe("user-from-bridge");
   });
 
   it("opens a post, a profile and a calendar invite from their deep links", () => {

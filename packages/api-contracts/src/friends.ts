@@ -35,6 +35,14 @@ import { EventSchema } from "./event.js";
 import { ParticipationStatusSchema } from "./participation.js";
 import { StoredAvatarUrlSchema } from "./user.js";
 
+/** What the person typed in «Найти друга»: a numeric MAX user_id (optionally `id123`), an @nick, or a name. */
+export function normalizeFriendQuery(raw: string): string {
+  const trimmed = raw.trim().replace(/^@+/, "");
+  const compact = trimmed.replace(/\s+/g, "");
+  const id = /^(?:id)?(\d+)$/i.exec(compact);
+  return id?.[1] ?? trimmed;
+}
+
 export const FriendSchema = z.object({
   id: IdSchema,
   name: z.string().min(1).max(200),

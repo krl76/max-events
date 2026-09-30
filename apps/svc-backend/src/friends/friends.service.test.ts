@@ -17,8 +17,8 @@ const dimaId = "00000000-0000-4000-8000-0000000000b2";
 const eventJazz = "00000000-0000-4000-8000-0000000000e1";
 const eventMatch = "00000000-0000-4000-8000-0000000000e2";
 
-function user(id: string, maxUserId: string, firstName: string, lastName: string | null = null): UserEntity {
-  return { id, maxUserId, firstName, lastName, avatarUrl: null, createdAt: now, updatedAt: now } as UserEntity;
+function user(id: string, maxUserId: string, firstName: string, lastName: string | null = null, username: string | null = null): UserEntity {
+  return { id, maxUserId, firstName, lastName, username, avatarUrl: null, createdAt: now, updatedAt: now } as UserEntity;
 }
 
 function eventRow(id: string, title: string, startsAt: string, published = true): EventEntity {
@@ -166,9 +166,20 @@ function createService(options: { botFriends?: string[] | null; users?: UserEnti
 describe("FriendsService", () => {
   it("finds a person who already opened the mini-app by MAX id", async () => {
     const { service } = createService();
-    await expect(service.findByMaxId("2")).resolves.toMatchObject({ id: annaId, name: "Анна Соколова", maxUserId: "2" });
-    await expect(service.findByMaxId("nobody")).resolves.toBeNull();
-    await expect(service.findByMaxId("   ")).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.findByMaxId("2", meId)).resolves.toMatchObject([{ id: annaId, name: "Анна Соколова", maxUserId: "2" }]);
+    await expect(service.findByMaxId("id2", meId)).resolves.toMatchObject([{ id: annaId, maxUserId: "2" }]);
+    await expect(service.findByMaxId("nobody", meId)).resolves.toEqual([]);
+    await expect(service.findByMaxId("   ", meId)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("finds people by first name, last name or the MAX nick from initData", async () => {
+    const { service } = createService({
+      users: [user(meId, "1", "Демо"), user(annaId, "2", "Анна", "Соколова", "anna_s"), user(dimaId, "3", "Дима", "Кузнецов")],
+    });
+    await expect(service.findByMaxId("Соколова", meId)).resolves.toMatchObject([{ id: annaId }]);
+    await expect(service.findByMaxId("анна", meId)).resolves.toMatchObject([{ id: annaId }]);
+    await expect(service.findByMaxId("@anna_s", meId)).resolves.toMatchObject([{ id: annaId, username: "anna_s" }]);
+    await expect(service.findByMaxId("Демо", meId)).resolves.toEqual([]);
   });
 
   it("leaves the graph untouched when MAX returns no friends list", async () => {

@@ -1,27 +1,28 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Find a person by MAX id or @username, or send them an invite link if they have not opened the mini-app yet.
+// PURPOSE: Find a person by numeric MAX user_id, name or in-app nick, or send an invite link if they have not opened the mini-app yet.
 // SCOPE: Presentational popup plus a small hook that talks to GET /friends/find. Invite uses ./invite.js.
 // DEPENDS: ../api/client.js, ./invite.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - findFriendQuery - trim and strip a leading @
+// - findFriendQuery - numeric MAX id (id123), @nick, or a name
 // - FindFriendDialog - popup: input, result, add or invite
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
-import type { Friend } from "@max-events/api-contracts";
-import { apiClient, ApiError } from "../api/client";
+import { normalizeFriendQuery, type Friend } from "@max-events/api-contracts";
+import { apiClient } from "../api/client";
 import { ActionIcon } from "../ui/icons";
 import { logError } from "../ui/log-error";
+import { maxIdCaption } from "../max/links";
 import { PersonAvatar } from "./avatar";
 
 export function findFriendQuery(raw: string): string {
-  return raw.trim().replace(/^@/, "");
+  return normalizeFriendQuery(raw);
 }
 
-type FindState = { status: "idle" } | { status: "loading" } | { status: "ready"; friend: Friend } | { status: "missing" } | { status: "error" };
+type FindState = { status: "idle" } | { status: "loading" } | { status: "ready"; friends: Friend[] } | { status: "missing" } | { status: "error" };
 
 export function FindFriendDialog({ onClose, onOpen, onAdd, onInvite, adding = false }: { onClose: () => void; onOpen: (userId: string) => void; onAdd: (userId: string) => void; onInvite: () => void; adding?: boolean }) {
   const [draft, setDraft] = useState("");
@@ -41,12 +42,8 @@ export function FindFriendDialog({ onClose, onOpen, onAdd, onInvite, adding = fa
     if (query.length === 0) return;
     setState({ status: "loading" });
     apiClient.findFriendByMaxId(query).then(
-      (friend) => setState({ status: "ready", friend }),
+      (friends) => setState(friends.length === 0 ? { status: "missing" } : { status: "ready", friends }),
       (error: unknown) => {
-        if (error instanceof ApiError && error.status === 404) {
-          setState({ status: "missing" });
-          return;
-        }
         logError("friend find failed", error);
         setState({ status: "error" });
       },
@@ -60,29 +57,32 @@ export function FindFriendDialog({ onClose, onOpen, onAdd, onInvite, adding = fa
         <h2 id="app-friends-find-title" className="app-me-pop-title">
           Найти друга
         </h2>
-        <p className="app-friends-find-hint">По id MAX или @нику, если человек уже заходил в Афишу.</p>
+        <p className="app-friends-find-hint">По цифровому id MAX, имени или нику, если человек уже заходил в Афишу.</p>
         <form className="app-friends-find-form" onSubmit={search}>
-          <input className="app-friends-find-input" value={draft} onChange={(change) => setDraft(change.target.value)} placeholder="id или @ник" autoComplete="off" autoCapitalize="off" spellCheck={false} aria-label="id MAX" />
+          <input className="app-friends-find-input" value={draft} onChange={(change) => setDraft(change.target.value)} placeholder="id, имя или ник" autoComplete="off" autoCapitalize="off" spellCheck={false} aria-label="цифровой id MAX, имя или ник" />
           <button type="submit" className="app-friends-find-go" disabled={findFriendQuery(draft).length === 0 || state.status === "loading"}>
             Найти
           </button>
         </form>
         {state.status === "loading" && <p className="app-friends-find-status">Ищем…</p>}
         {state.status === "error" && <p className="app-friends-find-status app-friends-find-status--error">Не удалось найти. Попробуйте ещё раз.</p>}
-        {state.status === "ready" && (
-          <button type="button" className="app-friends-find-hit" onClick={() => onOpen(state.friend.id)}>
-            <PersonAvatar id={state.friend.id} name={state.friend.name} size={40} />
-            <span className="app-friends-find-hit-copy">
-              <span className="app-friends-find-hit-name">{state.friend.name}</span>
-              {state.friend.username !== undefined && <span className="app-friends-find-hit-nick">@{state.friend.username}</span>}
-            </span>
-          </button>
-        )}
-        {state.status === "ready" && (
-          <button type="button" className="app-me-pop-action" disabled={adding} onClick={() => onAdd(state.friend.id)}>
-            Добавить в друзья
-          </button>
-        )}
+        {state.status === "ready" &&
+          state.friends.map((friend) => (
+            <div key={friend.id} className="app-friends-find-row">
+              <button type="button" className="app-friends-find-hit" onClick={() => onOpen(friend.id)}>
+                <PersonAvatar id={friend.id} name={friend.name} size={40} />
+                <span className="app-friends-find-hit-copy">
+                  <span className="app-friends-find-hit-name">{friend.name}</span>
+                  {(friend.username !== undefined || maxIdCaption(friend.maxUserId) !== null) && (
+                    <span className="app-friends-find-hit-nick">{friend.username !== undefined ? `@${friend.username}` : maxIdCaption(friend.maxUserId)}</span>
+                  )}
+                </span>
+              </button>
+              <button type="button" className="app-me-pop-action" disabled={adding} onClick={() => onAdd(friend.id)}>
+                Добавить
+              </button>
+            </div>
+          ))}
         {state.status === "missing" && <p className="app-friends-find-status">Этого человека в Афише ещё нет. Отправьте ссылку — когда откроет, вы подпишетесь друг на друга.</p>}
         {(state.status === "idle" || state.status === "missing") && (
           <button type="button" className="app-me-pop-action" onClick={onInvite}>

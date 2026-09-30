@@ -43,7 +43,7 @@
 // - peopleSuggest - mockFriends matched on seeded interests or a shared upcoming event with distances from the requested coords (mock GET /people, backend PeopleService parity)
 // END_MODULE_MAP
 
-import { MicroEventSchema, TimestampSchema } from "@max-events/api-contracts";
+import { MicroEventSchema, TimestampSchema, normalizeFriendQuery } from "@max-events/api-contracts";
 import type { CreatePlanExpenseWrite, Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, Gathering, InviteeResponse, MicroBudget, MicroEvent, ParticipationStatus, PeopleCandidate, PeopleMatchContext, PeopleResponse, Place, PlaceCategory } from "@max-events/api-contracts";
 import { type CreateGathering, type CreateMicroEvent, type DiscoveryFriendCard, type DiscoveryScreen, type FriendSuggestion, type MicroEventCard, type MicroParticipant } from "../client";
 import { mockCheckIns } from "./bookings";
@@ -115,14 +115,19 @@ export function withContactNick(person: Friend): Friend {
   return username === undefined ? person : { ...person, username };
 }
 
-/** Mock GET /friends/find: a contact by @nick, or 404. */
-export function findMockFriendByMaxId(query: string): Friend | null {
-  const needle = query.trim().replace(/^@/, "").toLowerCase();
-  if (needle.length === 0) return null;
-  const index = MOCK_CONTACT_NICKS.findIndex((nick) => nick === needle);
-  if (index < 0) return null;
-  const person = mockOnboardingContacts[index];
-  return person === undefined ? null : withContactNick(person);
+/** Mock GET /friends/find: numeric MAX id, name or in-app nick. */
+const MOCK_CONTACT_MAX_IDS = ["10001", "10002", "10003", "10004", "10005", "10006", "10007", "10008", "10009", "10010", "10011", "10012"] as const;
+
+export function findMockFriendByMaxId(query: string): Friend[] {
+  const needle = normalizeFriendQuery(query).toLowerCase();
+  if (needle.length === 0) return [];
+  return mockOnboardingContacts.flatMap((person, index) => {
+    const maxId = MOCK_CONTACT_MAX_IDS[index];
+    const nick = MOCK_CONTACT_NICKS[index];
+    const name = person.name.toLowerCase();
+    if (maxId !== needle && nick !== needle && (needle.length < 2 || !name.includes(needle))) return [];
+    return [{ ...withContactNick(person), maxUserId: maxId }];
+  });
 }
 
 /** The макет hint under each name; the backend has nothing to compute it from, so it is fixture text by position. */
@@ -178,11 +183,10 @@ export function followMockFriends(userIds: string[]): string[] | "unknown" {
   return mockOnboardingContacts.filter((contact) => mockFollowedIds.has(contact.id)).map((contact) => contact.id);
 }
 
-/** Mutual add from a `user-` invite: the opener follows the sender. */
+/** Mutual add from a `user-` invite: both friend lists and both follows. */
 export function acceptMockFriendInvite(userId: string): string[] | "unknown" {
-  const known = mockOnboardingContacts.some((contact) => contact.id === userId) || mockFriends.some((person) => person.id === userId);
-  if (!known) return "unknown";
-  mockFollowedIds.add(userId);
+  const added = addMockFriend(userId);
+  if (added === "unknown") return "unknown";
   return [...mockFollowedIds];
 }
 
