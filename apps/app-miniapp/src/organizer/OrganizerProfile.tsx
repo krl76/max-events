@@ -12,13 +12,14 @@
 // - OrganizerProfile - loads the organization's own data
 // END_MODULE_MAP
 
-import { useEffect, useRef, useState } from "react";
-import type { Friend, Subscription } from "@max-events/api-contracts";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Friend, OrganizerRating, Subscription } from "@max-events/api-contracts";
 import { apiClient, type OrganizerEvent, type OrganizerPlace } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { readFeedPhoto } from "../feed/photo";
+import { isCustomProfileAvatar, ProfileMediaDialog } from "../profile/ProfilePage";
 import { ActionIcon } from "../ui/icons";
-import { pictured } from "../ui/photos";
+import { pictured, showPhoto } from "../ui/photos";
 import { AppMedia, AppState } from "../ui/primitives";
 import { useOrganizerNativeBack } from "./organizer-native-back";
 import { ORGANIZER_ACTIVITY_OPTIONS } from "./organizer-onboarding";
@@ -47,116 +48,170 @@ function writeMedia(organizationId: string, media: OrgMedia) {
   localStorage.setItem(MEDIA_KEY + organizationId, JSON.stringify(media));
 }
 
-export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events, places, subscriptions, followers, tab, list, failed, onTab, onList, onOpenEvent, onSettings, onPickAvatar, onPickCover }: { name: string; about: string; avatarUrl: string | null; coverUrl: string | null; events: OrganizerEvent[]; places: OrganizerPlace[]; subscriptions: Subscription[] | null; followers: Friend[] | null; tab: OrganizerProfileTab; list: OrganizerProfileList; failed: boolean; onTab: (tab: OrganizerProfileTab) => void; onList: (list: OrganizerProfileList) => void; onOpenEvent: (event: OrganizerEvent) => void; onSettings: () => void; onPickAvatar: () => void; onPickCover: () => void }) {
+const PROFILE_TABS: ReadonlyArray<{ id: OrganizerProfileTab; label: string; icon: "calendar" | "pin" }> = [
+  { id: "events", label: "События", icon: "calendar" },
+  { id: "places", label: "Места", icon: "pin" },
+];
+
+export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events, places, subscriptions, followers, rating, tab, list, failed, onTab, onList, onOpenEvent, onOpenEvents, onSettings, onPickAvatar, onPickCover, onResetAvatar, onResetCover }: { name: string; about: string; avatarUrl: string | null; coverUrl: string | null; events: OrganizerEvent[]; places: OrganizerPlace[]; subscriptions: Subscription[] | null; followers: Friend[] | null; rating: OrganizerRating | null; tab: OrganizerProfileTab; list: OrganizerProfileList; failed: boolean; onTab: (tab: OrganizerProfileTab) => void; onList: (list: OrganizerProfileList) => void; onOpenEvent: (event: OrganizerEvent) => void; onOpenEvents: () => void; onSettings: () => void; onPickAvatar: () => void; onPickCover: () => void; onResetAvatar: () => void; onResetCover: () => void }) {
+  const [mediaMenu, setMediaMenu] = useState<"avatar" | "cover" | null>(null);
   useOrganizerNativeBack(list !== null, () => onList(null));
   const published = events.filter((item) => !item.draft);
   const initial = name.trim().slice(0, 1).toUpperCase() || "О";
+  const customAvatar = isCustomProfileAvatar(avatarUrl);
+  const customCover = coverUrl !== null;
+  const dismiss = useCallback(() => setMediaMenu(null), []);
   return (
-    <section className="app-me" aria-label="Профиль организации">
-      <div className="app-me-hero">
-        {coverUrl !== null ? <img className="app-me-hero-cover" src={coverUrl} alt="" /> : null}
-        <span className="app-me-blob app-me-blob--light" aria-hidden="true" />
-        <span className="app-me-blob app-me-blob--cool" aria-hidden="true" />
-        <div className="app-me-hero-edits">
-          <button type="button" className="app-me-hero-edit" aria-label="Сменить шапку" onClick={onPickCover}>
-            <ActionIcon name="upload" size={16} strokeWidth={2} />
-            Шапка
-          </button>
-        </div>
-        <span className="app-me-hero-actions">
-          <button type="button" className="app-me-hero-action" aria-label="Настройки" onClick={onSettings}>
-            <ActionIcon name="dots" size={18} strokeWidth={2} />
-          </button>
-        </span>
-      </div>
-      <button type="button" className="app-me-avatar-ring" aria-label="Сменить аватар" onClick={onPickAvatar}>
-        <span className="app-me-avatar">{avatarUrl === null ? initial : <img alt="" src={avatarUrl} />}</span>
-      </button>
-      <h1 className="app-me-name">{name}</h1>
-      {about !== "" && <p className="app-me-about">{about}</p>}
-      {failed && <AppState error>Не удалось загрузить профиль организации.</AppState>}
-      <div className="app-me-metrics">
-        <div className="app-me-metrics-row">
-          <button type="button" className="app-me-metric app-me-metric--link" onClick={() => onTab("events")}>
-            <span className="app-me-metric-value">{published.length}</span>
-            <span className="app-me-metric-label">{pluralRu(published.length, "событие", "события", "событий")}</span>
-          </button>
-          <button type="button" className="app-me-metric app-me-metric--link" onClick={() => onTab("places")}>
-            <span className="app-me-metric-value">{places.length}</span>
-            <span className="app-me-metric-label">{pluralRu(places.length, "место", "места", "мест")}</span>
-          </button>
-          <button type="button" className="app-me-metric app-me-metric--link" onClick={() => onList("subscriptions")}>
-            <span className="app-me-metric-value">{subscriptions === null ? "—" : subscriptions.length}</span>
-            <span className="app-me-metric-label">{pluralRu(subscriptions?.length ?? 0, "подписка", "подписки", "подписок")}</span>
-          </button>
-          <button type="button" className="app-me-metric app-me-metric--link" onClick={() => onList("followers")}>
-            <span className="app-me-metric-value">{followers === null ? "—" : followers.length}</span>
-            <span className="app-me-metric-label">{pluralRu(followers?.length ?? 0, "подписчик", "подписчика", "подписчиков")}</span>
-          </button>
-        </div>
-      </div>
-      {list !== null && (
-        <div className="app-me-rows" aria-label={list === "subscriptions" ? "Подписки" : "Подписчики"}>
-          {(list === "subscriptions" ? (subscriptions ?? []) : []).map((item) => (
-            <p key={item.id} className="app-me-about">
-              {item.title}
-            </p>
-          ))}
-          {(list === "followers" ? (followers ?? []) : []).map((item) => (
-            <p key={item.id} className="app-me-about">
-              {item.name}
-            </p>
-          ))}
-          {list === "subscriptions" && subscriptions !== null && subscriptions.length === 0 && <AppState>Подписок пока нет.</AppState>}
-          {list === "followers" && followers !== null && followers.length === 0 && <AppState>Подписчиков пока нет.</AppState>}
-        </div>
-      )}
-      {list === null && (
-        <>
-          <div className="app-me-tabs" role="tablist" aria-label="Что показывать">
-            <button type="button" role="tab" aria-selected={tab === "events"} className={tab === "events" ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onTab("events")}>
-              События
-            </button>
-            <button type="button" role="tab" aria-selected={tab === "places"} className={tab === "places" ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onTab("places")}>
-              Места
+    <section className="app-me app-me--user" aria-label="Профиль организации">
+      <header className="app-me-head">
+        <div className="app-me-hero">
+          {coverUrl !== null ? <img className="app-me-hero-cover" src={showPhoto(coverUrl) ?? coverUrl} alt="" /> : null}
+          <span className="app-me-blob app-me-blob--light" aria-hidden="true" />
+          <span className="app-me-blob app-me-blob--cool" aria-hidden="true" />
+          <div className="app-me-hero-edits">
+            <button type="button" className="app-me-hero-edit" aria-label="Сменить шапку" aria-haspopup="dialog" onClick={() => setMediaMenu("cover")}>
+              <ActionIcon name="upload" size={16} strokeWidth={2} />
+              Шапка
             </button>
           </div>
-          {tab === "events" && published.length === 0 && <AppState>Опубликованных событий пока нет.</AppState>}
-          {tab === "events" && published.length > 0 && (
-            <div className="app-me-posts">
-              {published.map((item) => (
-                <button key={item.id} type="button" className="app-me-post" aria-label={item.title} onClick={() => onOpenEvent(item)}>
-                  <AppMedia category={item.category} src={pictured(item.id, item.coverUrl)} className="app-me-post-media" />
+          <span className="app-me-hero-actions">
+            <button type="button" className="app-me-hero-action" aria-label="Настройки" onClick={onSettings}>
+              <ActionIcon name="dots" size={18} strokeWidth={2} />
+            </button>
+          </span>
+        </div>
+      </header>
+      <div className="app-me-sheet">
+        <button type="button" className="app-me-avatar-ring" aria-label="Сменить аватар" aria-haspopup="dialog" onClick={() => setMediaMenu("avatar")}>
+          <span className="app-me-avatar">{avatarUrl === null ? initial : <img alt="" src={showPhoto(avatarUrl) ?? avatarUrl} />}</span>
+        </button>
+        {mediaMenu === "avatar" && <ProfileMediaDialog title="Фото организации" custom={customAvatar} onPick={() => { onPickAvatar(); dismiss(); }} onReset={customAvatar ? () => { onResetAvatar(); dismiss(); } : undefined} onClose={dismiss} />}
+        {mediaMenu === "cover" && <ProfileMediaDialog title="Шапка профиля" custom={customCover} onPick={() => { onPickCover(); dismiss(); }} onReset={customCover ? () => { onResetCover(); dismiss(); } : undefined} onClose={dismiss} />}
+        <h1 className="app-me-name">{name}</h1>
+        {(subscriptions !== null || followers !== null) && (
+          <p className="app-me-follows">
+            {subscriptions !== null && (
+              <span className="app-me-follows-item">
+                <button type="button" className="app-me-follow" onClick={() => onList("subscriptions")}>
+                  <span className="app-me-follow-value">{subscriptions.length}</span> {pluralRu(subscriptions.length, "подписка", "подписки", "подписок")}
+                </button>
+              </span>
+            )}
+            {subscriptions !== null && followers !== null && (
+              <span className="app-me-follow-sep" aria-hidden="true">
+                |
+              </span>
+            )}
+            {followers !== null && (
+              <span className="app-me-follows-item">
+                <button type="button" className="app-me-follow" onClick={() => onList("followers")}>
+                  <span className="app-me-follow-value">{followers.length}</span> {pluralRu(followers.length, "подписчик", "подписчика", "подписчиков")}
+                </button>
+              </span>
+            )}
+          </p>
+        )}
+        {about !== "" && <p className="app-me-about">{about}</p>}
+        {failed && <AppState error>Не удалось загрузить профиль организации.</AppState>}
+        {list !== null && (
+          <div className="app-me-rows" aria-label={list === "subscriptions" ? "Подписки" : "Подписчики"}>
+            {(list === "subscriptions" ? (subscriptions ?? []) : []).map((item) => (
+              <p key={item.id} className="app-me-row">
+                {item.title}
+              </p>
+            ))}
+            {(list === "followers" ? (followers ?? []) : []).map((item) => (
+              <p key={item.id} className="app-me-row">
+                {item.name}
+              </p>
+            ))}
+            {list === "subscriptions" && subscriptions !== null && subscriptions.length === 0 && <AppState>Подписок пока нет.</AppState>}
+            {list === "followers" && followers !== null && followers.length === 0 && <AppState>Подписчиков пока нет.</AppState>}
+          </div>
+        )}
+        {list === null && (
+          <>
+            <div className="app-me-dashboard" aria-label="Разделы профиля">
+              <section className="app-me-card app-me-shortcuts">
+                <button type="button" className="app-me-shortcut" onClick={onSettings}>
+                  <span className="app-me-shortcut-icon" aria-hidden="true">
+                    <ActionIcon name="settings" size={18} strokeWidth={2.1} />
+                  </span>
+                  <span className="app-me-shortcut-label">Настройки</span>
+                  <ActionIcon name="chevron" size={16} />
+                </button>
+                <button type="button" className="app-me-shortcut" onClick={onOpenEvents}>
+                  <span className="app-me-shortcut-icon" aria-hidden="true">
+                    <ActionIcon name="calendar" size={18} strokeWidth={2.1} />
+                  </span>
+                  <span className="app-me-shortcut-label">События</span>
+                  <ActionIcon name="chevron" size={16} />
+                </button>
+              </section>
+              {rating !== null && (
+                <button type="button" className="app-me-card app-me-ach" onClick={onSettings}>
+                  <span className="app-me-card-head">
+                    <span className="app-me-card-title">Рейтинг</span>
+                    <ActionIcon name="chevron" size={16} />
+                  </span>
+                  <span className="app-me-ach-hint">
+                    {rating.averageStars.toFixed(1).replace(".", ",")} · {Math.round(rating.recommendPercent)}% рекомендуют
+                  </span>
+                </button>
+              )}
+            </div>
+            <div
+              className="app-me-tabs"
+              role="tablist"
+              aria-label="Что показывать"
+              style={{ ["--me-tabs" as string]: 2, ["--me-tab" as string]: tab === "places" ? 1 : 0 }}
+            >
+              <span className="app-me-tab-pill" aria-hidden="true" />
+              {PROFILE_TABS.map((candidate) => (
+                <button key={candidate.id} type="button" role="tab" aria-selected={tab === candidate.id} className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onTab(candidate.id)}>
+                  <ActionIcon name={candidate.icon} size={15} />
+                  {candidate.label}
                 </button>
               ))}
             </div>
-          )}
-          {tab === "places" && places.length === 0 && <AppState>Мест пока нет.</AppState>}
-          {tab === "places" && places.length > 0 && (
-            <div className="app-me-grid">
-              {places.map((place, index) => (
-                <div key={place.id} className={`app-me-cell app-me-cell--${(index % 4) + 1}`}>
-                  <span className="app-me-cell-blob" aria-hidden="true" />
-                  <span className="app-me-cell-veil">
-                    <span className="app-me-cell-title">{place.title}</span>
-                    <span className="app-me-cell-visits">{place.city}</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+            {tab === "events" && published.length === 0 && <AppState>Опубликованных событий пока нет.</AppState>}
+            {tab === "events" && published.length > 0 && (
+              <div className="app-me-posts">
+                {published.map((item) => (
+                  <button key={item.id} type="button" className="app-me-post" aria-label={item.title} onClick={() => onOpenEvent(item)}>
+                    <AppMedia category={item.category} src={pictured(item.id, item.coverUrl)} className="app-me-post-media" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {tab === "places" && places.length === 0 && <AppState>Мест пока нет.</AppState>}
+            {tab === "places" && places.length > 0 && (
+              <div className="app-me-grid">
+                {places.map((place, index) => (
+                  <div key={place.id} className={`app-me-cell app-me-cell--${(index % 4) + 1}`}>
+                    <span className="app-me-cell-blob" aria-hidden="true" />
+                    <span className="app-me-cell-veil">
+                      <span className="app-me-cell-title">{place.title}</span>
+                      <span className="app-me-cell-visits">{place.city}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </section>
   );
 }
 
-export function OrganizerProfile({ organizationId, organizationName, onOpenEvent, onSettings }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onSettings: () => void }) {
+export function OrganizerProfile({ organizationId, organizationName, onOpenEvent, onOpenEvents, onSettings }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onOpenEvents: () => void; onSettings: () => void }) {
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [places, setPlaces] = useState<OrganizerPlace[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[] | null>(null);
   const [followers, setFollowers] = useState<Friend[] | null>(null);
   const [about, setAbout] = useState("");
+  const [rating, setRating] = useState<OrganizerRating | null>(null);
   const [failed, setFailed] = useState(false);
   const [media, setMedia] = useState<OrgMedia>({ avatarUrl: null, coverUrl: null });
   const [tab, setTab] = useState<OrganizerProfileTab>("events");
@@ -199,6 +254,14 @@ export function OrganizerProfile({ organizationId, organizationName, onOpenEvent
       },
       () => {
         if (alive) setSubscriptions([]);
+      },
+    );
+    apiClient.getOrganizerRating(organizationId).then(
+      (response) => {
+        if (alive) setRating(response.rating);
+      },
+      () => {
+        if (alive) setRating(null);
       },
     );
     apiClient.getMe().then(
@@ -250,6 +313,7 @@ export function OrganizerProfile({ organizationId, organizationName, onOpenEvent
         places={places}
         subscriptions={subscriptions}
         followers={followers}
+        rating={rating}
         tab={tab}
         list={list}
         failed={failed}
@@ -259,9 +323,20 @@ export function OrganizerProfile({ organizationId, organizationName, onOpenEvent
         }}
         onList={setList}
         onOpenEvent={onOpenEvent}
+        onOpenEvents={onOpenEvents}
         onSettings={onSettings}
         onPickAvatar={() => avatarRef.current?.click()}
         onPickCover={() => coverRef.current?.click()}
+        onResetAvatar={() => {
+          const next = { ...readMedia(organizationId), avatarUrl: null };
+          writeMedia(organizationId, next);
+          setMedia(next);
+        }}
+        onResetCover={() => {
+          const next = { ...readMedia(organizationId), coverUrl: null };
+          writeMedia(organizationId, next);
+          setMedia(next);
+        }}
       />
     </>
   );

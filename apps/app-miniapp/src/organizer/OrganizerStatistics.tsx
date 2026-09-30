@@ -8,8 +8,9 @@
 import { useState } from "react";
 import { ActionIcon } from "../ui/icons";
 import { useOrganizerNativeBack } from "./organizer-native-back";
-import { CABINET_EVENTS, cabinetStats, defaultStatsRange, type CabinetStats } from "./cabinet-catalog";
+import { CABINET_EVENTS, cabinetFillRows, cabinetStats, defaultStatsRange, type CabinetStats } from "./cabinet-catalog";
 import { formatRub } from "./OrganizerFinance";
+import { OrganizerStats } from "./OrganizerStats";
 
 export type StatsWindow = 7 | 30 | 90;
 
@@ -233,16 +234,25 @@ function IncomeChart({ points }: { points: IncomePoint[] }) {
 
 export function OrganizerStatistics(_props: { onCreateEvent?: () => void }) {
   const initial = defaultStatsRange();
-  const [from, setFrom] = useState(initial.from);
-  const [to, setTo] = useState(initial.to);
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [chartWindow, setChartWindow] = useState<StatsWindow>(7);
-  const [notices, setNotices] = useState(false);
+  const [days, setDays] = useState<StatsWindow>(30);
+  const [to] = useState(initial.to);
+  const from = new Date(new Date(`${to}T12:00:00+03:00`).getTime() - days * 86_400_000).toISOString().slice(0, 10);
+  const [pane, setPane] = useState<"home" | "events" | "traffic" | "notices">("home");
   const snapshot: CabinetStats = cabinetStats(CABINET_EVENTS, new Date(`${from}T00:00:00+03:00`), new Date(`${to}T23:59:59+03:00`));
-  const points = INCOME_CHART[chartWindow];
-  useOrganizerNativeBack(notices, () => setNotices(false));
+  const fills = cabinetFillRows(CABINET_EVENTS, new Date(`${from}T00:00:00+03:00`), new Date(`${to}T23:59:59+03:00`));
+  useOrganizerNativeBack(pane !== "home", () => setPane("home"));
 
-  if (notices) {
+  const periods = (
+    <div className="app-evt-filters" role="tablist" aria-label="Период">
+      {STATS_WINDOWS.map((item) => (
+        <button key={item} type="button" role="tab" aria-selected={days === item} className={days === item ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => setDays(item)}>
+          {item} дней
+        </button>
+      ))}
+    </div>
+  );
+
+  if (pane === "notices") {
     return (
       <section className="app-cab" aria-label="Уведомления">
         <h1 className="app-cab-title">Уведомления</h1>
@@ -258,147 +268,90 @@ export function OrganizerStatistics(_props: { onCreateEvent?: () => void }) {
     );
   }
 
+  if (pane === "traffic") {
+    return (
+      <section className="app-cab" aria-label="Откуда записи">
+        <h1 className="app-cab-title">Откуда записи</h1>
+        <OrganizerStats embedded />
+      </section>
+    );
+  }
+
+  if (pane === "events") {
+    return (
+      <section className="app-cab" aria-label="События">
+        <h1 className="app-cab-title">События</h1>
+        {periods}
+        {fills.length === 0 ? (
+          <p className="app-fin-empty">За этот период событий нет.</p>
+        ) : (
+          <ul className="app-cab-rows">
+            {fills.map((row) => (
+              <li key={row.id}>
+                <span className="app-cab-row-top">
+                  <span className="app-cab-row-name">{row.title}</span>
+                  <span className="app-cab-row-share">{row.fill}%</span>
+                </span>
+                <span className="app-cab-row-money">
+                  {row.booked} из {row.capacity}
+                </span>
+                <span className="app-cab-bar" aria-hidden="true">
+                  <span className="app-cab-bar-fill app-cab-bar-fill--blue" style={{ width: `${row.fill}%` }} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    );
+  }
+
   return (
     <section className="app-cab" aria-label="Статистика">
       <header className="app-cab-head">
         <h1 className="app-fin-title">Статистика</h1>
-        <button type="button" className="app-cab-bell" aria-label="Уведомления" onClick={() => setNotices(true)}>
+        <button type="button" className="app-cab-bell" aria-label="Уведомления" onClick={() => setPane("notices")}>
           <ActionIcon name="bell" size={20} strokeWidth={2} />
         </button>
       </header>
-      <div className="app-cab-period-wrap">
-        <button type="button" className="app-cab-period" aria-label="Диапазон дат" aria-expanded={calendarOpen} onClick={() => setCalendarOpen((open) => !open)}>
-          <ActionIcon name="calendar" size={18} strokeWidth={2} />
-          <span>
-            {from.split("-").reverse().join(".")} — {to.split("-").reverse().join(".")}
-          </span>
-        </button>
-        {calendarOpen && (
-          <div className="app-cab-calendar" role="dialog" aria-label="Диапазон дат">
-            <label className="app-fin-field">
-              <span className="app-fin-field-label">С</span>
-              <input className="app-fin-field-input" type="date" aria-label="Начало диапазона" value={from} onChange={(change) => setFrom(change.target.value)} />
-            </label>
-            <label className="app-fin-field">
-              <span className="app-fin-field-label">По</span>
-              <input className="app-fin-field-input" type="date" aria-label="Конец диапазона" value={to} onChange={(change) => setTo(change.target.value)} />
-            </label>
-            <div className="app-fin-periods">
-              {STATS_WINDOWS.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  className="app-fin-period"
-                  onClick={() => {
-                    const end = new Date(`${to}T12:00:00+03:00`);
-                    const start = new Date(end.getTime() - item * 86_400_000);
-                    setFrom(start.toISOString().slice(0, 10));
-                    setCalendarOpen(false);
-                  }}
-                >
-                  {item} дней
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-      <article className="app-fin-hero">
-        <div className="app-fin-hero-copy">
-          <p className="app-fin-hero-label">Общий доход</p>
-          <p className="app-fin-hero-value">
-            {formatRub(snapshot.incomeRub)}
-            <span className={snapshot.delta >= 0 ? "app-fin-delta" : "app-fin-delta app-fin-delta--down"}>{snapshot.delta >= 0 ? `+${snapshot.delta}%` : `−${Math.abs(snapshot.delta)}%`}</span>
-          </p>
-          <p className="app-fin-hero-note">
-            {from.split("-").reverse().join(".")} — {to.split("-").reverse().join(".")}
-          </p>
-        </div>
-        <span className="app-fin-hero-wallet" aria-hidden="true">
-          <ActionIcon name="wallet" size={22} strokeWidth={2} />
-        </span>
-      </article>
+      {periods}
       <div className="app-cab-metrics">
         <article className="app-cab-metric">
-          <span className="app-cab-metric-label">Всего событий</span>
-          <b>{snapshot.events}</b>
-          <Delta value={snapshot.eventsDelta} />
-        </article>
-        <article className="app-cab-metric">
-          <span className="app-cab-metric-label">Продано билетов</span>
+          <span className="app-cab-metric-label">Записи</span>
           <b>{snapshot.tickets.toLocaleString("ru-RU").replace(/\s/g, "\u00a0")}</b>
           <Delta value={snapshot.ticketsDelta} />
+        </article>
+        <article className="app-cab-metric">
+          <span className="app-cab-metric-label">Заполняемость</span>
+          <b>{snapshot.conversion}%</b>
+          <Delta value={snapshot.conversionDelta} />
+        </article>
+        <article className="app-cab-metric">
+          <span className="app-cab-metric-label">События</span>
+          <b>{snapshot.events}</b>
+          <Delta value={snapshot.eventsDelta} />
         </article>
         <article className="app-cab-metric">
           <span className="app-cab-metric-label">Средний чек</span>
           <b>{formatRub(snapshot.averageRub)}</b>
           <Delta value={snapshot.averageDelta} />
         </article>
-        <article className="app-cab-metric">
-          <span className="app-cab-metric-label">Конверсия</span>
-          <b>{snapshot.conversion}%</b>
-          <Delta value={snapshot.conversionDelta} />
-        </article>
       </div>
-      <article className="app-cab-card">
-        <div className="app-cab-card-head">
-          <h2 className="app-cab-card-title">Динамика дохода</h2>
-          <div className="app-fin-periods" role="tablist" aria-label="Период графика">
-            {STATS_WINDOWS.map((item) => (
-              <button key={item} type="button" role="tab" aria-selected={chartWindow === item} className={chartWindow === item ? "app-fin-period app-fin-period--on" : "app-fin-period"} onClick={() => setChartWindow(item)}>
-                {item} дней
-              </button>
-            ))}
-          </div>
-        </div>
-        <IncomeChart points={points} />
-        <div className="app-cab-dates" aria-hidden="true">
-          {points.map((point) => (
-            <span key={point.label}>{point.label}</span>
-          ))}
-        </div>
-      </article>
-      <article className="app-cab-card">
-        <h2 className="app-cab-card-title">Статистика по событиям</h2>
-        <ul className="app-cab-rows">
-          {snapshot.rows.map((row) => (
-            <li key={row.title}>
-              <span className="app-cab-row-top">
-                <span className="app-cab-row-name">
-                  <i className={`app-cab-dot app-cab-dot--${row.tone}`} aria-hidden="true" />
-                  {row.title}
-                </span>
-                <span className="app-cab-row-share">{row.percent}%</span>
-                <span className="app-cab-row-money">{formatRub(row.amountRub)}</span>
-              </span>
-              <span className="app-cab-bar" aria-hidden="true">
-                <span className={`app-cab-bar-fill app-cab-bar-fill--${row.tone}`} style={{ width: `${row.percent}%` }} />
-              </span>
-            </li>
-          ))}
-        </ul>
-      </article>
-      <div className="app-cab-pair">
-        <article className="app-cab-mini">
-          <span className="app-cab-mini-icon app-cab-mini-icon--promo" aria-hidden="true">
-            <ActionIcon name="percent" size={16} strokeWidth={2.2} />
+      <div className="app-set-group">
+        <button type="button" className="app-set-row" onClick={() => setPane("events")}>
+          <span className="app-set-row-text">
+            <span className="app-set-row-title">События</span>
+            <span className="app-set-row-hint">{fills.length === 0 ? "Нет событий за период" : `${fills[0].title} · ${fills[0].fill}%`}</span>
           </span>
-          <span className="app-cab-mini-label">Активные промокоды</span>
-          <b>{snapshot.promos}</b>
-          <span className="app-cab-mini-note">
-            Всего использований <strong>{snapshot.promoUses.toLocaleString("ru-RU").replace(/\s/g, "\u00a0")}</strong>
+          <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+        </button>
+        <button type="button" className="app-set-row" onClick={() => setPane("traffic")}>
+          <span className="app-set-row-text">
+            <span className="app-set-row-title">Откуда записи</span>
+            <span className="app-set-row-hint">Чаты, лента, поиск</span>
           </span>
-        </article>
-        <article className="app-cab-mini">
-          <span className="app-cab-mini-icon app-cab-mini-icon--mail" aria-hidden="true">
-            <ActionIcon name="mail" size={16} strokeWidth={2.2} />
-          </span>
-          <span className="app-cab-mini-label">Рассылки</span>
-          <b>{snapshot.mailings}</b>
-          <span className="app-cab-mini-note">
-            Открываемость <strong>{snapshot.openRate}%</strong>
-          </span>
-        </article>
+          <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+        </button>
       </div>
     </section>
   );

@@ -35,14 +35,15 @@ describe("cabinetStats", () => {
 });
 
 describe("OrganizerStatistics", () => {
-  it("draws a calendar range and does not offer to create an event", () => {
+  it("opens on the numbers an organizer needs and hides money charts", () => {
     const html = renderToStaticMarkup(createElement(OrganizerStatistics, { onCreateEvent: noop }));
 
     expect(html).toContain("Статистика");
-    expect(html).not.toContain("Полная аналитика вашего аккаунта");
-    expect(html).toContain("Диапазон дат");
-    expect(html).toContain("26.09.2026");
-    expect(html).toContain("Динамика дохода");
+    expect(html).toContain("Записи");
+    expect(html).toContain("Заполняемость");
+    expect(html).toContain("Откуда записи");
+    expect(html).not.toContain("Динамика дохода");
+    expect(html).not.toContain("Общий доход");
     expect(html).not.toContain("Создать событие");
     expect(html).toContain("Уведомления");
   });

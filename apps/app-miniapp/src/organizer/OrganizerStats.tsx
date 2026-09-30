@@ -5,7 +5,7 @@ import { PROMO_PERIODS, WEEKDAY_LABELS, barHeights, periodQueryFor } from "./Org
 
 const SOURCE_LABEL: Record<OrganizerTrafficSource | "unknown", string> = { chats: "Чаты", feed: "Лента", search: "Поиск", unknown: "Не определён" };
 
-export function OrganizerStats() {
+export function OrganizerStats({ embedded = false }: { embedded?: boolean } = {}) {
   const [days, setDays] = useState(7);
   const [summary, setSummary] = useState<OrganizerSummary | null>(null);
   const [failed, setFailed] = useState(false);
@@ -30,8 +30,8 @@ export function OrganizerStats() {
   const known = summary === null ? 0 : summary.sources.reduce((sum, row) => sum + row.percent, 0);
   const unknown = summary !== null && summary.bookings > 0 && known === 0 ? 100 : 0;
   return (
-    <section className="app-gathering" aria-label="Статистика">
-      <h1 className="app-section-title">Статистика</h1>
+    <section className="app-gathering" aria-label={embedded ? "Откуда записи" : "Статистика"}>
+      {!embedded && <h1 className="app-section-title">Статистика</h1>}
       <div className="app-filters-chips" role="group" aria-label="Период">
         {PROMO_PERIODS.map((period) => (
           <AppChip key={period.days} pressed={days === period.days} onClick={() => setDays(period.days)}>
@@ -39,7 +39,7 @@ export function OrganizerStats() {
           </AppChip>
         ))}
       </div>
-      <p className="app-gathering-hint">Цифры по всем событиям организации. Отдельный фильтр по одному событию кабинет пока не считает. Просмотры страниц не передаются — для них нет данных, это не ноль. Оплата на внешнем сайте не считается покупкой здесь.</p>
+      {!embedded && <p className="app-gathering-hint">Цифры по всем событиям организации.</p>}
       {failed && <AppState error>Не удалось загрузить статистику.</AppState>}
       {summary === null && !failed && <AppSkeletonList rows={3} />}
       {summary !== null && (

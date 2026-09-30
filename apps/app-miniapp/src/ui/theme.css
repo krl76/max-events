@@ -17635,6 +17635,14 @@ button.app-cal-peer-chip {
   padding: 5px 9px;
 }
 
+.app-org-person-code {
+  color: var(--app-text-tertiary);
+  flex: none;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
 .app-org-person-action {
   background: none;
   border: none;
@@ -17644,7 +17652,16 @@ button.app-cal-peer-chip {
   font: inherit;
   font-size: var(--app-font-size-description);
   font-weight: 800;
-  padding: 0;
+  min-height: 44px;
+  padding: 0 4px;
+}
+
+.app-org-scan-count {
+  font-size: var(--app-font-size-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 8px 0 16px;
+  text-align: center;
 }
 
 .app-org-offer {
@@ -26478,6 +26495,17 @@ html:not([data-theme="dark"]) .app-when-sheet {
   align-items: center;
   display: flex;
   gap: 12px;
+}
+
+button.app-fin-op--btn {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 0;
+  text-align: left;
+  width: 100%;
 }
 
 .app-fin-op-icon {

@@ -1,7 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { CABINET_EVENTS, cabinetStats } from "./cabinet-catalog";
 import { createWithdrawal, financeView, formatRub, withdrawalBlock, type FinanceOperation, OrganizerFinance } from "./OrganizerFinance";
 
 const photo = financeView("all", 30);
@@ -71,20 +70,18 @@ describe("withdrawalBlock", () => {
 });
 
 describe("OrganizerFinance", () => {
-  it("draws the mock home: title, 30-day income, sources, chart and withdraw", () => {
+  it("opens on the available balance and the operations list", () => {
     const html = renderToStaticMarkup(createElement(OrganizerFinance));
 
     expect(html).toContain("Финансы");
-    expect(html).not.toContain("Доходы, выплаты и аналитика");
-    const earned = cabinetStats(CABINET_EVENTS, new Date("2026-08-27T23:59:59+03:00"), new Date("2026-09-26T23:59:59+03:00"));
-    expect(html).toContain("Общий доход");
-    expect(html).toContain(formatRub(earned.incomeRub));
-    expect(html).toContain("за последние 30 дней");
-    expect(html).toContain("Динамика выплат и доходов");
-    expect(html).toContain("Последние операции");
-    expect(html).toContain("Все →");
+    expect(html).toContain("Доступно к выводу");
+    expect(html).toContain(formatRub(128_400));
+    expect(html).toContain("Поступления");
+    expect(html).toContain("Выплаты");
     expect(html).toContain("Вывести средства");
     expect(html).toContain("Билет на событие «Джаз»");
     expect(html).toContain("Комиссия Stripe");
+    expect(html).not.toContain("Динамика выплат и доходов");
+    expect(html).not.toContain("Общий доход");
   });
 });

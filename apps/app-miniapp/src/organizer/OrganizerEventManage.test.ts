@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OrganizerParticipant } from "../api/client";
-import { fillPercent, formatArrival, formatBookedAgo, formatSlot, guestsNote, participantInitial, reviewRecommendShare, reviewVerdict, splitParticipants } from "./OrganizerEventManage";
+import { fillPercent, formatArrival, formatBookedAgo, formatSlot, guestsNote, participantFilterCounts, participantInitial, participantNote, reviewRecommendShare, reviewVerdict, splitParticipants } from "./OrganizerEventManage";
 
 const participant = (over: Partial<OrganizerParticipant> = {}): OrganizerParticipant => ({ bookingId: "e00000f2-0000-4000-8000-0000000000f1", userId: "a0000000-0000-4000-8000-0000000000b1", name: "Анна Мельник", guests: 1, checkedInAt: null, bookedAt: "2026-09-16T12:00:00+03:00", ...over });
 
@@ -49,6 +49,31 @@ describe("formatSlot", () => {
   it("reads the window and whether it is taken", () => {
     expect(formatSlot({ id: "slot-0", startsAt: "2026-09-19T14:00:00+03:00", endsAt: "2026-09-19T17:00:00+03:00", busy: true })).toBe("14:00–17:00 · занят");
     expect(formatSlot({ id: "slot-1", startsAt: "2026-09-19T17:30:00+03:00", endsAt: "2026-09-19T20:30:00+03:00", busy: false })).toBe("17:30–20:30 · свободен");
+  });
+});
+
+describe("participantNote", () => {
+  it("shows arrival time after check-in and guests before", () => {
+    expect(participantNote(participant({ guests: 1 }))).toBe("+1 гость");
+    expect(participantNote(participant({ guests: 0, checkedInAt: "2026-09-19T13:52:00+03:00" }))).toContain("на месте с");
+  });
+});
+
+describe("participantFilterCounts", () => {
+  it("splits the roster into the four chips", () => {
+    const counts = participantFilterCounts({
+      eventId: "e",
+      capacity: 10,
+      bookedCount: 2,
+      waitlistCount: 1,
+      checkedInCount: 1,
+      freedSeats: 0,
+      chatMessages: null,
+      participants: [participant({ checkedInAt: "2026-09-19T13:52:00+03:00" }), participant({ bookingId: "e00000f2-0000-4000-8000-0000000000f2", checkedInAt: null })],
+      waitlist: [{ entryId: "w1", userId: "u", name: "Кира", guests: 0, joinedAt: "2026-09-18T12:00:00+03:00" }],
+      slots: [],
+    });
+    expect(counts).toEqual({ all: 2, in: 1, out: 1, wait: 1 });
   });
 });
 

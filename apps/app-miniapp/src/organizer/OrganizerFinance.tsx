@@ -17,7 +17,6 @@
 import { useState } from "react";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { useOrganizerNativeBack } from "./organizer-native-back";
-import { CABINET_EVENTS, cabinetStats } from "./cabinet-catalog";
 
 export type FinanceScope = "all" | "events" | "promocodes";
 export type FinancePeriod = 7 | 30 | 90;
@@ -192,6 +191,22 @@ const KIND_ICON: Record<FinanceKind, ActionIconName> = {
   partner: "users",
 };
 
+export const KIND_LABEL: Record<FinanceKind, string> = {
+  ticket: "Билет",
+  fee: "Комиссия",
+  promo: "Промокод",
+  payout: "Выплата",
+  partner: "Партнёрство",
+};
+
+export function operationHint(kind: FinanceKind): string {
+  if (kind === "ticket") return "Учёт записи на платное событие. Деньги получает ваш сайт.";
+  if (kind === "fee") return "Комиссия платёжного провайдера.";
+  if (kind === "promo") return "Начисление по промокоду.";
+  if (kind === "payout") return "Вывод на реквизиты организации.";
+  return "Партнёрское начисление.";
+}
+
 const TONE_ICON: Record<FinanceTone, ActionIconName> = {
   event: "ticket",
   promo: "tag",
@@ -315,10 +330,10 @@ function FinanceChart({ points }: { points: FinancePoint[] }) {
   );
 }
 
-function OperationRow({ row }: { row: FinanceOperation }) {
+function OperationRow({ row, onOpen }: { row: FinanceOperation; onOpen?: () => void }) {
   const incoming = row.amountRub > 0;
-  return (
-    <li className="app-fin-op">
+  const body = (
+    <>
       <span className={`app-fin-op-icon app-fin-op-icon--${row.kind}`} aria-hidden="true">
         <ActionIcon name={KIND_ICON[row.kind]} size={18} strokeWidth={2.2} />
       </span>
@@ -327,30 +342,33 @@ function OperationRow({ row }: { row: FinanceOperation }) {
         <span className="app-fin-op-when">{row.when}</span>
       </span>
       <span className={incoming ? "app-fin-op-amount app-fin-op-amount--in" : "app-fin-op-amount"}>{formatRub(row.amountRub, true)}</span>
+    </>
+  );
+  if (onOpen === undefined) return <li className="app-fin-op">{body}</li>;
+  return (
+    <li>
+      <button type="button" className="app-fin-op app-fin-op--btn" onClick={onOpen}>
+        {body}
+      </button>
     </li>
   );
 }
 
 export function OrganizerFinance() {
-  const [scope, setScope] = useState<FinanceScope>("all");
   const [period, setPeriod] = useState<FinancePeriod>(30);
-  const [screen, setScreen] = useState<"home" | "operations" | "withdraw">("home");
+  const [flow, setFlow] = useState<"all" | "in" | "out">("all");
+  const [screen, setScreen] = useState<"home" | "detail" | "withdraw">("home");
+  const [opened, setOpened] = useState<FinanceOperation | null>(null);
   const [withdrawals, setWithdrawals] = useState<FinanceOperation[]>([]);
   const [amount, setAmount] = useState("");
   const [block, setBlock] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const view = financeView(scope, period, withdrawals);
-  const anchor = new Date("2026-09-26T23:59:59+03:00");
-  const earned = cabinetStats(CABINET_EVENTS, new Date(anchor.getTime() - period * 86_400_000), anchor);
-  const shownIncome = scope === "promocodes" ? earned.promoUses * 100 : earned.incomeRub;
-  const tileAmount = (id: string, fallback: number): number => {
-    if (scope !== "all") return fallback;
-    if (id === "events") return earned.incomeRub;
-    if (id === "promos") return earned.promoUses * 100;
-    return 0;
-  };
-  const preview = view.operations.slice(0, PREVIEW);
-  useOrganizerNativeBack(screen !== "home", () => setScreen("home"));
+  const view = financeView("all", period, withdrawals);
+  const operations = view.operations.filter((row) => (flow === "in" ? row.amountRub > 0 : flow === "out" ? row.amountRub < 0 : true));
+  useOrganizerNativeBack(screen !== "home", () => {
+    setScreen("home");
+    setOpened(null);
+  });
 
   const submitWithdrawal = () => {
     const reason = withdrawalBlock(amount, view.availableRub);
@@ -366,6 +384,18 @@ export function OrganizerFinance() {
     setNotice(`Заявка на вывод ${formatRub(value)} принята`);
     setScreen("home");
   };
+
+  if (screen === "detail" && opened !== null) {
+    return (
+      <section className="app-fin" aria-label="Операция">
+        <p className="app-fin-lead">{KIND_LABEL[opened.kind]}</p>
+        <p className="app-fin-available">{formatRub(opened.amountRub, true)}</p>
+        <h1 className="app-fin-title">{opened.title}</h1>
+        <p className="app-fin-lead">{opened.when}</p>
+        <p className="app-gathering-hint">{operationHint(opened.kind)}</p>
+      </section>
+    );
+  }
 
   if (screen === "withdraw") {
     return (
@@ -397,98 +427,45 @@ export function OrganizerFinance() {
     );
   }
 
-  if (screen === "operations") {
-    return (
-      <section className="app-fin" aria-label="Все операции">
-        <h1 className="app-fin-title">Все операции</h1>
-        <p className="app-fin-lead">
-          {FINANCE_SCOPES.find((item) => item.id === scope)?.label} · {period} дней
-        </p>
-        {view.operations.length === 0 ? (
-          <p className="app-fin-empty">Операций за этот период нет.</p>
-        ) : (
-          <ul className="app-fin-ops">
-            {view.operations.map((row) => (
-              <OperationRow key={row.id} row={row} />
-            ))}
-          </ul>
-        )}
-      </section>
-    );
-  }
-
   return (
     <section className="app-fin" aria-label="Финансы">
       <h1 className="app-fin-title">Финансы</h1>
       {notice !== null && <p className="app-fin-notice">{notice}</p>}
-      <div className="app-fin-scopes" role="tablist" aria-label="Что показать">
-        {FINANCE_SCOPES.map((item) => (
-          <button key={item.id} type="button" role="tab" aria-selected={scope === item.id} className={scope === item.id ? "app-fin-chip app-fin-chip--on" : "app-fin-chip"} onClick={() => setScope(item.id)}>
-            {item.label}
+      <p className="app-fin-lead">Доступно к выводу</p>
+      <p className="app-fin-available">{formatRub(view.availableRub)}</p>
+      <div className="app-evt-filters" role="tablist" aria-label="Период">
+        {FINANCE_PERIODS.map((item) => (
+          <button key={item} type="button" role="tab" aria-selected={period === item} className={period === item ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => setPeriod(item)}>
+            {item} дней
           </button>
         ))}
       </div>
-      <article className="app-fin-hero">
-        <div className="app-fin-hero-copy">
-          <p className="app-fin-hero-label">{scope === "all" ? "Общий доход" : scope === "events" ? "Доход с событий" : "Доход с промокодов"}</p>
-          <p className="app-fin-hero-value">
-            {formatRub(shownIncome)}
-            <span className={earned.delta >= 0 ? "app-fin-delta" : "app-fin-delta app-fin-delta--down"}>{formatDelta(earned.delta)}</span>
-          </p>
-          <p className="app-fin-hero-note">за последние {period} дней</p>
-        </div>
-        <span className="app-fin-hero-wallet" aria-hidden="true">
-          <ActionIcon name="wallet" size={22} strokeWidth={2} />
-        </span>
-      </article>
-      <div className="app-fin-tiles">
-        {view.tiles.map((tile) => (
-          <article key={tile.id} className="app-fin-tile">
-            <span className={`app-fin-tile-icon app-fin-tile-icon--${tile.tone}`} aria-hidden="true">
-              <ActionIcon name={TONE_ICON[tile.tone]} size={16} strokeWidth={2.2} />
-            </span>
-            <span className="app-fin-tile-label">{tile.label}</span>
-            <span className="app-fin-tile-amount">{formatRub(tileAmount(tile.id, tile.amountRub))}</span>
-            <span className="app-fin-tile-share">{tile.percent}%</span>
-          </article>
+      <div className="app-evt-filters" role="tablist" aria-label="Операции">
+        {(
+          [
+            ["all", "Все"],
+            ["in", "Поступления"],
+            ["out", "Выплаты"],
+          ] as const
+        ).map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={flow === id} className={flow === id ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => setFlow(id)}>
+            {label}
+          </button>
         ))}
       </div>
-      <article className="app-fin-card">
-        <h2 className="app-fin-card-title">Динамика выплат и доходов</h2>
-        <div className="app-fin-periods" role="tablist" aria-label="Период">
-          {FINANCE_PERIODS.map((item) => (
-            <button key={item} type="button" role="tab" aria-selected={period === item} className={period === item ? "app-fin-period app-fin-period--on" : "app-fin-period"} onClick={() => setPeriod(item)}>
-              {item} дней
-            </button>
-          ))}
-        </div>
-        <p className="app-fin-legend">
-          <span className="app-fin-legend-item">
-            <span className="app-fin-dot app-fin-dot--income" aria-hidden="true" /> Доход
-          </span>
-          <span className="app-fin-legend-item">
-            <span className="app-fin-dot app-fin-dot--payout" aria-hidden="true" /> Выплаты
-          </span>
-        </p>
-        <FinanceChart points={view.points} />
-        <div className="app-fin-dates" aria-hidden="true">
-          {view.points.map((point) => (
-            <span key={point.label}>{point.label}</span>
-          ))}
-        </div>
-      </article>
-      <div className="app-fin-ops-head">
-        <h2 className="app-fin-card-title">Последние операции</h2>
-        <button type="button" className="app-fin-all" onClick={() => setScreen("operations")}>
-          Все →
-        </button>
-      </div>
-      {preview.length === 0 ? (
+      {operations.length === 0 ? (
         <p className="app-fin-empty">Операций за этот период нет.</p>
       ) : (
         <ul className="app-fin-ops">
-          {preview.map((row) => (
-            <OperationRow key={row.id} row={row} />
+          {operations.map((row) => (
+            <OperationRow
+              key={row.id}
+              row={row}
+              onOpen={() => {
+                setOpened(row);
+                setScreen("detail");
+              }}
+            />
           ))}
         </ul>
       )}

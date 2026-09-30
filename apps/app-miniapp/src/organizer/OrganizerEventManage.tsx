@@ -93,7 +93,7 @@ export function guestsNote(guests: number): string {
   return guests === 0 ? "" : `+${guests} ${pluralRu(guests, "гость", "гостя", "гостей")}`;
 }
 
-function PersonRow({ name, note, action }: { name: string; note: string; action: ReactNode }) {
+function PersonRow({ name, note, code, action }: { name: string; note: string; code?: string; action: ReactNode }) {
   return (
     <div className="app-org-person">
       <span className="app-org-person-avatar" aria-hidden="true">
@@ -103,12 +103,24 @@ function PersonRow({ name, note, action }: { name: string; note: string; action:
         <span className="app-org-person-name">{name}</span>
         {note !== "" && <span className="app-org-person-note">{note}</span>}
       </span>
+      {code !== undefined && code !== "" && <span className="app-org-person-code">{code}</span>}
       {action}
     </div>
   );
 }
 
 type ParticipantFilter = "all" | "in" | "out" | "wait";
+
+export function participantNote(row: OrganizerParticipant): string {
+  if (row.checkedInAt !== null) return formatArrival(row.checkedInAt);
+  return guestsNote(row.guests);
+}
+
+export function participantFilterCounts(attendance: OrganizerAttendance | null): Record<ParticipantFilter, number> {
+  const people = attendance?.participants ?? [];
+  const arrived = people.filter((row) => row.checkedInAt !== null).length;
+  return { all: people.length, in: arrived, out: people.length - arrived, wait: attendance?.waitlist.length ?? 0 };
+}
 
 function sameDay(iso: string, now: Date): boolean {
   const date = new Date(iso);
@@ -315,12 +327,21 @@ export function OrganizerEventManageView({ event, attendance, options, stats, ra
       )}
       {screen === "participants" && (
         <>
-          <h1 className="app-section-title">Участники</h1>
-          <p className="app-gathering-hint">{event.title}</p>
-          <p className="app-set-row-hint">
-            {booked === undefined ? "Нет данных" : `${booked} ${pluralRu(booked, "регистрация", "регистрации", "регистраций")}`}
-            {attendance === null ? "" : ` · пришли ${attendance.checkedInCount}`}
-          </p>
+          {today && (
+            <div className="app-set-group">
+              <HubRow title="Контроль входа" hint={attendance === null ? "Код с билета" : `Пришли ${attendance.checkedInCount} из ${attendance.bookedCount}`} onClick={() => onScreen("checkin")} />
+            </div>
+          )}
+          {attendance !== null && attendance.freedSeats > 0 && waitlist.length > 0 && (
+            <div className="app-org-offer">
+              <span className="app-org-offer-title">
+                Освободилось {attendance.freedSeats} {pluralRu(attendance.freedSeats, "место", "места", "мест")}
+              </span>
+              <AppButton stretched disabled={busy} onClick={onInvite}>
+                Позвать {Math.min(attendance.freedSeats, waitlist.length)}
+              </AppButton>
+            </div>
+          )}
           <input className="app-profile-input" aria-label="Поиск участника" placeholder="Имя или код" value={query} onChange={(change) => onQuery(change.target.value)} />
           <div className="app-evt-filters" role="tablist" aria-label="Статус входа">
             {(
@@ -332,7 +353,7 @@ export function OrganizerEventManageView({ event, attendance, options, stats, ra
               ] as const
             ).map(([id, label]) => (
               <button key={id} type="button" role="tab" aria-selected={filter === id} className={filter === id ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => onFilter(id)}>
-                {label}
+                {label} {participantFilterCounts(attendance)[id]}
               </button>
             ))}
           </div>
@@ -341,19 +362,20 @@ export function OrganizerEventManageView({ event, attendance, options, stats, ra
           {failed !== null && <AppState error>{failed}</AppState>}
           {attendance !== null && filter !== "wait" && participants.length === 0 && booked === 0 && (
             <>
-              <p className="app-gathering-hint">Пока никто не зарегистрировался.</p>
+              <AppState>Пока никто не зарегистрировался.</AppState>
               <AppButton tone="secondary" stretched onClick={onShare}>
                 Поделиться событием
               </AppButton>
             </>
           )}
-          {attendance !== null && filter !== "wait" && participants.length === 0 && (booked ?? 0) > 0 && <p className="app-gathering-hint">В этом фильтре никого нет.</p>}
+          {attendance !== null && filter !== "wait" && participants.length === 0 && (booked ?? 0) > 0 && <AppState>В этом фильтре никого нет.</AppState>}
           {filter !== "wait" &&
             participants.map((row) => (
               <PersonRow
                 key={row.bookingId}
                 name={row.name}
-                note={[guestsNote(row.guests), row.checkedInAt === null ? formatBookedAgo(row.bookedAt) : formatArrival(row.checkedInAt), organizerEntryCode(row.bookingId)].filter((part) => part !== "").join(" · ")}
+                note={participantNote(row)}
+                code={organizerEntryCode(row.bookingId)}
                 action={
                   row.checkedInAt === null ? (
                     <button type="button" className="app-org-person-action" disabled={busy} onClick={() => onCheckIn(row)}>
@@ -365,35 +387,13 @@ export function OrganizerEventManageView({ event, attendance, options, stats, ra
                 }
               />
             ))}
-          {filter === "wait" && waiting.length === 0 && <p className="app-gathering-hint">Лист ожидания пуст.</p>}
-          {filter === "wait" && waiting.map((row) => <PersonRow key={row.entryId} name={row.name} note={[guestsNote(row.guests), formatBookedAgo(row.joinedAt)].filter((part) => part !== "").join(" · ")} action={<span className="app-micro-badge">Ждёт</span>} />)}
-          {attendance !== null && attendance.freedSeats > 0 && waitlist.length > 0 && (
-            <div className="app-org-offer">
-              <span className="app-org-offer-title">
-                Освободилось {attendance.freedSeats} {pluralRu(attendance.freedSeats, "место", "места", "мест")}
-              </span>
-              <span className="app-org-offer-note">Позвать первых из листа ожидания?</span>
-              <AppButton stretched disabled={busy} onClick={onInvite}>
-                Позвать {Math.min(attendance.freedSeats, waitlist.length)}
-              </AppButton>
-            </div>
-          )}
-          {today && (
-            <AppButton stretched onClick={() => onScreen("checkin")}>
-              Контроль входа
-            </AppButton>
-          )}
-          <button type="button" className="app-org-icon-btn" aria-label="Обновить список" onClick={onRefresh}>
-            <ActionIcon name="undo" size={20} strokeWidth={2.2} />
-          </button>
+          {filter === "wait" && waiting.length === 0 && <AppState>Лист ожидания пуст.</AppState>}
+          {filter === "wait" && waiting.map((row) => <PersonRow key={row.entryId} name={row.name} note={guestsNote(row.guests)} action={<span className="app-micro-badge">Ждёт</span>} />)}
         </>
       )}
       {screen === "checkin" && (
         <>
-          <h1 className="app-section-title">Контроль входа</h1>
-          <p className="app-set-row-title">{event.title}</p>
-          <p className="app-set-row-hint">Пришли {attendance === null ? "нет данных" : `${attendance.checkedInCount} из ${attendance.bookedCount}`}</p>
-          <p className="app-gathering-hint">Камеры у мини-приложения нет. Код с билета вводится вручную. Без сети отметку сохранить нельзя.</p>
+          <p className="app-org-scan-count">{attendance === null ? "—" : `${attendance.checkedInCount} из ${attendance.bookedCount}`}</p>
           <form
             className="app-org-scan-form"
             onSubmit={(submit) => {
@@ -401,7 +401,7 @@ export function OrganizerEventManageView({ event, attendance, options, stats, ra
               onSubmitCode();
             }}
           >
-            <input className="app-org-field-input" aria-label="Код входа" placeholder="Код с билета" value={code} onChange={(change) => onCode(change.target.value)} />
+            <input className="app-org-field-input" aria-label="Код входа" placeholder="Код с билета" value={code} autoFocus onChange={(change) => onCode(change.target.value)} />
             <AppButton stretched type="submit" disabled={busy || code.trim() === ""}>
               Отметить вход
             </AppButton>
@@ -409,7 +409,7 @@ export function OrganizerEventManageView({ event, attendance, options, stats, ra
           {notice !== null && <p className="app-org-notice">{notice}</p>}
           {failed !== null && <AppState error>{failed}</AppState>}
           <AppButton tone="secondary" stretched onClick={() => onScreen("participants")}>
-            Найти участника вручную
+            Найти в списке
           </AppButton>
         </>
       )}

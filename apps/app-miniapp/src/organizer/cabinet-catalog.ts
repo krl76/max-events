@@ -104,6 +104,17 @@ export function cabinetInRange(events: CabinetEvent[], from: Date, to: Date): Ca
   });
 }
 
+export function cabinetFillRows(events: CabinetEvent[], from: Date, to: Date): Array<{ id: string; title: string; booked: number; capacity: number; fill: number }> {
+  return cabinetInRange(events, from, to)
+    .filter((event) => !event.draft)
+    .map((event) => {
+      const booked = cabinetSold(event);
+      const fill = event.capacity <= 0 ? 0 : Math.round((booked / event.capacity) * 100);
+      return { id: event.id, title: event.title, booked, capacity: event.capacity, fill };
+    })
+    .sort((a, b) => a.fill - b.fill || a.title.localeCompare(b.title, "ru"));
+}
+
 export interface CabinetStats {
   incomeRub: number;
   delta: number;
