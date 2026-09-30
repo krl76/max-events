@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { LeisureMoodSchema, NearbyBucketSchema } from "@max-events/api-contracts";
 import type { LeisureMood } from "@max-events/api-contracts";
-import { BUCKET_LABELS, LEISURE_MOOD_LABELS, NEARBY_RADIUS_KM, NearbyView, STOP_KIND_LABELS, bucketCountLabel, chainPlanDraft, chainStopMeta, chainTitle, chainWindow, formatDistanceKm, nearbyCardWhen, nearbyEmptyTitle, nearbyErrorTitle, nearbyLocationRoute, nearbyOriginCaption, nearbyScreenTitle, type LeisureState, type NearbyMode, type NearbyState } from "./NearbyPage";
+import { BUCKET_LABELS, LEISURE_HOUR_OPTIONS, LEISURE_MOOD_LABELS, NEARBY_REACH, NearbyView, STOP_KIND_LABELS, bucketCountLabel, chainPlanDraft, chainSpendLabel, chainStopMeta, chainTitle, chainWindow, formatDistanceKm, nearbyCardWhen, nearbyEmptyTitle, nearbyErrorTitle, nearbyLocationRoute, nearbyOriginCaption, nearbyReachLabel, nearbyReachOf, nearbyScreenTitle, type LeisureState, type NearbyMode, type NearbyState } from "./NearbyPage";
 import { cardMatchesQuery, cardOnDay, moscowDayKey, nearbyDayOptions } from "./nearby-filters";
 import { MOCK_NOW, leisureOptions, nearbyTimeline } from "../api/mock";
 import type { LeisureChain, LeisureChainStop } from "../api/client";
@@ -87,9 +87,15 @@ describe("форматирование строк таймлайна", () => {
 
 describe("заголовок, окно и шаг цепочки", () => {
   it("склоняет часы", () => {
-    expect(chainTitle(1)).toBe("Цепочка на 1 час");
-    expect(chainTitle(3)).toBe("Цепочка на 3 часа");
-    expect(chainTitle(8)).toBe("Цепочка на 8 часов");
+    expect(chainTitle(1)).toBe("Маршрут на 1 час");
+    expect(chainTitle(3)).toBe("Маршрут на 3 часа");
+    expect(chainTitle(8)).toBe("Маршрут на 8 часов");
+  });
+
+  it("суммирует известные цены маршрута", () => {
+    expect(chainSpendLabel([stop(), stop({ priceRub: 200, free: false })])).toBe("600 ₽");
+    expect(chainSpendLabel([stop({ free: true, priceRub: null }), stop({ free: true, priceRub: null })])).toBe("Бесплатно");
+    expect(chainSpendLabel([stop({ free: false, priceRub: null })])).toBeNull();
   });
 
   it("открывает окно первым шагом, который знает свой час", () => {
@@ -125,29 +131,35 @@ describe("chainPlanDraft", () => {
 });
 
 describe("NearbyView: таймлайн (экран 13)", () => {
-  it("рисует переключатель режимов, дату и радиус внизу", () => {
+  it("рисует переключатель режимов, дату и три радиуса без ползунка", () => {
     const html = viewHtml({ mode: "timeline" });
 
     expect(html).toContain("События");
-    expect(html).toContain("На часы");
+    expect(html).toContain("Маршрут");
+    expect(html).not.toContain("На часы");
     expect(html).not.toContain("время московское");
     expect(html).not.toContain("Таймлайн");
     expect(html).toContain('aria-haspopup="dialog"');
-    expect(html).toContain('aria-label="Радиус поиска"');
-    expect(html).toContain('class="app-nb-dock"');
+    expect(html).toContain('aria-label="Как далеко искать"');
+    expect(html).toContain("Пешком");
+    expect(html).toContain("Район");
+    expect(html).toContain("Город");
+    expect(html).not.toContain("app-nb-dock");
     expect(html).not.toContain("Спросить MAX");
   });
 
-  it("отмечает выбранный радиус среди тех же значений, что и настройки", () => {
-    const html = viewHtml({ mode: "timeline", radiusKm: 5 });
+  it("складывает старый радиус в ближайший из трёх", () => {
+    expect(nearbyReachOf(1)).toBe(3);
+    expect(nearbyReachOf(5)).toBe(3);
+    expect(nearbyReachOf(8)).toBe(10);
+    expect(nearbyReachOf(25)).toBe(25);
+    expect(nearbyReachLabel(5)).toBe("Пешком");
+    const html = viewHtml({ mode: "timeline", radiusKm: 10 });
 
-    expect(html).toContain('aria-checked="true"');
-    expect(html).toContain(">5 км<");
-    expect(html).toContain(">1 км<");
-    expect(html).toContain(">3 км<");
-    expect(html).toContain(">10 км<");
-    expect(html).toContain(">25 км<");
-    expect(html).not.toContain("Радиус 5 км");
+    expect(html).toContain("Пешком");
+    expect(html).toContain("до 10 км");
+    expect(html).not.toContain(">1 км<");
+    expect(html).not.toContain(">5 км<");
   });
 
   it("показывает все непустые сегменты со счётчиком мест", () => {
@@ -173,7 +185,8 @@ describe("NearbyView: таймлайн (экран 13)", () => {
     const html = viewHtml({ mode: "timeline", state: empty });
 
     expect(html).toContain("Рядом пока ничего не начинается");
-    expect(html).toContain(`${NEARBY_RADIUS_KM} км`);
+    expect(html).toContain("Пешком");
+    expect(html).toContain("до 3 км");
   });
 
   it("рисует загрузку и ошибку", () => {
@@ -185,11 +198,15 @@ describe("NearbyView: таймлайн (экран 13)", () => {
 });
 
 describe("NearbyView: свободное время (экран 14)", () => {
-  it("даёт восемь окон и три настроения", () => {
+  it("даёт четыре окна как у прогулки и три настроения", () => {
     const html = viewHtml({ mode: "free" });
 
     for (const label of Object.values(LEISURE_MOOD_LABELS)) expect(html).toContain(label);
-    expect(html.match(/class="app-nb-hour[ "]/g)!.length).toBe(8);
+    for (const option of LEISURE_HOUR_OPTIONS) expect(html).toContain(option.label);
+    expect(html).toContain("app-walk-tile");
+    expect(html).toContain("Сколько времени");
+    expect(html).not.toContain("Сколько часов свободно");
+    expect(NEARBY_REACH).toHaveLength(3);
     expect(html).toContain('aria-checked="true"');
   });
 
@@ -205,6 +222,9 @@ describe("NearbyView: свободное время (экран 14)", () => {
     }
     expect(html).toContain("Место");
     expect(html).toContain("Открыть как план");
+    expect(html).toContain("Другой маршрут");
+    expect(html).toContain("app-walk-stop--card");
+    expect(html).toContain("app-walk-num");
   });
 
   it("цепочку без события в план не пускает и объясняет почему", () => {
@@ -212,18 +232,19 @@ describe("NearbyView: свободное время (экран 14)", () => {
     const html = viewHtml({ mode: "free", leisure: { status: "ready", chains } });
 
     expect(html).toContain("План собирается вокруг события");
+    expect(html).toContain("в этом маршруте");
     expect(html).toContain("disabled");
   });
 
   it("рисует пустое состояние, загрузку и ошибку", () => {
     const empty = viewHtml({ mode: "free", leisure: { status: "ready", chains: [] } });
-    expect(empty).toContain("В это окно цепочка не складывается");
+    expect(empty).toContain("В это окно маршрут не складывается");
 
     expect(viewHtml({ mode: "free", leisure: { status: "loading" } })).toContain("Загрузка");
 
     const error = viewHtml({ mode: "free", leisure: { status: "error" } });
     expect(error).toContain("app-state--error");
-    expect(error).toContain("Не удалось собрать цепочку");
+    expect(error).toContain("Не удалось собрать маршрут");
   });
 });
 
@@ -243,8 +264,8 @@ describe("точка на карте", () => {
   it("даёт отдельную кнопку маршрута на локации карточки", () => {
     const html = viewHtml({ mode: "timeline" });
     expect(html).toContain("app-nb-grid");
-    expect(html).toContain("app-nb-dock");
-    expect(html).toContain("Расстояние");
+    expect(html).toContain("app-nb-reach");
+    expect(html).toContain("Пешком");
     expect(html).toContain('aria-label="Маршрут до');
   });
 });

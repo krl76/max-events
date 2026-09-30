@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Рядом со мной» (макет, экраны 13 и 14): two modes behind the app-wide row of filter pills — the four-segment timeline inside the chosen search radius, and the free-window builder that turns hours plus a mood into a chain of stops.
+// PURPOSE: «Рядом со мной» (макет, экраны 13 и 14): two modes behind a sliding События/Маршрут control — the four-segment timeline inside a three-reach radius, and a walk-style builder that turns a time window plus a mood into an itinerary of stops.
 // SCOPE: Data via apiClient.getNearbyTimeline/getLeisureOptions at useViewerOrigin; mode/hours/mood local state; «Открыть как план» creates a plan via apiClient.createPlan and pushes экран 15; loading/error/empty states for both modes.
 // DEPENDS: ../api/client.js (apiClient, LeisureChain, LeisureChainStop), @max-events/api-contracts (LeisureMood, NearbyBucket, NearbyCard, NearbyTimeline), ../catalog/format.js (pluralRu), ../geo/profile-city.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
@@ -10,7 +10,11 @@
 // - NEARBY_BUCKETS - ordered bucket keys of the timeline
 // - BUCKET_LABELS - ru segment headings (Сейчас / Через час / Вечером / Завтра)
 // - LEISURE_MOOD_LABELS - ru labels per LeisureMood
-// - LEISURE_HOURS - selectable free-window lengths (1..8, backend contract)
+// - LEISURE_HOUR_OPTIONS - four walk-style windows (1, 2, 3, 5 «Вечер») sent as hours to getLeisureOptions
+// - LEISURE_HOURS - hours extracted from LEISURE_HOUR_OPTIONS
+// - NEARBY_REACH - three reaches (Пешком 3 / Район 10 / Город 25) instead of a km scroller
+// - nearbyReachOf - snaps a stored km value onto those three
+// - nearbyReachLabel - «Пешком» / «Район» / «Город»
 // - STOP_KIND_LABELS - ru caption over a chain stop: Место / Событие
 // - NearbyMode - which of the two modes of the screen is open
 // - NearbyState - timeline fetch state union (loading / error / ready)
@@ -18,12 +22,12 @@
 // - formatDistanceKm - «1,2 км»
 // - bucketCountLabel - «4 места» next to a segment heading
 // - nearbyCardWhen - the time under a timeline card: «идёт», «до 23:00» or the start hour
-// - chainTitle - «Цепочка на 3 часа»
+// - chainTitle - «Маршрут на 3 часа»
 // - chainWindow - «19:00 – 22:00»: the window the chain occupies, from its first stop or from now
 // - chainStopMeta - «19:00 · 0,4 км · 400 ₽» under a stop title
 // - chainPlanDraft - the chain as a plan payload; null when it has no event to hang a plan on
 // - nearbyLocationRoute - map pin plus a route the viewer can follow to that place
-// - NearbyView - presentational: mode pills, the open mode, and the radius dock at the bottom
+// - NearbyView - presentational: events/route tabs, three reach chips, the open mode
 // - NearbyPage - route container: loads the timeline and the chain, creates the plan, wires navigation
 // END_MODULE_MAP
 
@@ -34,7 +38,6 @@ import { apiClient, type LeisureChain, type LeisureChainStop } from "../api/clie
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { useProfileCityPoint } from "../geo/profile-city";
-import { SEARCH_RADIUS_OPTIONS, radiusLabel } from "../profile/SettingsPage";
 import { pictured } from "../ui/photos";
 import { HeaderSlot, useHeaderTitle } from "../ui/Layout";
 import { useRoute } from "../routing/router";
@@ -53,7 +56,31 @@ export const BUCKET_LABELS: Record<NearbyBucket, string> = { now: "Сейчас"
 
 export const LEISURE_MOOD_LABELS: Record<LeisureMood, string> = { relax: "Расслабиться", active: "Активно", friends: "С друзьями" };
 
-export const LEISURE_HOURS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+/** Four windows, same grain as the city-walk tiles — eight numbered hours overflowed the row. */
+export const LEISURE_HOUR_OPTIONS = [
+  { hours: 1, label: "1 час", hint: "кофе и одна точка" },
+  { hours: 2, label: "2 часа", hint: "пара мест" },
+  { hours: 3, label: "3 часа", hint: "не спеша" },
+  { hours: 5, label: "Вечер", hint: "с ужином" },
+] as const;
+
+export const LEISURE_HOURS = LEISURE_HOUR_OPTIONS.map((option) => option.hours);
+
+/** Three reaches instead of a 1/3/5/10/25 scroller. */
+export const NEARBY_REACH = [
+  { km: 3, label: "Пешком", hint: "до 3 км" },
+  { km: 10, label: "Район", hint: "до 10 км" },
+  { km: 25, label: "Город", hint: "весь город" },
+] as const;
+
+export function nearbyReachOf(km: number): (typeof NEARBY_REACH)[number]["km"] {
+  return NEARBY_REACH.reduce((best, option) => (Math.abs(option.km - km) < Math.abs(best.km - km) ? option : best)).km;
+}
+
+export function nearbyReachLabel(km: number): string {
+  const match = NEARBY_REACH.find((option) => option.km === nearbyReachOf(km));
+  return match?.label ?? `${km} км`;
+}
 
 export const STOP_KIND_LABELS: Record<LeisureChainStop["kind"], string> = { place: "Место", event: "Событие" };
 
@@ -84,7 +111,13 @@ export function nearbyCardWhen(card: Pick<NearbyCard, "bucket"> & { event: Pick<
 }
 
 export function chainTitle(hours: number): string {
-  return `Цепочка на ${hours} ${pluralRu(hours, "час", "часа", "часов")}`;
+  return `Маршрут на ${hours} ${pluralRu(hours, "час", "часа", "часов")}`;
+}
+
+export function chainSpendLabel(stops: readonly LeisureChainStop[]): string | null {
+  if (!stops.some((stop) => stop.free || stop.priceRub !== null)) return null;
+  const sum = stops.reduce((total, stop) => total + (stop.free ? 0 : (stop.priceRub ?? 0)), 0);
+  return sum === 0 ? "Бесплатно" : `${sum.toLocaleString("ru-RU")} ₽`;
 }
 
 /** «19:00 – 22:00». The window opens at the first stop that knows its hour, and otherwise right now. */
@@ -198,7 +231,7 @@ function Timeline({ state, onRetryTimeline, onOpenEvent, onOpenLocation, radiusK
           {nearbyErrorTitle(inCity)}
         </AppState>
       )}
-      {state.status === "ready" && segments.length === 0 && <AppState hint={searching ? "Можно другими словами — формы подберёт поиск" : `Мы смотрим только на ${radiusKm} км вокруг`}>{searching ? "Ничего не нашлось" : nearbyEmptyTitle(inCity)}</AppState>}
+      {state.status === "ready" && segments.length === 0 && <AppState hint={searching ? "Можно другими словами — формы подберёт поиск" : `Ищем «${nearbyReachLabel(radiusKm)}», до ${radiusKm} км`}>{searching ? "Ничего не нашлось" : nearbyEmptyTitle(inCity)}</AppState>}
       {segments.map((segment) => (
         <section key={segment.bucket} className="app-nb-seg" aria-label={BUCKET_LABELS[segment.bucket]}>
           <div className="app-nb-seg-head">
@@ -218,77 +251,113 @@ function Timeline({ state, onRetryTimeline, onOpenEvent, onOpenLocation, radiusK
 
 function Chain({ chain, hours, now, planning, onRefresh, onOpenPlan, onOpenEvent, onOpenPlace }: { chain: LeisureChain; hours: number; now: Date } & Pick<NearbyViewProps, "planning" | "onRefresh" | "onOpenPlan" | "onOpenEvent" | "onOpenPlace">) {
   const draft = chainPlanDraft(chain);
+  const spend = chainSpendLabel(chain.stops);
+  const window = chainWindow(chain.stops, hours, now);
 
   return (
-    <div className="app-nearby-option">
-      <div className="app-nb-chain-head">
+    <article className="app-nb-itinerary app-walk-rise">
+      <header className="app-nb-chain-head">
         <h2 className="app-nb-chain-title">{chainTitle(hours)}</h2>
-        <span className="app-nb-chain-window">{chainWindow(chain.stops, hours, now)}</span>
-      </div>
-      <ol className="app-nearby-stops">
-        {chain.stops.map((stop, index) => (
-          <li key={`${stop.title}-${index}`} className="app-nearby-stop">
-            <span className="app-nb-stop-rail" aria-hidden="true">
-              <span className="app-nb-stop-dot">{index + 1}</span>
-              {index < chain.stops.length - 1 && <span className="app-nb-stop-line" />}
-            </span>
-            <button type="button" className="app-nb-stop-body" disabled={stop.eventId === null && stop.placeId === null} onClick={() => (stop.kind === "event" && stop.eventId !== null ? onOpenEvent(stop.eventId) : stop.placeId !== null ? onOpenPlace(stop.placeId) : undefined)}>
-              <span className="app-nb-stop-kind">{STOP_KIND_LABELS[stop.kind]}</span>
-              <span className="app-nearby-stop-title">{stop.title}</span>
-              <span className="app-nb-stop-meta">{chainStopMeta(stop)}</span>
-            </button>
-          </li>
-        ))}
+      </header>
+      <ul className="app-walk-stats">
+        <li className="app-walk-stat">
+          <strong>{window}</strong>
+          <span>окно</span>
+        </li>
+        <li className="app-walk-stat">
+          <strong>{chain.stops.length}</strong>
+          <span>{pluralRu(chain.stops.length, "место", "места", "мест")}</span>
+        </li>
+        <li className="app-walk-stat">
+          <strong>{spend ?? "—"}</strong>
+          <span>бюджет</span>
+        </li>
+      </ul>
+      <ol className="app-nb-stops">
+        {chain.stops.map((stop, index) => {
+          const photoId = stop.eventId ?? stop.placeId ?? `${index}`;
+          return (
+            <li key={`${stop.title}-${index}`} className="app-walk-stop app-walk-stop--card" style={{ animationDelay: `${index * 70}ms` }}>
+              <button type="button" className="app-nb-stop-card" disabled={stop.eventId === null && stop.placeId === null} onClick={() => (stop.kind === "event" && stop.eventId !== null ? onOpenEvent(stop.eventId) : stop.placeId !== null ? onOpenPlace(stop.placeId) : undefined)}>
+                <span className="app-walk-num">{index + 1}</span>
+                <span className="app-nb-stop-copy">
+                  <span className="app-nb-stop-kind">{STOP_KIND_LABELS[stop.kind]}</span>
+                  <span className="app-nearby-stop-title">{stop.title}</span>
+                  <span className="app-nb-stop-meta">{chainStopMeta(stop)}</span>
+                </span>
+                <img className="app-walk-photo" alt="" src={pictured(photoId, null)} />
+              </button>
+            </li>
+          );
+        })}
       </ol>
       <div className="app-nearby-actions">
         <button type="button" className="app-nb-plan" disabled={draft === null || planning === true} onClick={() => onOpenPlan(chain)}>
-          Открыть как план
+          {planning === true ? "Собираем план…" : "Открыть как план"}
         </button>
-        <button type="button" className="app-nb-refresh" aria-label="Подобрать заново" onClick={onRefresh}>
-          <ActionIcon name="refresh" size={20} strokeWidth={2.2} />
+        <button type="button" className="app-walk-btn-secondary" onClick={onRefresh}>
+          <span>Другой маршрут</span>
+          <ActionIcon name="refresh" size={16} strokeWidth={2.2} />
         </button>
       </div>
-      {draft === null && <p className="app-nb-plan-hint">План собирается вокруг события — в этой цепочке его нет.</p>}
-    </div>
+      {draft === null && <p className="app-nb-plan-hint">План собирается вокруг события — в этом маршруте его нет.</p>}
+    </article>
   );
 }
 
 function FreeWindow({ leisure, hours, mood, now, planning, onHours, onMood, onRefresh, onOpenPlan, onOpenEvent, onOpenPlace }: { now: Date } & Pick<NearbyViewProps, "leisure" | "hours" | "mood" | "planning" | "onHours" | "onMood" | "onRefresh" | "onOpenPlan" | "onOpenEvent" | "onOpenPlace">) {
   return (
     <>
-      <h2 className="app-nb-label">Сколько часов свободно</h2>
-      <div className="app-nb-hours" role="radiogroup" aria-label="Сколько часов свободно">
-        {LEISURE_HOURS.map((value) => (
-          <button key={value} type="button" role="radio" aria-checked={hours === value} className={hours === value ? "app-nb-hour app-nb-hour--on" : "app-nb-hour"} onClick={() => onHours(value)}>
-            {value}
-          </button>
-        ))}
-      </div>
-      <h2 className="app-nb-label">Настроение</h2>
-      <div className="app-nb-moods" role="radiogroup" aria-label="Настроение">
-        {(Object.keys(LEISURE_MOOD_LABELS) as LeisureMood[]).map((value) => (
-          <button key={value} type="button" role="radio" aria-checked={mood === value} className={mood === value ? "app-nb-mood app-nb-mood--on" : "app-nb-mood"} onClick={() => onMood(value)}>
-            {LEISURE_MOOD_LABELS[value]}
-          </button>
-        ))}
+      <div className="app-walk-step-card app-walk-rise">
+        <div className="app-walk-step-header">
+          <h2 className="app-walk-step-title">Сколько времени</h2>
+          <p className="app-walk-step-hint">Окно, из которого собирается маршрут</p>
+        </div>
+        <div className="app-walk-time-grid" role="radiogroup" aria-label="Сколько времени">
+          {LEISURE_HOUR_OPTIONS.map((option) => {
+            const on = hours === option.hours;
+            return (
+              <button key={option.hours} type="button" role="radio" aria-checked={on} className={on ? "app-walk-tile app-walk-tile--selected" : "app-walk-tile"} onClick={() => onHours(option.hours)}>
+                <div className="app-walk-tile-head">
+                  <span className="app-walk-tile-val">{option.label}</span>
+                </div>
+                <span className="app-walk-tile-desc">{option.hint}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="app-walk-step-header">
+          <h2 className="app-walk-step-title">Настроение</h2>
+          <p className="app-walk-step-hint">Подсказка, какие точки ставить первыми</p>
+        </div>
+        <div className="app-nb-moods" role="radiogroup" aria-label="Настроение">
+          {(Object.keys(LEISURE_MOOD_LABELS) as LeisureMood[]).map((value) => {
+            const on = mood === value;
+            return (
+              <button key={value} type="button" role="radio" aria-checked={on} className={on ? "app-nb-mood app-nb-mood--on" : "app-nb-mood"} onClick={() => onMood(value)}>
+                {LEISURE_MOOD_LABELS[value]}
+              </button>
+            );
+          })}
+        </div>
       </div>
       {leisure.status === "loading" && <AppSkeletonList rows={3} />}
       {leisure.status === "error" && (
         <AppState error action={{ label: "Повторить", onClick: onRefresh }}>
-          Не удалось собрать цепочку.
+          Не удалось собрать маршрут.
         </AppState>
       )}
       {leisure.status === "ready" && leisure.chains.length === 0 && (
         <AppState hint="Попробуйте другое настроение или окно подлиннее" action={{ label: "Подобрать заново", onClick: onRefresh }}>
-          В это окно цепочка не складывается
+          В это окно маршрут не складывается
         </AppState>
       )}
-      {leisure.status === "ready" && leisure.chains.map((chain) => <Chain key={chain.title} chain={chain} hours={hours} now={now} planning={planning} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />)}
+      {leisure.status === "ready" && leisure.chains.map((chain) => <Chain key={`${chain.title}-${hours}-${mood}`} chain={chain} hours={hours} now={now} planning={planning} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />)}
     </>
   );
 }
 
-const MODE_LABELS: Record<NearbyMode, string> = { timeline: "События", free: "На часы" };
+const MODE_LABELS: Record<NearbyMode, string> = { timeline: "События", free: "Маршрут" };
 const NEARBY_MODES = ["timeline", "free"] as const satisfies readonly NearbyMode[];
 
 function shownTimeline(state: NearbyState, dayKey: string, todayKey: string, query: string, assistIds: ReadonlySet<string> | null): NearbyState {
@@ -305,36 +374,41 @@ function shownTimeline(state: NearbyState, dayKey: string, todayKey: string, que
   };
 }
 
-export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = new Date(), planning, onHours, onMood, onRefresh, onRetryTimeline, onOpenPlan, onOpenEvent, onOpenLocation, onOpenPlace, radiusKm = NEARBY_RADIUS_KM, onRadius, inCity = true, query = "", onQuery = () => {}, searchOpen = false, assistIds = null, dayKey, onDay = () => {} }: NearbyViewProps) {
+export function NearbyView({ mode, onMode, state, leisure, hours, mood, now = new Date(), planning, onHours, onMood, onRefresh, onRetryTimeline, onOpenPlan, onOpenEvent, onOpenLocation, onOpenPlace, radiusKm = nearbyReachOf(DEFAULT_APP_SETTINGS.searchRadiusKm), onRadius, inCity = true, query = "", onQuery = () => {}, searchOpen = false, assistIds = null, dayKey, onDay = () => {} }: NearbyViewProps) {
   const todayKey = moscowDayKey(now);
   const selectedDay = dayKey ?? todayKey;
   const searching = query.trim() !== "";
   const shown = shownTimeline(state, selectedDay, todayKey, query, assistIds);
 
+  const reach = nearbyReachOf(radiusKm);
+  const tab = mode === "free" ? 1 : 0;
+
   return (
     <section className="app-nb">
       <div className="app-nb-bar">
-        <div className="app-nb-modes" role="group" aria-label="Режим">
+        <div className="app-me-tabs app-nb-modes" role="tablist" aria-label="Режим" style={{ ["--me-tabs" as string]: 2, ["--me-tab" as string]: tab }}>
+          <span className="app-me-tab-pill" aria-hidden="true" />
           {NEARBY_MODES.map((value) => (
-            <button key={value} type="button" aria-pressed={mode === value} className={mode === value ? "app-nb-mode app-nb-mode--on" : "app-nb-mode"} onClick={() => onMode(value)}>
+            <button key={value} type="button" role="tab" aria-selected={mode === value} className={mode === value ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onMode(value)}>
               {MODE_LABELS[value]}
             </button>
           ))}
         </div>
         {mode === "timeline" && <SearchDayButton chip day={selectedDay} now={now} onDay={onDay} emphasized={selectedDay !== todayKey} />}
       </div>
-      {searchOpen && <input className="app-nb-search" aria-label="Поиск рядом" value={query} placeholder="Событие или место" onChange={(event) => onQuery(event.target.value)} />}
-      {mode === "timeline" ? <Timeline state={shown} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} onOpenLocation={onOpenLocation} radiusKm={radiusKm} inCity={inCity} searching={searching} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
-      <div className="app-nb-dock">
-        <p className="app-nb-dock-label">Расстояние</p>
-        <div className="app-nb-radius" role="radiogroup" aria-label="Радиус поиска">
-          {SEARCH_RADIUS_OPTIONS.map((km) => (
-            <button key={km} type="button" role="radio" aria-checked={radiusKm === km} className={radiusKm === km ? "app-nb-radius-opt app-nb-radius-opt--on" : "app-nb-radius-opt"} onClick={() => onRadius?.(km)}>
-              {radiusLabel(km)}
+      <div className="app-nb-reach" role="radiogroup" aria-label="Как далеко искать">
+        {NEARBY_REACH.map((option) => {
+          const on = reach === option.km;
+          return (
+            <button key={option.km} type="button" role="radio" aria-checked={on} className={on ? "app-nb-reach-opt app-nb-reach-opt--on" : "app-nb-reach-opt"} onClick={() => onRadius?.(option.km)}>
+              <span className="app-nb-reach-label">{option.label}</span>
+              <span className="app-nb-reach-hint">{option.hint}</span>
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
+      {searchOpen && <input className="app-nb-search" aria-label="Поиск рядом" value={query} placeholder="Событие или место" onChange={(event) => onQuery(event.target.value)} />}
+      {mode === "timeline" ? <Timeline state={shown} onRetryTimeline={onRetryTimeline} onOpenEvent={onOpenEvent} onOpenLocation={onOpenLocation} radiusKm={reach} inCity={inCity} searching={searching} /> : <FreeWindow leisure={leisure} hours={hours} mood={mood} now={now} planning={planning} onHours={onHours} onMood={onMood} onRefresh={onRefresh} onOpenPlan={onOpenPlan} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} />}
     </section>
   );
 }
@@ -353,7 +427,7 @@ export function NearbyPage() {
   const [timelineAttempt, setTimelineAttempt] = useState(0);
   const [leisureAttempt, setLeisureAttempt] = useState(0);
   const [planning, setPlanning] = useState(false);
-  const [radiusKm, setRadiusKm] = useState(DEFAULT_APP_SETTINGS.searchRadiusKm);
+  const [radiusKm, setRadiusKm] = useState(() => nearbyReachOf(DEFAULT_APP_SETTINGS.searchRadiusKm));
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [dayKey, setDayKey] = useState<string | null>(null);
@@ -365,7 +439,7 @@ export function NearbyPage() {
     let alive = true;
     apiClient.getAppSettings(userId).then(
       (settings) => {
-        if (alive) setRadiusKm(settings.searchRadiusKm);
+        if (alive) setRadiusKm(nearbyReachOf(settings.searchRadiusKm));
       },
       () => {},
     );
@@ -453,9 +527,10 @@ export function NearbyPage() {
         }}
         radiusKm={radiusKm}
         onRadius={(km) => {
-          setRadiusKm(km);
+          const reach = nearbyReachOf(km);
+          setRadiusKm(reach);
           if (userId === null) return;
-          apiClient.updateAppSettings(userId, { searchRadiusKm: km }).then(
+          apiClient.updateAppSettings(userId, { searchRadiusKm: reach }).then(
             () => {},
             () => {},
           );
