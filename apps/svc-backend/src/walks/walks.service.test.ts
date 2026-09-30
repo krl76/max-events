@@ -69,6 +69,24 @@ describe("WalksService", () => {
     expect(store.rows[0]?.payload.id).toBe(walk.id);
   });
 
+  it("loads catalog places and web candidates for the written city", async () => {
+    const cities: string[] = [];
+    const lister: PlaceLister = {
+      list: async (query) => {
+        cities.push(query.city ?? "");
+        return [place(parkA, "Казанский кремль"), place(parkB, "Кул-Шариф")];
+      },
+    };
+    const lookup: WikidataLookup = async (city) => {
+      cities.push(`web:${city}`);
+      return [];
+    };
+    const store = new MemoryStore();
+    const walk = await new WalksService(store, lister, { rankCandidateIds: async (items) => items.map((item) => item.id) }, lookup).compose(userA, { ...write, city: "Казань" });
+    expect(cities).toEqual(["Казань", "web:Казань"]);
+    expect(walk.city).toBe("Казань");
+  });
+
   it("rejects a walk with fewer than two sights", async () => {
     const lookup: WikidataLookup = async () => [];
     const pending = service(new MemoryStore(), [place(parkA, "Парк Горького")], { rankCandidateIds: async (items) => items.map((item) => item.id) }, lookup).compose(userA, write);

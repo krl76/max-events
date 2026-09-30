@@ -13,10 +13,13 @@ import { CityWalkSchema } from "@max-events/api-contracts";
 import type { CityWalk, ComposeCityWalkWrite } from "@max-events/api-contracts";
 import type { ApiMixin } from "./transport";
 
+/** Wikidata (8s) plus the ranker can exceed the default 15s abort. */
+export const WALK_COMPOSE_TIMEOUT_MS = 45_000;
+
 export function withWalks<TBase extends ApiMixin>(Base: TBase) {
   return class WalkEndpoints extends Base {
     composeCityWalk(body: ComposeCityWalkWrite): Promise<CityWalk> {
-      return this.request("/walks", CityWalkSchema, { body });
+      return this.request("/walks", CityWalkSchema, { body, timeoutMs: WALK_COMPOSE_TIMEOUT_MS });
     }
 
     listCityWalks(): Promise<CityWalk[]> {

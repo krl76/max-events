@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Route } from "../routing/router";
-import { ROUTE_TITLES, routeHasBack, routeHasHeader, routeIsFlush, routeIsFullscreen, routeTitle, TABS } from "./Layout";
+import { ROUTE_TITLES, routeHasBack, routeHasHeader, routeIsFlush, routeIsFullscreen, routeShowsShellBack, routeTitle, TABS } from "./Layout";
 
 describe("Layout tabbar active predicates", () => {
   it("highlights only the Profile tab on the day-route screen", () => {
@@ -121,6 +121,14 @@ describe("routeHasBack", () => {
     expect(routeHasBack({ name: "day-route" })).toBe(true);
     expect(routeHasBack({ name: "assist", ask: null })).toBe(true);
     expect(routeHasBack({ name: "story-new" })).toBe(true);
+  });
+
+  it("hides the in-app close on the walk wizard and keeps it on other fullscreen screens", () => {
+    expect(routeShowsShellBack({ name: "walk", city: "Москва" })).toBe(false);
+    expect(routeShowsShellBack({ name: "walks" })).toBe(true);
+    expect(routeShowsShellBack({ name: "walk-saved", id: "w1" })).toBe(true);
+    expect(routeShowsShellBack({ name: "day-route" })).toBe(false);
+    expect(routeShowsShellBack({ name: "home" })).toBe(false);
   });
 
   it("keeps the native back on fullscreen screens: their declared header props are never rendered, the native button is the only way out", () => {

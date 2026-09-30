@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - ZodSchema - minimal structural shape of a zod schema needed to validate responses
 // - ApiError - unified API error with HTTP status
-// - MethodOptions - per-request HTTP method and JSON body
+// - MethodOptions - per-request HTTP method, JSON body, and optional abort window
 // - API_REQUEST_TIMEOUT_MS - abort hung fetches so a spinner cannot wait for the proxy
 // - ApiTransport - base class: baseUrl, init-data/organizer headers, request/requestVoid; retries a dropped MAX webview call and refreshes initData on 401
 // - ApiMixin - constructor bound the domain mixins extend
@@ -29,7 +29,7 @@ const DEFAULT_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "/api";
 export const API_REQUEST_TIMEOUT_MS = 15_000;
 
 function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === "AbortError";
+  return error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
 }
 
 function abortSignal(timeoutMs: number): AbortSignal {
@@ -69,6 +69,8 @@ export interface MethodOptions {
   body?: unknown;
   /** Send the call as the MAX user even while the cabinet bearer is attached. */
   asVisitor?: boolean;
+  /** Override the default abort window. Compose walks wait on Wikidata plus the ranker. */
+  timeoutMs?: number;
 }
 
 /** Network drops and overload. 502 is a dead upstream: retrying it in a profile-sized burst keeps nginx busy. */
@@ -141,7 +143,7 @@ export class ApiTransport {
         method: options.method ?? (options.body !== undefined ? "POST" : "GET"),
         headers: this.headers(options),
         body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-        signal: abortSignal(API_REQUEST_TIMEOUT_MS),
+        signal: abortSignal(options.timeoutMs ?? API_REQUEST_TIMEOUT_MS),
       });
     } catch (error) {
       if (isAbortError(error)) {
@@ -173,7 +175,7 @@ export class ApiTransport {
           return run();
         }
       }
-      if (TRANSIENT_STATUSES.has(error.status)) {
+      if (TRANSIENT_STATUSES.has(error.status) && !error.message.startsWith("timeout ")) {
         await sleep(200);
         return run();
       }
