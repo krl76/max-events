@@ -47,11 +47,17 @@ interface GatheringStatusViewProps {
   failed?: boolean;
   onRespond?: (response: InviteeResponse) => void;
   onShare?: () => void;
+  onRetry?: () => void;
 }
 
-export function GatheringStatusView({ state, myUserId = null, responding = false, failed = false, onRespond = () => {}, onShare }: GatheringStatusViewProps) {
+export function GatheringStatusView({ state, myUserId = null, responding = false, failed = false, onRespond = () => {}, onShare, onRetry }: GatheringStatusViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить сбор.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+        Не удалось загрузить сбор.
+      </AppState>
+    );
   const myResponse = myUserId === null ? undefined : state.gathering.invitees.find((invitee) => invitee.friend.id === myUserId)?.response;
   return (
     <section className="app-gathering">
@@ -93,6 +99,7 @@ export function GatheringStatusPage({ id }: { id: string }) {
   const [state, setState] = useState<GatheringStatusState>({ status: "loading" });
   const [responding, setResponding] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
@@ -107,7 +114,7 @@ export function GatheringStatusPage({ id }: { id: string }) {
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [id, attempt]);
 
   const respond = (response: InviteeResponse) => {
     if (state.status !== "ready" || responding) return;
@@ -131,5 +138,5 @@ export function GatheringStatusPage({ id }: { id: string }) {
     void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
   };
 
-  return <GatheringStatusView state={state} myUserId={myUserId} responding={responding} failed={failed} onRespond={respond} onShare={share} />;
+  return <GatheringStatusView state={state} myUserId={myUserId} responding={responding} failed={failed} onRespond={respond} onShare={share} onRetry={() => setAttempt((n) => n + 1)} />;
 }

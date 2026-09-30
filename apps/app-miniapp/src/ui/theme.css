@@ -534,6 +534,24 @@ html[data-theme="dark"] #root {
   padding: 0;
 }
 
+.app-shell-back {
+  align-items: center;
+  background: var(--app-card);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 8px 24px rgba(15, 18, 24, 0.12);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  width: 40px;
+  z-index: 40;
+}
+
 .app-tabbar {
   align-items: center;
   background: var(--app-card);
@@ -13041,11 +13059,114 @@ button.app-poll-result {
 /* --- Экран 26 «Друзья»: счётчик в шапке, строка контактов MAX и две группы --- */
 
 .app-friends-bar {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   gap: var(--app-space-m);
   justify-content: space-between;
   padding: var(--app-space-m) 0 var(--app-space-xs);
+}
+
+.app-friends-bar-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.app-friends-search {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 50%;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.app-friends-find {
+  gap: 10px;
+}
+
+.app-friends-find-hint,
+.app-friends-find-status {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  line-height: 1.35;
+  margin: 0 0 4px;
+}
+
+.app-friends-find-status--error {
+  color: var(--app-danger-label);
+}
+
+.app-friends-find-form {
+  display: flex;
+  gap: 8px;
+}
+
+.app-friends-find-input {
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-text);
+  flex: 1;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  height: 44px;
+  min-width: 0;
+  padding: 0 16px;
+}
+
+.app-friends-find-go {
+  background: var(--brand-blue);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  color: var(--brand-white);
+  cursor: pointer;
+  flex: none;
+  font: inherit;
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  height: 44px;
+  padding: 0 16px;
+}
+
+.app-friends-find-go:disabled {
+  opacity: 0.45;
+}
+
+.app-friends-find-hit {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 12px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.app-friends-find-hit-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-friends-find-hit-name {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+}
+
+.app-friends-find-hit-nick {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-caption);
 }
 
 .app-friends-bar-title {

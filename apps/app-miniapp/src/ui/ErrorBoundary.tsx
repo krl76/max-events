@@ -7,6 +7,7 @@
 
 import { Component, Fragment, type ReactNode } from "react";
 import { isStaleChunkError, recoverFromStaleChunk } from "./chunk-load";
+import { logError } from "./log-error";
 import { AppState } from "./primitives";
 
 /**
@@ -26,7 +27,7 @@ export class ScreenErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: { componentStack?: string }): void {
-    console.error(this.props.label ?? "screen crashed", error.message, info.componentStack);
+    logError(this.props.label ?? "screen crashed", error, { stack: info.componentStack });
     if (isStaleChunkError(error)) recoverFromStaleChunk();
   }
 
@@ -37,6 +38,7 @@ export class ScreenErrorBoundary extends Component<
     if (this.props.quiet) return null;
     return (
       <AppState
+        error
         action={{
           label: "Повторить",
           onClick: () => {
@@ -45,6 +47,13 @@ export class ScreenErrorBoundary extends Component<
               return;
             }
             this.setState((current) => ({ failed: false, epoch: current.epoch + 1, staleChunk: false }));
+          },
+        }}
+        secondaryAction={{
+          label: "Назад",
+          onClick: () => {
+            if (window.history.length > 1) window.history.back();
+            else window.location.reload();
           },
         }}
       >

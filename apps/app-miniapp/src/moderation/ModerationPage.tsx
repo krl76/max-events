@@ -29,12 +29,18 @@ interface ModerationQueueViewProps {
   stream?: ModerationStream;
   onStream?: (stream: ModerationStream) => void;
   onOpen?: (group: ModerationGroup) => void;
+  onRetry?: () => void;
 }
 
-export function ModerationQueueView({ state, stream = "complaints", onStream = () => {}, onOpen = () => {} }: ModerationQueueViewProps) {
+export function ModerationQueueView({ state, stream = "complaints", onStream = () => {}, onOpen = () => {}, onRetry }: ModerationQueueViewProps) {
   // «Не в списке модераторов» — состояние, а не ошибка: экран 51 уже знает эти слова.
   if (state.status === "forbidden") return <AppEmptyState kind="not-moderator" />;
-  if (state.status === "error") return <AppState error>Не удалось загрузить очередь модерации.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+        Не удалось загрузить очередь модерации.
+      </AppState>
+    );
   const counts = state.status === "ready" ? moderationStreamCounts(state.reports) : { complaints: 0, checks: 0 };
   const groups = state.status === "ready" ? groupModerationQueue(state.reports, state.targets, stream) : [];
   return (
@@ -250,6 +256,7 @@ export function ModerationPage() {
         setFailed(false);
         setOpenKey(`${group.targetType}:${group.targetId}`);
       }}
+      onRetry={() => setReloads((value) => value + 1)}
     />
   );
 }

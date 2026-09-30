@@ -471,6 +471,7 @@ function AuthenticatedSettings({ user, onOrganizer, onShowOnboarding, organizerC
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [cacheBytes, setCacheBytes] = useState(0);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [saveFailed, setSaveFailed] = useState(false);
   const [closeFriends, setCloseFriends] = useState<Friend[] | null>(null);
   const [followers, setFollowers] = useState<Friend[] | null>(null);
@@ -480,6 +481,7 @@ function AuthenticatedSettings({ user, onOrganizer, onShowOnboarding, organizerC
 
   useEffect(() => {
     let alive = true;
+    setLoadFailed(false);
     apiClient.getProfile().then(
       (value) => {
         if (alive) setProfile(value);
@@ -515,9 +517,14 @@ function AuthenticatedSettings({ user, onOrganizer, onShowOnboarding, organizerC
     return () => {
       alive = false;
     };
-  }, [user.id]);
+  }, [user.id, attempt]);
 
-  if (loadFailed) return <AppState error>Не удалось загрузить профиль.</AppState>;
+  if (loadFailed)
+    return (
+      <AppState error action={{ label: "Повторить", onClick: () => setAttempt((n) => n + 1) }}>
+        Не удалось загрузить профиль.
+      </AppState>
+    );
   if (profile === null)
     return (
       <div className="app-card" aria-hidden="true">

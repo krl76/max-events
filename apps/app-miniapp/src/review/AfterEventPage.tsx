@@ -209,10 +209,12 @@ export function AfterEventPage({ eventId }: { eventId: string }) {
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const now = new Date();
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (userId === null) return;
     let alive = true;
+    setLoadFailed(false);
     apiClient.getEventDetails(eventId, userId).then(
       (details) => {
         if (!alive) return;
@@ -251,9 +253,14 @@ export function AfterEventPage({ eventId }: { eventId: string }) {
     return () => {
       alive = false;
     };
-  }, [eventId, userId]);
+  }, [eventId, userId, attempt]);
 
-  if (loadFailed) return <AppState error>Не удалось загрузить событие.</AppState>;
+  if (loadFailed)
+    return (
+      <AppState error action={{ label: "Повторить", onClick: () => setAttempt((n) => n + 1) }}>
+        Не удалось загрузить событие.
+      </AppState>
+    );
   if (event === null || userId === null) return <AppState>Загрузка…</AppState>;
 
   return (

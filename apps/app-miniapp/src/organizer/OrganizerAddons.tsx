@@ -210,7 +210,11 @@ export function EventStatsSection({ eventId }: { eventId: string }) {
         </div>
       )}
       {open && state?.status === "loading" && <AppState>Загрузка…</AppState>}
-      {open && state?.status === "error" && <AppState error>Не удалось загрузить статистику.</AppState>}
+      {open && state?.status === "error" && (
+        <AppState error action={{ label: "Повторить", onClick: () => load() }}>
+          Не удалось загрузить статистику.
+        </AppState>
+      )}
       {open && state?.status === "ready" && <EventStatsView stats={state.stats} report={state.report} />}
     </div>
   );
@@ -222,27 +226,32 @@ export type LazyListState<T> = { status: "loading" } | { status: "error" } | { s
 function useLazyList<T>(load: () => Promise<T[]>) {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<LazyListState<T> | null>(null);
+  const fetchList = () => {
+    setState({ status: "loading" });
+    load().then(
+      (items) => setState({ status: "ready", items }),
+      () => setState({ status: "error" }),
+    );
+  };
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    if (next && (state === null || state.status === "error")) {
-      setState({ status: "loading" });
-      load().then(
-        (items) => setState({ status: "ready", items }),
-        () => setState({ status: "error" }),
-      );
-    }
+    if (next && (state === null || state.status === "error")) fetchList();
   };
   const append = (item: T) => setState((current) => (current?.status === "ready" ? { status: "ready", items: [...current.items, item] } : current));
-  return { open, toggle, state, setState, append };
+  return { open, toggle, retry: fetchList, state, setState, append };
 }
 
-export function ExpandableSection<T>({ icon = "spark", label, openLabel, errorText, list, children }: { icon?: ActionIconName; label: string; openLabel: string; errorText: string; list: { open: boolean; toggle: () => void; state: LazyListState<T> | null }; children: (items: T[]) => ReactNode }) {
+export function ExpandableSection<T>({ icon = "spark", label, openLabel, errorText, list, children }: { icon?: ActionIconName; label: string; openLabel: string; errorText: string; list: { open: boolean; toggle: () => void; retry?: () => void; state: LazyListState<T> | null }; children: (items: T[]) => ReactNode }) {
   return (
     <div>
       <AddonButton icon={icon} label={list.open ? openLabel : label} open={list.open} onClick={list.toggle} />
       {list.open && list.state?.status === "loading" && <AppState>Загрузка…</AppState>}
-      {list.open && list.state?.status === "error" && <AppState error>{errorText}</AppState>}
+      {list.open && list.state?.status === "error" && (
+        <AppState error action={list.retry === undefined ? undefined : { label: "Повторить", onClick: list.retry }}>
+          {errorText}
+        </AppState>
+      )}
       {list.open && list.state?.status === "ready" && children(list.state.items)}
     </div>
   );

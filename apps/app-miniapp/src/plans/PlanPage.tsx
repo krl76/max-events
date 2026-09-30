@@ -89,9 +89,10 @@ interface PlanViewProps {
   onCancelStart?: () => void;
   onCancelDismiss?: () => void;
   onCancel?: (scope: PlanCancelScope) => void;
+  onRetry?: () => void;
 }
 
-export function PlanView({ state, timeline, budget, onOpenEvent = () => {}, onAsk = () => {}, onChat = () => {}, onShare = () => {}, onCalendar = () => {}, notice = null, editingParty = false, onEditParty = () => {}, invitable = [], onInvite = () => {}, viewerId = null, cancelling = false, cancelFailed = false, onCancelStart = () => {}, onCancelDismiss = () => {}, onCancel = () => {} }: PlanViewProps) {
+export function PlanView({ state, timeline, budget, onOpenEvent = () => {}, onAsk = () => {}, onChat = () => {}, onShare = () => {}, onCalendar = () => {}, notice = null, editingParty = false, onEditParty = () => {}, invitable = [], onInvite = () => {}, viewerId = null, cancelling = false, cancelFailed = false, onCancelStart = () => {}, onCancelDismiss = () => {}, onCancel = () => {}, onRetry }: PlanViewProps) {
   if (state.status === "loading")
     return (
       <div className="app-plan" aria-busy="true">
@@ -100,7 +101,12 @@ export function PlanView({ state, timeline, budget, onOpenEvent = () => {}, onAs
         <AppSkeleton />
       </div>
     );
-  if (state.status === "error") return <AppState error>Не удалось загрузить план.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+        Не удалось загрузить план.
+      </AppState>
+    );
 
   const { plan } = state.card;
   const repeat = planRepeatLabel(plan.recurringRule);
@@ -236,6 +242,7 @@ export function PlanPage({ id }: { id: string }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelFailed, setCancelFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -273,7 +280,7 @@ export function PlanPage({ id }: { id: string }) {
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [id, attempt]);
 
   useEffect(() => {
     let alive = true;
@@ -369,6 +376,7 @@ export function PlanPage({ id }: { id: string }) {
           },
         );
       }}
+      onRetry={() => setAttempt((n) => n + 1)}
     />
   );
 }

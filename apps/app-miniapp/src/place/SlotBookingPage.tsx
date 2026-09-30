@@ -234,6 +234,7 @@ export function SlotBookingPage({ placeId }: { placeId: string }) {
   const [company, setCompany] = useState<Friend[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -253,7 +254,7 @@ export function SlotBookingPage({ placeId }: { placeId: string }) {
     return () => {
       alive = false;
     };
-  }, [placeId, day]);
+  }, [placeId, day, attempt]);
 
   const pickDay = useCallback((date: string) => {
     setDay(date);
@@ -277,7 +278,12 @@ export function SlotBookingPage({ placeId }: { placeId: string }) {
   }, [userId, slotId, busy, company, extraIds, navigate]);
 
   if (state.status === "loading") return <AppSkeletonList rows={4} />;
-  if (state.status === "error") return <AppState error>Не удалось загрузить слоты площадки.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={{ label: "Повторить", onClick: () => setAttempt((n) => n + 1) }}>
+        Не удалось загрузить слоты площадки.
+      </AppState>
+    );
   const picked = company ?? state.board.company;
   const rest = state.board.candidates.filter((candidate) => !picked.some((friend) => friend.id === candidate.id));
   return (

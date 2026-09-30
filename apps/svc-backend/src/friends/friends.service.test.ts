@@ -119,6 +119,13 @@ function createSubscriptionRepo(initial: SubscriptionEntity[] = []) {
         if (opts.where?.targetUserId && row.targetUserId !== opts.where.targetUserId) return false;
         return true;
       }),
+    findOneBy: async (where: { userId?: string; type?: string; targetUserId?: string }) =>
+      store.find((row) => {
+        if (where.userId && row.userId !== where.userId) return false;
+        if (where.type && row.type !== where.type) return false;
+        if (where.targetUserId && row.targetUserId !== where.targetUserId) return false;
+        return true;
+      }) ?? null,
     delete: async (where: { id: string }) => {
       const index = store.findIndex((row) => row.id === where.id);
       if (index < 0) return { affected: 0 };
@@ -157,6 +164,13 @@ function createService(options: { botFriends?: string[] | null; users?: UserEnti
 }
 
 describe("FriendsService", () => {
+  it("finds a person who already opened the mini-app by MAX id", async () => {
+    const { service } = createService();
+    await expect(service.findByMaxId("2")).resolves.toMatchObject({ id: annaId, name: "Анна Соколова", maxUserId: "2" });
+    await expect(service.findByMaxId("nobody")).resolves.toBeNull();
+    await expect(service.findByMaxId("   ")).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it("leaves the graph untouched when MAX returns no friends list", async () => {
     const { friendships, botState, service } = createService({ botFriends: ["2"] });
     await service.sync(meId);
@@ -305,5 +319,15 @@ describe("FriendsService", () => {
     expect((await service.following(annaId)).map((row) => row.id)).toEqual([meId]);
     await expect(service.add(meId, meId)).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.add(meId, "00000000-0000-4000-8000-0000000000ff")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("follows both ways when a person opens a user invite", async () => {
+    const { service } = createService();
+    await expect(service.acceptInvite(meId, annaId)).resolves.toEqual([annaId]);
+    expect((await service.following(meId)).map((row) => row.id)).toEqual([annaId]);
+    expect((await service.followers(meId)).map((row) => row.id)).toEqual([annaId]);
+    expect((await service.following(annaId)).map((row) => row.id)).toEqual([meId]);
+    await expect(service.acceptInvite(meId, meId)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.acceptInvite(meId, "00000000-0000-4000-8000-0000000000ff")).rejects.toBeInstanceOf(NotFoundException);
   });
 });

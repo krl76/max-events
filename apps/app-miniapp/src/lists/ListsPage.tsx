@@ -161,9 +161,10 @@ interface ListsViewProps {
   onCreateCancel?: () => void;
   busy?: boolean;
   error?: string | null;
+  onRetry?: () => void;
 }
 
-export function ListsView({ state, onOpen, topbar = false, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, onCreateCancel = () => {}, busy = false, error = null }: ListsViewProps) {
+export function ListsView({ state, onOpen, topbar = false, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, onCreateCancel = () => {}, busy = false, error = null, onRetry }: ListsViewProps) {
   const presets = state.status === "ready" ? state.summaries.filter((summary) => summary.list.preset !== null && SHELF_PRESETS.has(summary.list.preset)) : [];
   const own = state.status === "ready" ? state.summaries.filter((summary) => summary.list.preset === null) : [];
   const canCreate = own.length < MAX_OWN_LISTS && presets.length + own.length < MAX_SAVED_LISTS;
@@ -179,7 +180,11 @@ export function ListsView({ state, onOpen, topbar = false, creating = false, new
         </div>
       )}
       {state.status === "loading" && <AppState>Загрузка…</AppState>}
-      {state.status === "error" && <AppState error>Не удалось загрузить списки.</AppState>}
+      {state.status === "error" && (
+        <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+          Не удалось загрузить списки.
+        </AppState>
+      )}
       {state.status === "ready" && (
         <>
           {creating && <CreateListSheet title={newTitle} busy={busy} error={error} onTitle={onNewTitle} onSubmit={onCreateSubmit} onClose={onCreateCancel} />}
@@ -272,6 +277,7 @@ export function ListsPage({ topbar = false, userId: subjectId }: { topbar?: bool
       }}
       busy={busy}
       error={error}
+      onRetry={() => setReloads((value) => value + 1)}
     />
   );
 }
@@ -288,11 +294,17 @@ interface ListViewProps {
   showAuthors?: boolean;
   viewerId?: string | null;
   onRemove?: (itemId: string) => void;
+  onRetry?: () => void;
 }
 
-export function ListView({ state, onOpenEvent, onOpenPlace, onOpenPost, showAuthors = false, viewerId = null, onRemove }: ListViewProps) {
+export function ListView({ state, onOpenEvent, onOpenPlace, onOpenPost, showAuthors = false, viewerId = null, onRemove, onRetry }: ListViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить список.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+        Не удалось загрузить список.
+      </AppState>
+    );
   if (state.cards.length === 0) return <AppState>Пока ничего не сохранено.</AppState>;
   return (
     <div className="app-list-items">
@@ -384,7 +396,12 @@ export function ListPage({ id }: { id: string }) {
   }, [draft, events, id, userId, load]);
 
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить список.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={{ label: "Повторить", onClick: load }}>
+        Не удалось загрузить список.
+      </AppState>
+    );
 
   const { screen } = state;
   const shared = screen.participants.length > 0;

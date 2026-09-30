@@ -80,11 +80,13 @@ export interface PromoCodeState {
   onReferral: (value: string) => void;
 }
 
-/** Booking failure -> inline message: the backend maps promo code rejection and the early-access window to 403, sold out to 409 (PromoService.redeemInTransaction / BookingsService parity). */
-export function bookingErrorMessage(error: unknown, hadCode: boolean): string {
+/** Booking failure -> inline message: the backend maps promo code rejection and the early-access window to 403, sold out to 409 (PromoService.redeemInTransaction / BookingsService parity). Duplicate 409 is not an error — refetch will show the existing booking. */
+export function bookingErrorMessage(error: unknown, hadCode: boolean): string | null {
   if (error instanceof ApiError) {
     if (error.status === 403) return hadCode ? "Промокод не подошёл — проверьте код и срок его действия." : "Запись пока открыта по промокоду раннего доступа — введите код.";
-    if (error.status === 409) return "К сожалению, места закончились.";
+    if (error.status === 409) return /already exists/i.test(error.message) ? null : "К сожалению, места закончились.";
+    if (error.status === 400) return "Проверьте данные записи и попробуйте снова.";
+    if (error.status === 0 && /timeout/i.test(error.message)) return "Сервер не ответил. Попробуйте ещё раз.";
   }
   return "Не удалось записаться. Попробуйте ещё раз.";
 }
@@ -228,6 +230,7 @@ export function EventPage({ id }: { id: string }) {
   // bookingId of the failed pay attempt — the error dies with its booking (cancel/re-book resets it)
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [bookingBusy, setBookingBusy] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -260,13 +263,15 @@ export function EventPage({ id }: { id: string }) {
   }, [activeBookingId, paidEvent, payment, loadPayment]);
 
   const book = useCallback(() => {
-    if (userId === null || state.status !== "ready") return;
+    if (userId === null || state.status !== "ready" || bookingBusy) return;
     const paymentUrl = state.details.event.isPaid ? state.details.event.paymentUrl : null;
     const code = promoCode.trim();
     const referral = referralCode.trim();
     setBookingError(null);
+    setBookingBusy(true);
     apiClient.createBooking({ userId, eventId: id, ...(code === "" ? {} : { promoCode: code }), ...(referral === "" ? {} : { referralCode: referral }) }).then(
       (booking) => {
+        setBookingBusy(false);
         setPromoCode("");
         setReferralCode("");
         setPayment({ bookingId: booking.id, value: booking.payment });
@@ -275,11 +280,12 @@ export function EventPage({ id }: { id: string }) {
         refetch();
       },
       (error: unknown) => {
+        setBookingBusy(false);
         setBookingError(bookingErrorMessage(error, code !== ""));
         refetch();
       },
     );
-  }, [userId, id, state, promoCode, referralCode, refetch]);
+  }, [userId, id, state, promoCode, referralCode, refetch, bookingBusy]);
 
   const cancel = useCallback(() => {
     if (state.status !== "ready" || state.details.activeBookingId === null) return;
@@ -294,15 +300,22 @@ export function EventPage({ id }: { id: string }) {
   }, [activeBookingId, paymentBusy, loadPayment]);
 
   const joinWaitlist = useCallback(() => {
-    if (userId === null) return;
+    if (userId === null || bookingBusy) return;
+    setBookingError(null);
+    setBookingBusy(true);
     apiClient.joinWaitlist(id, userId).then(
       () => {
+        setBookingBusy(false);
         setQueued(true);
         setSheetOpen(false);
       },
-      () => setQueued(false),
+      () => {
+        setBookingBusy(false);
+        setQueued(false);
+        setBookingError("Не удалось встать в лист ожидания. Попробуйте ещё раз.");
+      },
     );
-  }, [id, userId]);
+  }, [id, userId, bookingBusy]);
 
   const share = useCallback(() => {
     if (state.status !== "ready") return;
@@ -357,7 +370,7 @@ export function EventPage({ id }: { id: string }) {
         <EventExtras details={details} eventId={id} userId={userId} payment={currentPayment} paymentBusy={paymentBusy} paymentFailed={paymentError !== null && paymentError === details.activeBookingId} onPay={pay} onChanged={refetch} onCreatePost={() => navigate({ name: "feed-new", eventId: id })} />
       </details>
       <EventBookingBar details={details} chatLink={event.chatLink} onChat={() => event.chatLink !== null && openChatLink(event.chatLink)} onBook={() => setSheetOpen(true)} />
-      {sheetOpen && <BookingSheet details={details} offer={offer} organizerName={organizerName} promo={promo} waitlist={details.remainingSeats === 0 && details.activeBookingId === null ? { ahead: offer?.waitlistAhead ?? 0, joined: queued, onJoin: joinWaitlist } : null} onClose={() => setSheetOpen(false)} onBook={book} onCancel={() => setConfirmingCancel(true)} />}
+      {sheetOpen && <BookingSheet details={details} offer={offer} organizerName={organizerName} promo={promo} busy={bookingBusy} waitlist={details.remainingSeats === 0 && details.activeBookingId === null ? { ahead: offer?.waitlistAhead ?? 0, joined: queued, onJoin: joinWaitlist } : null} onClose={() => setSheetOpen(false)} onBook={book} onCancel={() => setConfirmingCancel(true)} />}
       {confirmingCancel && <ConfirmSheet title="Отменить запись?" confirmLabel="Отменить запись" onConfirm={cancel} onClose={() => setConfirmingCancel(false)} />}
       {inviteOpen && (
         <EventInviteSheet

@@ -141,6 +141,7 @@ export interface OnboardingViewProps {
   onShareApp?: () => void;
   /** Set when this visit was opened on purpose. The first slide can leave instead of doing nothing. */
   onLeave?: () => void;
+  onRetry?: () => void;
 }
 
 function StepRail({ step }: { step: OnboardingStep }) {
@@ -377,7 +378,12 @@ export function OnboardingView(props: OnboardingViewProps) {
   const showBack = props.step !== "intro" || props.intro > 0 || props.onLeave !== undefined;
 
   if (props.step !== "intro" && props.status === "loading") return <AppState>Загрузка…</AppState>;
-  if (props.step !== "intro" && props.status === "error") return <AppState error>Не удалось загрузить данные онбординга.</AppState>;
+  if (props.step !== "intro" && props.status === "error")
+    return (
+      <AppState error action={props.onRetry === undefined ? undefined : { label: "Повторить", onClick: props.onRetry }}>
+        Не удалось загрузить данные онбординга.
+      </AppState>
+    );
 
   return (
     <div
@@ -413,6 +419,7 @@ export function OnboardingFlow({ onDone, onLeave }: { onDone: () => void; onLeav
   const [slideDirection, setSlideDirection] = useState<IntroDirection>("forward");
   const [loaded, setLoaded] = useState<{ city: string; interests: string[]; suggestions: FriendSuggestion[] } | null>(null);
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [saveFailed, setSaveFailed] = useState(false);
   const [blocked, setBlocked] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
@@ -421,6 +428,7 @@ export function OnboardingFlow({ onDone, onLeave }: { onDone: () => void; onLeav
 
   useEffect(() => {
     let alive = true;
+    setFailed(false);
     // Подсказки по друзьям — украшение шага, а не его условие: без них шаг просто пуст, и человек
     // идёт дальше. Профиль — другое дело, на нём держатся город и интересы, и без него экрану нечего
     // показать. Поэтому падение подсказок гасится здесь, а не поднимает весь экран в ошибку: на живом
@@ -437,7 +445,7 @@ export function OnboardingFlow({ onDone, onLeave }: { onDone: () => void; onLeav
     return () => {
       alive = false;
     };
-  }, []);
+  }, [attempt]);
 
   // Город профиля при создании — всегда «Москва», поэтому он не подставляется. Явный тап побеждает.
   // Геопозиция выбирает город, только если точка реально рядом с ним, а не «ближайший из пяти» за тысячу километров.
@@ -583,6 +591,7 @@ export function OnboardingFlow({ onDone, onLeave }: { onDone: () => void; onLeav
         void shareResult(getWebApp(), "Афиша MAX — находи друзей по интересам и зови своих", maxAppLink(""));
       }}
       onLeave={onLeave}
+      onRetry={() => setAttempt((n) => n + 1)}
     />
   );
 }

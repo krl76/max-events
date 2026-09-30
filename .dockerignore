@@ -5,6 +5,10 @@
 .grace
 .turbo
 docs
+apps/presentation
+apps/app-miniapp/e2e
+**/playwright.config.ts
+**/*.spec.ts
 node_modules
 **/node_modules
 **/dist
@@ -19,3 +23,5 @@ test-results
 backlogs
 mcp-profile
 .playwright-mcp
+presentation.html
+verify-friend-profile.png

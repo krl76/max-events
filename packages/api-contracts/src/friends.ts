@@ -33,18 +33,17 @@ import { z } from "zod";
 import { IdSchema, TimestampSchema } from "./primitives.js";
 import { EventSchema } from "./event.js";
 import { ParticipationStatusSchema } from "./participation.js";
+import { StoredAvatarUrlSchema } from "./user.js";
 
 export const FriendSchema = z.object({
   id: IdSchema,
   name: z.string().min(1).max(200),
-  avatarUrl: z
-    .string()
-    .max(2000)
-    .refine((value) => (value.startsWith("/") && !value.startsWith("//")) || z.string().url().safeParse(value).success, "avatar must be an absolute URL or a site path")
-    .nullable()
-    .default(null),
+  /** Same read path as User.avatarUrl: a MAX photo that is not strict https becomes null, not a failed list. */
+  avatarUrl: StoredAvatarUrlSchema.default(null),
   /** MAX username without the @. Omitted when the person has none, so older payloads stay valid. */
   username: z.string().min(1).max(64).optional(),
+  /** Numeric MAX id. Optional so older payloads still parse. */
+  maxUserId: z.string().min(1).max(64).optional(),
 });
 export type Friend = z.infer<typeof FriendSchema>;
 
@@ -103,3 +102,9 @@ export const ReplaceFollowsWriteSchema = z.object({
   userIds: z.array(IdSchema),
 });
 export type ReplaceFollowsWrite = z.infer<typeof ReplaceFollowsWriteSchema>;
+
+/** Mutual follow when a person opens a `user-` invite link. */
+export const AcceptFriendInviteWriteSchema = z.object({
+  userId: IdSchema,
+});
+export type AcceptFriendInviteWrite = z.infer<typeof AcceptFriendInviteWriteSchema>;

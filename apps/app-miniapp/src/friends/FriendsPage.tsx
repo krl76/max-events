@@ -17,9 +17,11 @@
 import { useEffect, useState } from "react";
 import type { Friend, FriendActivityByFriend } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
+import { logError } from "../ui/log-error";
 import { useAuth } from "../auth/AuthContext";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { useRoute } from "../routing/router";
+import { FindFriendButton, FindFriendDialog } from "./FindFriend";
 import { ActionIcon } from "../ui/icons";
 import { AppSkeletonList, AppState } from "../ui/primitives";
 import { PersonAvatar } from "./avatar";
@@ -106,12 +108,13 @@ interface FriendsViewProps {
   onOpenDiscovery: () => void;
   onOpenPeople: () => void;
   onInvite: () => void;
+  onFind: () => void;
   onRetry: () => void;
   /** False when «Люди» opens a list measured from the city center. */
   peopleInCity?: boolean;
 }
 
-export function FriendsView({ state, now = new Date(), onOpenFriend, onOpenDiscovery, onOpenPeople, onInvite, onRetry, peopleInCity = true }: FriendsViewProps) {
+export function FriendsView({ state, now = new Date(), onOpenFriend, onOpenDiscovery, onOpenPeople, onInvite, onFind, onRetry, peopleInCity = true }: FriendsViewProps) {
   const active = state.status === "ready" ? activeFriends(state.groups, now) : [];
   const activeIds = new Set(active.map((group) => group.friend.id));
   // Кто уже стоит в верхней группе, второй раз ниже не повторяется: макет показывает каждого один раз.
@@ -121,7 +124,10 @@ export function FriendsView({ state, now = new Date(), onOpenFriend, onOpenDisco
     <section className="app-friends-screen">
       <div className="app-friends-bar">
         <h1 className="app-friends-bar-title">Друзья</h1>
-        {state.status === "ready" && state.friends.length > 0 && <span className="app-friends-bar-count">{state.friends.length}</span>}
+        <div className="app-friends-bar-actions">
+          <FindFriendButton onClick={onFind} />
+          {state.status === "ready" && state.friends.length > 0 && <span className="app-friends-bar-count">{state.friends.length}</span>}
+        </div>
       </div>
       <div className="app-friends-entries">
         <button type="button" className="app-friends-entry" onClick={onOpenDiscovery}>
@@ -180,6 +186,8 @@ export function FriendsPage() {
   const point = useProfileCityPoint();
   const [state, setState] = useState<FriendsState>({ status: "loading" });
   const [reloads, setReloads] = useState(0);
+  const [findOpen, setFindOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     if (userId === null) return;
@@ -190,7 +198,8 @@ export function FriendsPage() {
       ([friends, groups]) => {
         if (alive) setState({ status: "ready", friends, groups });
       },
-      () => {
+      (error: unknown) => {
+        logError("friends failed", error);
         if (alive) setState({ status: "error" });
       },
     );
@@ -200,17 +209,49 @@ export function FriendsPage() {
   }, [userId, reloads]);
 
   return (
-    <FriendsView
-      state={state}
-      peopleInCity={point.settled && point.fromViewer}
-      onOpenFriend={(id) => navigate({ name: "user", id })}
-      onOpenDiscovery={() => navigate({ name: "discovery" })}
-      onOpenPeople={() => navigate({ name: "people" })}
-      onInvite={() => {
-        if (userId === null) return;
-        shareFriendsInvite(userId);
-      }}
-      onRetry={() => setReloads((value) => value + 1)}
-    />
+    <>
+      <FriendsView
+        state={state}
+        peopleInCity={point.settled && point.fromViewer}
+        onOpenFriend={(id) => navigate({ name: "user", id })}
+        onOpenDiscovery={() => navigate({ name: "discovery" })}
+        onOpenPeople={() => navigate({ name: "people" })}
+        onInvite={() => {
+          if (userId === null) return;
+          shareFriendsInvite(userId);
+        }}
+        onFind={() => setFindOpen(true)}
+        onRetry={() => setReloads((value) => value + 1)}
+      />
+      {findOpen && userId !== null && (
+        <FindFriendDialog
+          adding={adding}
+          onClose={() => setFindOpen(false)}
+          onOpen={(id) => {
+            setFindOpen(false);
+            navigate({ name: "user", id });
+          }}
+          onAdd={(id) => {
+            setAdding(true);
+            apiClient.addFriend(id).then(
+              () => {
+                setAdding(false);
+                setFindOpen(false);
+                setReloads((value) => value + 1);
+                navigate({ name: "user", id });
+              },
+              (error: unknown) => {
+                logError("friend add from search failed", error);
+                setAdding(false);
+              },
+            );
+          }}
+          onInvite={() => {
+            setFindOpen(false);
+            shareFriendsInvite(userId);
+          }}
+        />
+      )}
+    </>
   );
 }

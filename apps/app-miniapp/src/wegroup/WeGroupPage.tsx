@@ -175,9 +175,10 @@ interface WeGroupViewProps {
   onOpenPlace: (id: string) => void;
   onOpenMap: () => void;
   onAddPhoto?: () => void;
+  onRetry?: () => void;
 }
 
-export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, pickerEvents, pickerPlaces, pickerLoading, actionFailed, onToggleMenu, onTogglePicker, onClosePicker, onPick, onArchive, onChat, onVote, onOpenEvent, onOpenPlace, onOpenMap, onAddPhoto }: WeGroupViewProps) {
+export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, pickerEvents, pickerPlaces, pickerLoading, actionFailed, onToggleMenu, onTogglePicker, onClosePicker, onPick, onArchive, onChat, onVote, onOpenEvent, onOpenPlace, onOpenMap, onAddPhoto, onRetry }: WeGroupViewProps) {
   if (state.status !== "ready") {
     return (
       <section className="app-we-group" aria-label="Группа «Мы»">
@@ -186,7 +187,11 @@ export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, 
         </div>
         {state.status === "loading" && <AppSkeletonList rows={4} />}
         {state.status === "forbidden" && <AppState error>Нет доступа к группе.</AppState>}
-        {state.status === "error" && <AppState error>Не удалось загрузить группу.</AppState>}
+        {state.status === "error" && (
+          <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+            Не удалось загрузить группу.
+          </AppState>
+        )}
       </section>
     );
   }
@@ -397,6 +402,7 @@ export function WeGroupPage({ id }: { id: string }) {
   const [catalog, setCatalog] = useState<{ events: Event[]; places: Place[] } | null>(null);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [actionFailed, setActionFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -413,7 +419,7 @@ export function WeGroupPage({ id }: { id: string }) {
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [id, attempt]);
 
   const apply = (card: WeGroupCard) => {
     setState({ status: "ready", card });
@@ -502,6 +508,7 @@ export function WeGroupPage({ id }: { id: string }) {
       onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
       onOpenMap={() => navigate({ name: "map" })}
       onAddPhoto={addPhoto}
+      onRetry={() => setAttempt((n) => n + 1)}
     />
   );
 }

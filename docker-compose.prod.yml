@@ -1,8 +1,3 @@
-# Production stack for work-vps. Postgres/Redis stay on the compose network
-# (no host ports — ShotZone already owns 127.0.0.1:5432 and :6380).
-# Secrets live in /opt/max-events/.env (not in git). Compose reads POSTGRES_PASSWORD
-# from that file for interpolation.
-
 services:
   postgres:
     image: postgres:16-alpine

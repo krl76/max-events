@@ -24,6 +24,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type RefObjec
 import { createPortal } from "react-dom";
 import type { Event, Friend, Story } from "@max-events/api-contracts";
 import { apiClient, type FeedPost } from "../api/client";
+import { logError } from "../ui/log-error";
 import { useAuth } from "../auth/AuthContext";
 import { shareResult, webApp } from "../max/bridge";
 import { sharePayload } from "../max/links";
@@ -437,7 +438,10 @@ export function FeedPostPage({ id }: { id: string }) {
           () => {},
         );
       },
-      () => setFailed(true),
+      (error: unknown) => {
+        logError("feed post failed", error);
+        setFailed(true);
+      },
     );
   }, [id]);
 
@@ -454,7 +458,7 @@ export function FeedPostPage({ id }: { id: string }) {
 
   if (failed)
     return (
-      <AppState error action={{ label: "Повторить", onClick: load }}>
+      <AppState error action={{ label: "Повторить", onClick: load }} secondaryAction={{ label: "Назад", onClick: () => back() }}>
         Не удалось загрузить пост.
       </AppState>
     );

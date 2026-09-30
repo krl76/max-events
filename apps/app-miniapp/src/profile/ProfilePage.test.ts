@@ -177,6 +177,11 @@ describe("followMetrics", () => {
     ]);
   });
 
+  it("does not count a person twice when they sit in both stores", () => {
+    const userFollow = { ...subscription("3", "user"), targetUserId: following[0]!.id };
+    expect(followMetrics({ subscriptions: [subscription("1", "organizer"), userFollow], following, followers })[0]?.value).toBe(3);
+  });
+
   it("declines both labels for their number", () => {
     const many = followMetrics({ subscriptions: [], following: [], followers: [] });
 

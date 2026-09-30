@@ -383,7 +383,8 @@ describe("toEventDto", () => {
     });
     expect(toEventDto({ ...entity, published: false }).published).toBe(false);
     expect(toEventDto(entity).pushkinCard).toBe(false);
-    expect(toEventDto({ ...entity, isPaid: true }).pushkinCard).toBe(true);
+    expect(toEventDto({ ...entity, isPaid: true, paymentUrl: "https://pay.example/jazz" }).pushkinCard).toBe(true);
+    expect(toEventDto({ ...entity, isPaid: true, paymentUrl: null }).isPaid).toBe(false);
   });
 
   it("exposes the early-access bookingOpensAt window as ISO or null", () => {

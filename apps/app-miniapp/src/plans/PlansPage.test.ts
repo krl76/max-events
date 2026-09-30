@@ -61,6 +61,7 @@ describe("PlansView", () => {
     expect(render({ status: "loading" })).toContain("app-skeleton-line");
     expect(render({ status: "error" })).toContain("app-state--error");
     expect(render({ status: "error" })).toContain("Не удалось загрузить планы.");
+    expect(renderToStaticMarkup(createElement(PlansView, { state: { status: "error" }, onOpen: () => {}, onExplore: () => {}, onCreate: () => {}, onRetry: () => {} }))).toContain("Повторить");
     expect(render({ status: "ready", cards: [] })).toContain("Пока нет планов.");
   });
 });

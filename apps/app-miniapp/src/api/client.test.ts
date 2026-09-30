@@ -50,6 +50,7 @@ const validEvent: Event = {
 describe("ApiClient", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("parses a valid GET response into the contract type", async () => {
@@ -63,16 +64,53 @@ describe("ApiClient", () => {
   });
 
   it("throws ApiError with status on HTTP error response", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     mockFetchOnce(false, 500, { message: "boom" });
     const client = new ApiClient("http://localhost:3100/api");
 
     await expect(client.getEvent(validEvent.id)).rejects.toMatchObject({
       name: "ApiError",
       status: 500,
+      message: "boom",
     });
   });
 
+  it("surfaces the Nest error message on HTTP failure", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    mockFetchOnce(false, 409, { statusCode: 409, message: "Booking already exists" });
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.getEvent(validEvent.id)).rejects.toMatchObject({
+      name: "ApiError",
+      status: 409,
+      message: "Booking already exists",
+    });
+  });
+
+  it("throws a timeout ApiError when fetch is aborted", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const aborted = Object.assign(new Error("The operation was aborted"), { name: "AbortError" });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(aborted));
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.getEvent(validEvent.id)).rejects.toMatchObject({
+      name: "ApiError",
+      status: 0,
+      message: expect.stringContaining("timeout"),
+    });
+  });
+
+  it("passes an abort signal so a hung request cannot wait forever", async () => {
+    const getInit = mockFetchCaptured(validEvent);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await client.getEvent(validEvent.id);
+
+    expect(getInit()?.signal).toBeDefined();
+  });
+
   it("throws ApiError on invalid payload body", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     mockFetchOnce(true, 200, { id: "not-a-uuid", title: "x" });
     const client = new ApiClient("http://localhost:3100/api");
 
@@ -81,7 +119,36 @@ describe("ApiClient", () => {
     });
   });
 
+  it("keeps a list when one row is unreadable", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    mockFetchOnce(true, 200, [
+      { plan: { id: "not-a-uuid" } },
+      {
+        plan: {
+          id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+          hostUserId: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+          eventId: validEvent.id,
+          participants: [],
+          meetingPoint: "у метро",
+          meetingAt: "2026-09-11T10:00:00.000Z",
+          chatLink: null,
+          recurringRule: null,
+          seriesId: null,
+          createdAt: "2026-09-11T10:00:00.000Z",
+          updatedAt: "2026-09-11T10:00:00.000Z",
+        },
+        event: validEvent,
+        distanceMeters: 100,
+      },
+    ]);
+    const client = new ApiClient("http://localhost:3100/api");
+    const cards = await client.listPlans({ latitude: 55, longitude: 37 });
+    expect(cards).toHaveLength(1);
+    expect(cards[0]?.event.id).toBe(validEvent.id);
+  });
+
   it("throws ApiError on network failure", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
     const client = new ApiClient("http://localhost:3100/api");
 

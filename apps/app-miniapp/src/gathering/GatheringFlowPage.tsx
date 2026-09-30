@@ -46,12 +46,18 @@ interface GatheringFlowViewProps {
   onLaunch: () => void;
   onOpenPicker: () => void;
   onClosePicker: () => void;
+  onRetry?: () => void;
 }
 
-export function GatheringFlowView({ state, selected, meetingAt, submitting, failed, picking, onSelected, onMeetingAt, onLaunch, onOpenPicker, onClosePicker }: GatheringFlowViewProps) {
+export function GatheringFlowView({ state, selected, meetingAt, submitting, failed, picking, onSelected, onMeetingAt, onLaunch, onOpenPicker, onClosePicker, onRetry }: GatheringFlowViewProps) {
   const inviteFriends = useInviteFriends();
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить друзей.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+        Не удалось загрузить друзей.
+      </AppState>
+    );
   const friends = gatheringFriends(state.friends);
   const picked = friends.filter((friend) => selected.includes(friend.id));
   return (
@@ -122,6 +128,7 @@ export function GatheringFlowPage({ eventId }: { eventId: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const openedPicker = useRef(false);
 
   useEffect(() => {
@@ -143,7 +150,7 @@ export function GatheringFlowPage({ eventId }: { eventId: string }) {
     return () => {
       alive = false;
     };
-  }, [eventId]);
+  }, [eventId, attempt]);
 
   const effectiveMeetingAt = meetingAt || (state.status === "ready" ? state.defaultMeetingAt : "");
 
@@ -173,6 +180,7 @@ export function GatheringFlowPage({ eventId }: { eventId: string }) {
       onLaunch={launch}
       onOpenPicker={() => setPicking(true)}
       onClosePicker={() => setPicking(false)}
+      onRetry={() => setAttempt((n) => n + 1)}
     />
   );
 }

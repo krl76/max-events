@@ -83,7 +83,7 @@ export class ProfileSurfaceService {
         {
           postId: row.id,
           eventId: event?.id ?? null,
-          eventTitle: event?.title ?? row.text,
+          eventTitle: event?.title || row.text.trim() || "Пост",
           category: event?.category ?? "afisha",
           photoUrl: row.photoUrl ?? null,
           likesCount: likeRows.filter((like) => like.postId === row.id).length,

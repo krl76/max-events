@@ -97,9 +97,10 @@ interface VoteViewProps {
   onChat: (link: string) => void;
   onOpenEvent: (eventId: string) => void;
   onShare?: () => void;
+  onRetry?: () => void;
 }
 
-export function VoteView({ state, ownId, myChoice, voting, closing, revoting, failed, onVote, onRevote, onClose, onChat, onOpenEvent, onShare }: VoteViewProps) {
+export function VoteView({ state, ownId, myChoice, voting, closing, revoting, failed, onVote, onRevote, onClose, onChat, onOpenEvent, onShare, onRetry }: VoteViewProps) {
   if (state.status !== "ready") {
     return (
       <section className="app-poll" aria-label="Голосование">
@@ -109,7 +110,11 @@ export function VoteView({ state, ownId, myChoice, voting, closing, revoting, fa
         {state.status === "loading" && <AppSkeletonList rows={3} />}
         {state.status === "notfound" && <AppState>Голосование не найдено.</AppState>}
         {state.status === "forbidden" && <AppState error>Голосование недоступно.</AppState>}
-        {state.status === "error" && <AppState error>Не удалось загрузить голосование.</AppState>}
+        {state.status === "error" && (
+          <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+            Не удалось загрузить голосование.
+          </AppState>
+        )}
       </section>
     );
   }
@@ -245,6 +250,7 @@ export function VotePage({ id }: { id: string }) {
   const [closing, setClosing] = useState(false);
   const [revoting, setRevoting] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -267,7 +273,7 @@ export function VotePage({ id }: { id: string }) {
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [id, attempt]);
 
   const vote = (eventId: string) => {
     if (state.status !== "ready" || voting) return;
@@ -309,5 +315,5 @@ export function VotePage({ id }: { id: string }) {
     void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
   };
 
-  return <VoteView state={state} ownId={ownId} myChoice={myChoice} voting={voting} closing={closing} revoting={revoting} failed={failed} onBack={back} onVote={vote} onRevote={() => setRevoting(true)} onClose={close} onChat={openExternalLink} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onShare={share} />;
+  return <VoteView state={state} ownId={ownId} myChoice={myChoice} voting={voting} closing={closing} revoting={revoting} failed={failed} onBack={back} onVote={vote} onRevote={() => setRevoting(true)} onClose={close} onChat={openExternalLink} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onShare={share} onRetry={() => setAttempt((n) => n + 1)} />;
 }

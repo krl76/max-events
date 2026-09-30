@@ -41,6 +41,7 @@ describe("ScreenErrorBoundary", () => {
     );
 
     expect(host.textContent).toContain("Не удалось открыть экран");
+    expect(host.textContent).toContain("Назад");
     const retry = [...host.querySelectorAll("button, ion-button")].find((button) => button.textContent?.includes("Повторить"));
     expect(retry).toBeDefined();
     allowRender = true;

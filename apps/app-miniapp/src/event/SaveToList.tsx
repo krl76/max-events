@@ -25,7 +25,7 @@ export function savePickerLists(summaries: readonly ListSummary[]): ListSummary[
   return summaries.filter((summary) => summary.list.preset === null || summary.list.preset === "want_to_go" || summary.list.preset === "favorites").sort((a, b) => rank(a) - rank(b) || a.list.title.localeCompare(b.list.title, "ru"));
 }
 
-export function SaveToListView({ state, onToggle, onDone, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, createError = null }: { state: SaveToListState; onToggle: (summary: ListSummary) => void; onDone: () => void; creating?: boolean; newTitle?: string; onNewTitle?: (value: string) => void; onCreateStart?: () => void; onCreateSubmit?: () => void; createError?: string | null }) {
+export function SaveToListView({ state, onToggle, onDone, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, createError = null, onRetry }: { state: SaveToListState; onToggle: (summary: ListSummary) => void; onDone: () => void; creating?: boolean; newTitle?: string; onNewTitle?: (value: string) => void; onCreateStart?: () => void; onCreateSubmit?: () => void; createError?: string | null; onRetry?: () => void }) {
   const swipe = useSheetSwipe(onDone);
   const summaries = state.status === "ready" ? savePickerLists(state.summaries) : [];
   return (
@@ -36,7 +36,11 @@ export function SaveToListView({ state, onToggle, onDone, creating = false, newT
         <h2 className="app-save-sheet-title">Сохранить</h2>
         <div className="app-save-sheet-scroll">
           {state.status === "loading" && <AppState>Загрузка…</AppState>}
-          {state.status === "error" && <AppState error>Не удалось загрузить списки.</AppState>}
+          {state.status === "error" && (
+            <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+              Не удалось загрузить списки.
+            </AppState>
+          )}
           {state.status === "ready" && (
             <ul className="app-lists-picker">
               {summaries.map((summary) => (
@@ -183,6 +187,7 @@ export function SaveToList({ eventId, feedPostId, userId, open, onClose }: { eve
         );
       }}
       onDone={close}
+      onRetry={() => load()}
     />
   );
   // The feed card keeps a transform from its entrance animation, so a fixed sheet inside the post

@@ -39,8 +39,9 @@ import { apiClient, type ListSummary, type ProfileCounters, type ProfilePost, ty
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { readFeedPhoto } from "../feed/photo";
-import { announceShare, getWebApp, shareResult } from "../max/bridge";
-import { sharePayload } from "../max/links";
+import { announceShare, getStartParam, getWebApp, openChatLink, shareResult } from "../max/bridge";
+import { maxUserChatUrl, sharePayload } from "../max/links";
+import { logError } from "../ui/log-error";
 import { useRoute } from "../routing/router";
 import { ListsPage } from "../lists/ListsPage";
 import { ActionIcon } from "../ui/icons";
@@ -89,7 +90,8 @@ export function profileMetrics(counters: ProfileCounters | null): { value: numbe
 export function followMetrics(input: { subscriptions: Subscription[] | null; following: Friend[] | null; followers: Friend[] | null }): { id: "subscriptions" | "followers"; value: number; label: string }[] {
   const metrics: { id: "subscriptions" | "followers"; value: number; label: string }[] = [];
   if (input.subscriptions !== null && input.following !== null) {
-    const value = input.subscriptions.length + input.following.length;
+    const catalog = input.subscriptions.filter((row) => row.type !== "user").length;
+    const value = catalog + input.following.length;
     metrics.push({ id: "subscriptions", value, label: pluralRu(value, "подписка", "подписки", "подписок") });
   }
   if (input.followers !== null) {
@@ -619,7 +621,7 @@ interface ProfileData {
 
 const EMPTY_PROFILE_DATA: ProfileData = { profile: null, failed: false, counters: null, lists: null, subscriptions: null, following: null, followers: null, achievements: null, weGroups: null, friendsCount: null, posts: null, postsFailed: false, visitedPlaces: [] };
 
-function useProfileData(userId: string, own: boolean): ProfileData {
+function useProfileData(userId: string, own: boolean, socialTick = 0, reloadTick = 0): ProfileData {
   const [data, setData] = useState<ProfileData>(EMPTY_PROFILE_DATA);
 
   useEffect(() => {
@@ -645,28 +647,13 @@ function useProfileData(userId: string, own: boolean): ProfileData {
     // silence here would leave the grid in its loading state for good.
     apiClient.listUserPosts(userId).then(
       (posts) => put({ posts }),
-      () => put({ postsFailed: true }),
+      (error: unknown) => {
+        logError("profile posts failed", error);
+        put({ postsFailed: true });
+      },
     );
     apiClient.listLists(userId).then(
       (lists) => put({ lists }),
-      () => {},
-    );
-    // Organizer/place/interest follows belong to the viewer. On someone else's profile the header
-    // counts only people they follow, so this store is not mixed in.
-    if (own) {
-      apiClient.listSubscriptions().then(
-        (subscriptions) => put({ subscriptions }),
-        () => {},
-      );
-    } else {
-      put({ subscriptions: [] });
-    }
-    apiClient.listFollowing(userId).then(
-      (following) => put({ following }),
-      () => {},
-    );
-    apiClient.listFollowers(userId).then(
-      (followers) => put({ followers }),
       () => {},
     );
     apiClient.getAchievements(userId).then(
@@ -684,7 +671,42 @@ function useProfileData(userId: string, own: boolean): ProfileData {
     return () => {
       alive = false;
     };
-  }, [userId, own]);
+  }, [userId, own, reloadTick]);
+
+  useEffect(() => {
+    let alive = true;
+    const put = (patch: Partial<ProfileData>) => {
+      if (alive) setData((current) => ({ ...current, ...patch }));
+    };
+    if (own) {
+      apiClient.listSubscriptions().then(
+        (subscriptions) => put({ subscriptions }),
+        (error: unknown) => {
+          logError("profile subscriptions failed", error);
+          put({ subscriptions: [] });
+        },
+      );
+    } else {
+      put({ subscriptions: [] });
+    }
+    apiClient.listFollowing(userId).then(
+      (following) => put({ following }),
+      (error: unknown) => {
+        logError("profile following failed", error);
+        put({ following: [] });
+      },
+    );
+    apiClient.listFollowers(userId).then(
+      (followers) => put({ followers }),
+      (error: unknown) => {
+        logError("profile followers failed", error);
+        put({ followers: [] });
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [userId, own, socialTick]);
 
   return data;
 }
@@ -693,7 +715,9 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
   const { navigate } = useRoute();
   const { updateUser } = useAuth();
   const own = subjectId === null || subjectId === viewer.id;
-  const data = useProfileData(own ? viewer.id : subjectId, own);
+  const [socialTick, setSocialTick] = useState(0);
+  const [reloadTick, setReloadTick] = useState(0);
+  const data = useProfileData(own ? viewer.id : subjectId, own, socialTick, reloadTick);
   const [tab, setTab] = useState<ProfileTab>("posts");
   const [subject, setSubject] = useState<User | null>(own ? viewer : null);
   const [followingThem, setFollowingThem] = useState(false);
@@ -733,6 +757,20 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
       },
       () => {},
     );
+    if (getStartParam(getWebApp()) === `user-${subjectId}` && subjectId !== null) {
+      apiClient.addFriend(subjectId).then(
+        () => {
+          if (!alive) return;
+          setAreFriends(true);
+          setFollowingThem(true);
+          setFollowedByThem(true);
+          setSocialTick((value) => value + 1);
+        },
+        (error: unknown) => {
+          logError("friend invite accept failed", error);
+        },
+      );
+    }
     apiClient.listFollowing(viewer.id).then(
       (list) => {
         if (alive) setFollowingThem((prev) => prev || list.some((person) => person.id === subjectId));
@@ -793,12 +831,30 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         setFollowingThem(!already);
         if (!already) setFollowedByThem(true);
         setSubscribePending(false);
+        setSocialTick((value) => value + 1);
       },
-      () => setSubscribePending(false),
+      (error: unknown) => {
+        logError("follow failed", error);
+        setSubscribePending(false);
+      },
     );
   }, [areFriends, followedByThem, followingThem, own, subjectId]);
 
-  if (data.failed) return <AppState error>Не удалось загрузить профиль.</AppState>;
+  if (data.failed)
+    return (
+      <AppState
+        error
+        action={{
+          label: "Повторить",
+          onClick: () => {
+            setReloadTick((value) => value + 1);
+            setSocialTick((value) => value + 1);
+          },
+        }}
+      >
+        Не удалось загрузить профиль.
+      </AppState>
+    );
   if (data.profile === null || subject === null)
     return (
       <div className="app-card" aria-hidden="true">
@@ -876,9 +932,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         onFriends={() => navigate({ name: "friends" })}
         onSubscribe={toggleFollow}
         onWrite={() => {
-          const name = [shownUser.firstName, shownUser.lastName].filter(Boolean).join(" ");
-          const payload = sharePayload(`Привет, ${name}! Пишу из Афиши MAX.`, `user-${shownUser.id}`);
-          void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
+          openChatLink(maxUserChatUrl(shownUser));
         }}
         closeFriend={closeFriend}
         onToggleClose={

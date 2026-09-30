@@ -253,9 +253,14 @@ export function placeDraftFrom(item: OrganizerPlace): PlaceDraft {
 
 export type OrganizerListState<T> = { status: "loading" } | { status: "error" } | { status: "ready"; items: T[] };
 
-export function OrganizerListStatus<T>({ state, emptyText }: { state: OrganizerListState<T>; emptyText: string }) {
+export function OrganizerListStatus<T>({ state, emptyText, onRetry }: { state: OrganizerListState<T>; emptyText: string; onRetry?: () => void }) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить список.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+        Не удалось загрузить список.
+      </AppState>
+    );
   if (state.items.length === 0) return <AppState>{emptyText}</AppState>;
   return null;
 }
@@ -780,6 +785,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
   const [publishErrorId, setPublishErrorId] = useState<string | null>(null);
   const seenEdit = useRef<string | null>(null);
   const createdEventId = useRef<string | null>(null);
+  const [catalogTick, setCatalogTick] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -802,7 +808,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
     return () => {
       alive = false;
     };
-  }, []);
+  }, [catalogTick]);
 
   const openEventForm = (next: EventFormState) => {
     setErrors([]);
@@ -1043,7 +1049,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
               </AppChip>
             ))}
           </div>
-          <OrganizerListStatus state={events} emptyText="Пока нет событий — создайте первое." />
+          <OrganizerListStatus state={events} emptyText="Пока нет событий — создайте первое." onRetry={() => setCatalogTick((n) => n + 1)} />
           {events.status === "ready" && events.items.length > 0 && visibleEvents.length === 0 && (
             <AppButton
               tone="secondary"
@@ -1082,7 +1088,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
             Добавить место
           </AppButton>
           <input className="app-profile-input" aria-label="Поиск" placeholder="Поиск" value={placeQuery} onChange={(change) => setPlaceQuery(change.target.value)} />
-          <OrganizerListStatus state={places} emptyText="Пока нет мест. Площадка нужна, чтобы гости видели адрес." />
+          <OrganizerListStatus state={places} emptyText="Пока нет мест. Площадка нужна, чтобы гости видели адрес." onRetry={() => setCatalogTick((n) => n + 1)} />
           {places.status === "ready" && places.items.filter((item) => item.title.toLowerCase().includes(placeQuery.trim().toLowerCase())).map((item) => <OrganizerPlaceCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishPlace(item.id)} onOpen={() => setPlaceFocus(item.id)} />)}
         </>
       )}
