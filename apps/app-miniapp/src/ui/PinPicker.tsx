@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import "leaflet/dist/leaflet.css";
 import { OWN_BASEMAP, STANDARD_BASEMAP } from "../catalog/basemaps";
 import { mountVectorBasemap } from "../catalog/vectorBasemap";
 import { resolveAddress, type NearbyPlace } from "./address-at";
+import { useSheetSwipe } from "./sheet";
 import { useAppliedScheme } from "./theme";
 
 export { pinLabel, parsePinLabel, placePinLabel, placePinTitle } from "./pin-label";
@@ -82,19 +84,17 @@ export function PinPicker({ title, places = [], onConfirm, onClose }: { title: s
   }, [point, places]);
 
   const named = address.trim();
+  const swipe = useSheetSwipe(onClose);
+  const hint = point === null ? "Нажмите на карту, чтобы поставить точку" : looking ? "Определяем адрес…" : "Адрес можно поправить";
 
-  return (
+  const view = (
     <div className="app-pin" role="dialog" aria-label={title}>
       <button type="button" className="app-pin-scrim" aria-label="Закрыть" onClick={onClose} />
-      <div className="app-pin-sheet">
-        <div className="app-pin-head">
-          <span>{title}</span>
-          <button type="button" aria-label="Закрыть карту" onClick={onClose}>
-            ×
-          </button>
-        </div>
+      <div className="app-pin-sheet app-sheet" style={swipe.style}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
+        <h2 className="app-pin-title">{title}</h2>
         <div ref={node} className="app-pin-map" />
-        <p className="app-pin-hint">{point === null ? "Нажмите на карту" : looking ? "Определяем адрес…" : "Можно поправить адрес"}</p>
+        <p className="app-pin-hint">{hint}</p>
         <input className="app-pin-address" aria-label="Адрес точки" placeholder="Улица, дом или место" value={address} onChange={(change) => setAddress(change.target.value)} />
         <button type="button" className="app-pin-confirm" disabled={point === null || named === ""} onClick={() => point !== null && named !== "" && onConfirm({ address: named, latitude: point.lat, longitude: point.lng })}>
           Это место
@@ -102,4 +102,6 @@ export function PinPicker({ title, places = [], onConfirm, onClose }: { title: s
       </div>
     </div>
   );
+  const host = typeof document === "undefined" ? null : (document.querySelector(".app-root") ?? document.body);
+  return host === null ? view : createPortal(view, host);
 }

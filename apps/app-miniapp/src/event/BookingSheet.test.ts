@@ -68,6 +68,15 @@ describe("bookingSummary", () => {
     expect(text).not.toContain("Оплата");
     expect(text).toContain("держит место за тобой");
   });
+
+  it("treats a paid flag without a price as free entry", () => {
+    const text = bookingSummary(detailsOf({ event: { ...paidEvent, priceRub: null }, remainingSeats: null }), "Организатор не указан");
+
+    expect(text).toContain("Вход свободный");
+    expect(text).not.toContain("Оплата");
+    expect(text).not.toContain("Организатор не указан");
+    expect(primaryCtaLabel(detailsOf({ event: { ...paidEvent, priceRub: null } }))).toBe("Записаться");
+  });
 });
 
 describe("friendNames and ticketFriendsLine", () => {

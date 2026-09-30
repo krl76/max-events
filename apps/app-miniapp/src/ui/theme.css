@@ -8668,6 +8668,8 @@ button.app-today-stat {
 .app-story-publish {
   background: var(--brand-white);
   color: var(--brand-ink);
+  gap: 0;
+  text-align: center;
 }
 
 .app-story-publish:disabled {
@@ -8730,8 +8732,10 @@ button.app-today-stat {
 }
 
 .app-post-compose-publish:disabled {
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
   cursor: default;
-  opacity: 0.45;
+  opacity: 1;
 }
 
 .app-post-compose-body {
@@ -19072,7 +19076,7 @@ button.app-cal-peer-chip {
   position: fixed;
   right: 0;
   top: 0;
-  z-index: 20;
+  z-index: 40;
 }
 
 .app-evb-scrim {
@@ -19103,9 +19107,16 @@ button.app-cal-peer-chip {
 }
 
 .app-evb-body {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0 var(--app-space-screen);
   scrollbar-width: none;
+}
+
+.app-evb-actions {
+  flex: none;
+  padding: 12px var(--app-space-screen) 0;
 }
 
 .app-evb-head {
@@ -19241,7 +19252,7 @@ button.app-cal-peer-chip {
   gap: var(--app-space-s);
   height: 56px;
   justify-content: center;
-  margin-top: var(--app-space-l);
+  margin-top: 0;
   width: 100%;
 }
 
@@ -21461,7 +21472,9 @@ button.app-cal-peer-chip {
 }
 
 .app-me-panel {
+  min-height: 60dvh;
   min-width: 0;
+  overflow-anchor: none;
 }
 
 .app-me-tab--active {
@@ -22436,8 +22449,7 @@ button.app-cal-peer-chip {
   margin: 8px 0 0;
 }
 
-.app-when-open,
-.app-pin-confirm {
+.app-when-open {
   background: var(--app-surface);
   border: 1px solid rgba(6, 7, 8, 0.12);
   border-radius: 14px;
@@ -22601,18 +22613,21 @@ button.app-cal-peer-chip {
 }
 
 .app-pin-sheet {
-  background: white;
-  border-radius: 20px 20px 0 0;
+  background: var(--app-sheet);
+  border-radius: 24px 24px 0 0;
   bottom: 0;
   display: flex;
   flex-direction: column;
+  gap: 10px;
   left: 0;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
   position: absolute;
   right: 0;
 }
 
 .app-pin-map {
-  height: 300px;
+  border-radius: var(--app-radius-media);
+  height: 280px;
   overflow: hidden;
   position: relative;
 }
@@ -22621,48 +22636,41 @@ button.app-cal-peer-chip {
   display: none;
 }
 
-.app-pin-head {
-  align-items: center;
-  display: flex;
+.app-pin-title {
+  font-size: var(--app-font-size-headline);
   font-weight: 800;
-  justify-content: space-between;
-  padding: 14px 16px 10px;
-}
-
-.app-pin-head button {
-  background: transparent;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  font-size: 22px;
-  line-height: 1;
-  padding: 4px 8px;
+  letter-spacing: -0.02em;
+  margin: 0;
+  padding: 0 4px;
 }
 
 .app-pin-hint {
-  margin: 12px 16px 8px;
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-callout);
+  font-weight: 500;
+  line-height: 1.4;
+  margin: 0;
+  padding: 0 4px;
 }
 
 .app-pin-confirm {
-  background: var(--brand-void);
+  background: var(--app-accent);
   border: none;
-  border-radius: 999px;
-  color: white;
+  border-radius: var(--app-radius-card);
+  color: #ffffff;
   cursor: pointer;
   font: inherit;
   font-weight: 800;
-  margin: 0 16px 16px;
-  padding: 14px 16px;
+  height: 52px;
+  margin: 4px 0 0;
+  padding: 0 16px;
 }
 
 .app-pin-confirm:disabled {
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
   cursor: default;
-  opacity: 0.4;
-}
-
-.app-pin-sheet {
-  padding-bottom: env(safe-area-inset-bottom);
+  opacity: 1;
 }
 
 .app-story-bar,
@@ -24108,6 +24116,13 @@ button.app-story-viewer-author {
 .app-walk-tab--done .app-walk-tab-label {
   color: var(--app-accent);
 }
+.app-walk-tab--empty .app-walk-tab-bar {
+  background: var(--app-divider);
+}
+.app-walk-tab--empty .app-walk-tab-label {
+  color: var(--app-text-secondary);
+  font-weight: 600;
+}
 .app-walk-stats {
   display: grid;
   gap: 8px;
@@ -24118,7 +24133,7 @@ button.app-story-viewer-author {
 }
 .app-walk-stat {
   background: var(--app-card);
-  border-radius: var(--app-radius-m);
+  border-radius: 16px;
   box-shadow: var(--app-shadow-lift);
   display: flex;
   flex-direction: column;
@@ -24273,7 +24288,7 @@ button.app-story-viewer-author {
 .app-walk-step-card {
   background: var(--app-card);
   border: 1px solid var(--app-divider);
-  border-radius: var(--app-radius-card);
+  border-radius: 20px;
   box-shadow: 0 2px 8px rgba(6, 7, 8, 0.04);
   display: flex;
   flex-direction: column;
@@ -24317,7 +24332,7 @@ button.app-story-viewer-author {
 .app-walk-tile {
   background: var(--app-surface);
   border: 1.5px solid transparent;
-  border-radius: var(--app-radius-m);
+  border-radius: 16px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -24367,7 +24382,7 @@ button.app-story-viewer-author {
   align-items: center;
   background: var(--app-surface);
   border: 1.5px solid transparent;
-  border-radius: var(--app-radius-m);
+  border-radius: 16px;
   display: flex;
   gap: 10px;
   justify-content: space-between;
@@ -24397,7 +24412,7 @@ button.app-story-viewer-author {
   align-items: center;
   background: var(--app-card);
   border: 1px solid var(--app-divider);
-  border-radius: var(--app-radius-s);
+  border-radius: 12px;
   display: flex;
   gap: 6px;
   padding: 6px 10px;
@@ -24409,9 +24424,10 @@ button.app-story-viewer-author {
   font-family: inherit;
   font-size: 15px;
   font-weight: 800;
+  min-width: 56px;
   outline: none;
   text-align: right;
-  width: 48px;
+  width: 64px;
 }
 .app-walk-custom-unit {
   color: var(--app-text-secondary);
@@ -24427,7 +24443,7 @@ button.app-story-viewer-author {
   align-items: center;
   background: var(--app-surface);
   border: 1.5px solid transparent;
-  border-radius: var(--app-radius-m);
+  border-radius: 16px;
   cursor: pointer;
   display: flex;
   flex-direction: row;
@@ -24490,7 +24506,7 @@ button.app-story-viewer-author {
   align-items: center;
   background: var(--app-card);
   border: 1.5px solid var(--app-accent);
-  border-radius: var(--app-radius-m);
+  border-radius: 16px;
   box-shadow: 0 2px 8px rgba(6, 7, 8, 0.04);
   display: flex;
   gap: 10px;
@@ -24588,7 +24604,7 @@ button.app-story-viewer-author {
   align-items: center;
   background: var(--app-card);
   border: 1px solid var(--app-divider);
-  border-radius: var(--app-radius-m);
+  border-radius: 16px;
   color: var(--app-text);
   cursor: pointer;
   display: flex;
@@ -24660,7 +24676,7 @@ button.app-story-viewer-author {
   align-items: center;
   background: var(--app-card);
   border: 1px solid var(--app-divider);
-  border-radius: var(--app-radius-m);
+  border-radius: 16px;
   color: var(--app-text);
   cursor: pointer;
   display: flex;
@@ -24753,7 +24769,7 @@ button.app-story-viewer-author {
 .app-walk-wait-sk {
   animation: app-skeleton-pulse 1.2s ease-in-out infinite alternate;
   background: var(--app-card);
-  border-radius: var(--app-radius-m);
+  border-radius: 16px;
   display: grid;
   gap: 4px 10px;
   grid-template-columns: 28px 1fr;
@@ -24778,7 +24794,7 @@ button.app-story-viewer-author {
 .app-walk-wait-sk-num,
 .app-walk-wait-sk-line {
   animation: app-skeleton-pulse 1.2s ease-in-out infinite alternate;
-  border-radius: var(--app-radius-m);
+  border-radius: 16px;
   display: block;
 }
 
@@ -25185,7 +25201,11 @@ button.app-story-viewer-author {
 }
 
 .app-story-publish {
+  background: var(--brand-white);
+  color: var(--brand-ink);
   flex: none;
+  gap: 0;
+  text-align: center;
   width: 100%;
 }
 
@@ -26192,7 +26212,7 @@ html:not([data-theme="dark"]) .app-plan-meet {
   --color: #ffffff;
 }
 
-:is(.app-feed-whereto-start, .app-feed-going:not(.app-feed-going--on), .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-publish, .app-story-plus, .app-post-compose-publish, .app-map16-route, .app-map16-routebar-hide, .app-swipe-action--like, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-dayroute-chip, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act) {
+:is(.app-feed-whereto-start, .app-feed-going:not(.app-feed-going--on), .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-plus, .app-post-compose-publish:not(:disabled), .app-map16-route, .app-map16-routebar-hide, .app-swipe-action--like, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-dayroute-chip, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act) {
   background: var(--app-accent);
   color: #ffffff;
 }
@@ -28158,8 +28178,10 @@ label.app-field {
 }
 
 .app-choose-go:disabled {
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
   cursor: default;
-  opacity: 0.4;
+  opacity: 1;
 }
 
 .app-picker-sheet > .app-choose-go {

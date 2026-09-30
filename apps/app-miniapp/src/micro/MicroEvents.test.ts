@@ -75,7 +75,7 @@ describe("MicroEventCreateView", () => {
   });
 
   it("keeps publish disabled until the draft is ready and shows submitting and failure states", () => {
-    expect(view()).toContain("Создать событие");
+    expect(view()).toContain("Заполните поля");
     expect(view()).toContain("disabled");
     expect(view({ draft: readyDraft })).toContain("Создать событие");
     expect(view({ draft: readyDraft, submitting: true })).toContain("Создаём…");

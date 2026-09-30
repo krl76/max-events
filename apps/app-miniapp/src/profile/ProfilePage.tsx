@@ -561,9 +561,11 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
             </button>
           ))}
         </div>
-        <div key={tab} id="app-me-tabpanel" className="app-me-panel" role="tabpanel" aria-labelledby={`app-me-tab-${tab}`}>
+        <div id="app-me-tabpanel" className="app-me-panel" role="tabpanel" aria-labelledby={`app-me-tab-${tab}`}>
           {tab === "posts" && <ProfilePostGrid posts={posts} failed={postsFailed} onOpenPost={entries.onOpenPost} onNewPost={entries.onNewPost} canPublish={own} onAskDelete={own && entries.onDeletePost !== undefined ? setPendingDelete : undefined} />}
-          {tab === "saved" && <ListsPage userId={user.id} />}
+          <div hidden={tab !== "saved"}>
+            <ListsPage userId={user.id} />
+          </div>
           {tab === "places" && visitedPlaces.length === 0 && <AppState>Мест пока нет — отметьтесь где-нибудь, и они появятся здесь.</AppState>}
           {tab === "places" && visitedPlaces.length > 0 && (
             <div className="app-me-grid">

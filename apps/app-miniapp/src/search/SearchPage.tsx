@@ -71,9 +71,11 @@ function writeRecentSearches(recent: string[]): void {
 /** The chips of the design, over the four categories the events domain actually has; undefined is «Все». */
 export const SEARCH_CATEGORIES: ReadonlyArray<EventCategory | undefined> = [undefined, "afisha", "tourism", "sport", "volunteering"];
 
+const HIDDEN_SEARCH_CITIES = new Set(["Санкт-Петербург"]);
+
 /** There is no city directory to ask, so the switcher offers the cities the loaded catalog names. */
 export function searchCities(cards: CatalogCard[]): string[] {
-  return [...new Set(cards.map((card) => card.event.city))];
+  return [...new Set(cards.map((card) => card.event.city))].filter((city) => !HIDDEN_SEARCH_CITIES.has(city));
 }
 
 /** «2,1 км · Бесплатно». Outside the city the kilometers are from its center, so the line says so. */
@@ -254,7 +256,7 @@ const SEARCH_TOOLS: Array<{ id: string; label: string; aria: string; icon: "spar
   { id: "swipe", label: "Свайпы", aria: "Подбор свайпами", icon: "cards" },
   { id: "map", label: "Карта", aria: "На карте", icon: "pin" },
   { id: "whereto", label: "Куда", aria: "Куда пойдём?", icon: "sparkle" },
-  { id: "nearby", label: "Рядом", aria: "Рядом со мной", icon: "clock" },
+  { id: "nearby", label: "Рядом", aria: "Рядом", icon: "clock" },
   { id: "micro", label: "Сборы", aria: "Микро-события", icon: "users" },
   { id: "route", label: "Маршрут", aria: "Маршрут на день", icon: "navigation" },
   { id: "walk", label: "Прогулка", aria: "Маршрут по городу", icon: "walk" },
@@ -270,7 +272,7 @@ export function popularCards(cards: readonly CatalogCard[], limit = POPULAR_COUN
   return [...cards].sort((left, right) => (right.rating ?? 0) * 1000 + (right.event.popularity ?? 0) + (right.event.bookedCount ?? 0) - ((left.rating ?? 0) * 1000 + (left.event.popularity ?? 0) + (left.event.bookedCount ?? 0))).slice(0, limit);
 }
 
-export function SearchTools({ onAsk, onSwipe, onMap, onWhereto, onNearby, onMicro, onDayRoute, onCityWalk, onUpcoming, nearbyLabel = "Рядом", nearbyAria = "Рядом со мной" }: { onAsk: () => void; onSwipe: () => void; onMap: () => void; onWhereto: () => void; onNearby: () => void; onMicro: () => void; onDayRoute: () => void; onCityWalk: () => void; onUpcoming: () => void; nearbyLabel?: string; nearbyAria?: string }) {
+export function SearchTools({ onAsk, onSwipe, onMap, onWhereto, onNearby, onMicro, onDayRoute, onCityWalk, onUpcoming, nearbyLabel = "Рядом", nearbyAria = "Рядом" }: { onAsk: () => void; onSwipe: () => void; onMap: () => void; onWhereto: () => void; onNearby: () => void; onMicro: () => void; onDayRoute: () => void; onCityWalk: () => void; onUpcoming: () => void; nearbyLabel?: string; nearbyAria?: string }) {
   const go = { ask: onAsk, swipe: onSwipe, map: onMap, whereto: onWhereto, nearby: onNearby, micro: onMicro, route: onDayRoute, walk: onCityWalk, soon: onUpcoming };
   return (
     <div className="app-search-tools">
@@ -335,9 +337,9 @@ export function SearchEntryTiles({ onSwipe, onMap }: { onSwipe: () => void; onMa
   );
 }
 
-/** «Рядом со мной» is a lie when the opened city is measured from its center. */
-export function nearbyEntryTitle(inCity: boolean): string {
-  return inCity ? "Рядом со мной" : "В городе";
+/** Door on search and the nearby screen itself: always «Рядом», never «Город». */
+export function nearbyEntryTitle(_inCity = true): string {
+  return "Рядом";
 }
 
 export function SearchWayTiles({ onWhereto, onNearby, inCity = true }: { onWhereto: () => void; onNearby: () => void; inCity?: boolean }) {
@@ -532,7 +534,7 @@ export function SearchView(props: SearchViewProps & { popular?: CatalogCard[] })
   return (
     <div className="app-search">
       <SearchQueryForm query={props.query} onQuery={props.onQuery} onSubmit={props.onSubmit} onPickRecent={props.onPickRecent} recents={props.recents} autoFocus={props.searchFieldOpen === true} />
-      <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} onDayRoute={props.onDayRoute} onCityWalk={props.onCityWalk} onUpcoming={props.onUpcoming} nearbyLabel={inCity ? "Рядом" : "Город"} nearbyAria={nearbyEntryTitle(inCity)} />
+      <SearchTools onAsk={props.onAsk} onSwipe={props.onSwipe} onMap={props.onMap} onWhereto={props.onWhereto} onNearby={props.onNearby} onMicro={props.onOpenMicro} onDayRoute={props.onDayRoute} onCityWalk={props.onCityWalk} onUpcoming={props.onUpcoming} nearbyLabel="Рядом" nearbyAria="Рядом" />
       <div className="app-bills">
         <section className={fold === "hot" ? "app-bill app-bill--open" : "app-bill"}>
           <button type="button" className="app-bill-title" aria-expanded={fold === "hot"} onClick={() => openFold("hot")}>

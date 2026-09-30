@@ -64,6 +64,13 @@ describe("PlanCreateView", () => {
     expect(html).toContain("Создать план");
   });
 
+  it("keeps the submit idle until the required fields are in", () => {
+    const html = view({ event: "", meetingPoint: "", meetingAt: "" });
+
+    expect(html).toContain("Заполните поля");
+    expect(html).toContain("disabled");
+  });
+
   it("offers the three repeat choices without a gray explanation, and address or map for the place", () => {
     const once = view();
     expect(once).toContain("Один раз");

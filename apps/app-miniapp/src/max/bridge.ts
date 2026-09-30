@@ -116,11 +116,11 @@ export function announceShare(channel: ShareChannel): void {
  * Outside MAX the same pair is copied.
  */
 export async function shareResult(app: Pick<MaxWebApp, "shareMaxContent"> | null, text: string, link?: string): Promise<ShareChannel> {
-  const body = link && !text.includes(link) ? `${text}\n${link}` : text;
   if (typeof app?.shareMaxContent === "function") {
-    app.shareMaxContent(link ? { text: body, link } : { text: body });
+    app.shareMaxContent(link ? { text, link } : { text });
     return "bridge";
   }
+  const body = link && !text.includes(link) ? `${text}\n${link}` : text;
   if (typeof navigator !== "undefined" && navigator.clipboard) {
     await navigator.clipboard.writeText(body);
     return "clipboard";

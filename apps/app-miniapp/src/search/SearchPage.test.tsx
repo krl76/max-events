@@ -28,8 +28,12 @@ describe("addRecentSearch", () => {
 describe("search helpers", () => {
   it("offers the cities the loaded catalog names, without repeats", () => {
     const cities = searchCities(CARDS);
+    const first = CARDS[0];
+    const withSpb = first === undefined ? CARDS : [...CARDS, { ...first, event: { ...first.event, city: "Санкт-Петербург" } }];
 
     expect(cities).toContain("Москва");
+    expect(cities).not.toContain("Санкт-Петербург");
+    expect(searchCities(withSpb)).not.toContain("Санкт-Петербург");
     expect(new Set(cities).size).toBe(cities.length);
     expect(searchCities([])).toEqual([]);
   });
@@ -78,14 +82,16 @@ describe("search entries", () => {
     expect(html).toContain('aria-label="Подбор свайпами"');
     expect(html).toContain('aria-label="На карте"');
     expect(html).toContain('aria-label="Куда пойдём?"');
-    expect(html).toContain('aria-label="Рядом со мной"');
+    expect(html).toContain('aria-label="Рядом"');
+    expect(html).toContain("Рядом");
     expect(html).toContain('aria-label="Микро-события"');
     expect(html).toContain('aria-label="Маршрут на день"');
     expect(html).toContain('aria-label="Маршрут по городу"');
     expect(html).toContain("Ближайшие события");
     expect(html).toContain('aria-label="Ближайшие события"');
-    expect(nearbyEntryTitle(false)).toBe("В городе");
-    expect(renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, onDayRoute: noop, onCityWalk: noop, onUpcoming: noop, nearbyLabel: "Город", nearbyAria: "В городе" }))).toContain('aria-label="В городе"');
+    expect(nearbyEntryTitle(false)).toBe("Рядом");
+    expect(nearbyEntryTitle(true)).toBe("Рядом");
+    expect(renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, onDayRoute: noop, onCityWalk: noop, onUpcoming: noop }))).toContain('aria-label="Рядом"');
     const ranked = CARDS[0];
     if (ranked !== undefined) {
       const many = Array.from({ length: 24 }, (_, index) => ({ ...ranked, event: { ...ranked.event, id: `pop-${index}`, popularity: index } }));

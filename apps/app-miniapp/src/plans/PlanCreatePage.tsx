@@ -140,6 +140,7 @@ export function PlanCreateView({ draft, events, places, friends, submitting = fa
   const eventEmpty = draft.event.trim() === "";
   const placeEmpty = draft.meetingPoint.trim() === "";
   const peopleEmpty = draft.participantIds.length === 0;
+  const ready = planDraftReady(draft, events);
   const freqIndex = Math.max(0, FREQ_MODES.findIndex(([mode]) => mode === draft.repeat));
   return (
     <section className="app-plan-build" aria-label="Свой план">
@@ -244,8 +245,8 @@ export function PlanCreateView({ draft, events, places, friends, submitting = fa
           ))}
         </div>
       </div>
-      <button type="button" className="app-choose-go" disabled={submitting} onClick={onSubmit}>
-        {submitting ? "Создаём…" : "Создать план"}
+      <button type="button" className="app-choose-go" disabled={submitting || !ready} onClick={onSubmit}>
+        {submitting ? "Создаём…" : ready ? "Создать план" : "Заполните поля"}
       </button>
       {failed && <AppState error>{failText ?? "Не удалось создать план."}</AppState>}
     </section>

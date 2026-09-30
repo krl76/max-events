@@ -18,6 +18,7 @@
 // - BookingSheet - экран 18: scrim, grabber, headline with the counter, fill bar, summary, promo fields, friends row, the CTA, the waitlist button and the notify line
 // END_MODULE_MAP
 
+import { createPortal } from "react-dom";
 import type { Friend } from "@max-events/api-contracts";
 import type { BookingOffer, EventDetails } from "../api/client";
 import { pluralRu } from "../catalog/format";
@@ -44,22 +45,24 @@ export function seatsFillPercent(details: EventDetails): number {
   return Math.min(100, Math.round((occupancy.taken / occupancy.capacity) * 100));
 }
 
-/**
- * The paragraph under the bar. It answers the three questions the record raises in order: how much is
- * left, at what price, and who takes the money — the platform does not, and the design says so out
- * loud so nobody looks for a charge that never happens here.
- */
+/** Paid in the catalog only counts when there is a price to charge. */
+export function eventCharges(event: Pick<EventDetails["event"], "isPaid" | "priceRub">): boolean {
+  return event.isPaid && event.priceRub !== null && event.priceRub > 0;
+}
+
 export function bookingSummary(details: EventDetails, organizerName: string | null): string {
   const { event, remainingSeats } = details;
-  const seatNoun = event.isPaid ? (["билет", "билета", "билетов"] as const) : (["место", "места", "мест"] as const);
+  const charged = eventCharges(event);
+  const named = organizerName !== null && organizerName.trim() !== "" && organizerName !== "Организатор не указан" ? organizerName : null;
+  const seatNoun = charged ? (["билет", "билета", "билетов"] as const) : (["место", "места", "мест"] as const);
   // «Осталось 0 билетов» — это не ответ, а арифметика вслух: у распроданного события своя история, про очередь
-  if (remainingSeats === 0) return `${event.isPaid ? "Билеты" : "Места"} разобрали. Освободившееся уходит первому в листе ожидания — очередь двигается сама.`;
+  if (remainingSeats === 0) return `${charged ? "Билеты" : "Места"} разобрали. Освободившееся уходит первому в листе ожидания — очередь двигается сама.`;
   const sentences: string[] = [];
-  if (remainingSeats !== null) sentences.push(`Осталось ${remainingSeats} ${pluralRu(remainingSeats, seatNoun[0], seatNoun[1], seatNoun[2])}${event.isPaid ? ` по ${formatPrice(event)}` : ""}.`);
-  else if (event.isPaid) sentences.push(`Вход по билету — ${formatPrice(event)}.`);
+  if (remainingSeats !== null) sentences.push(`Осталось ${remainingSeats} ${pluralRu(remainingSeats, seatNoun[0], seatNoun[1], seatNoun[2])}${charged ? ` по ${formatPrice(event)}` : ""}.`);
+  else if (charged) sentences.push(`Вход по билету — ${formatPrice(event)}.`);
   else sentences.push("Вход свободный.");
-  if (event.isPaid) sentences.push(organizerName === null ? "Оплата на стороне организатора." : `Оплата на сайте организатора — «${organizerName}».`);
-  sentences.push(event.isPaid ? "После оплаты вернись и подтверди участие, чтобы друзья видели тебя в плане." : "Запись держит место за тобой — друзья увидят тебя в плане.");
+  if (charged) sentences.push(named === null ? "Оплата на стороне организатора." : `Оплата на сайте организатора — «${named}».`);
+  sentences.push(charged ? "После оплаты вернись и подтверди участие, чтобы друзья видели тебя в плане." : "Запись держит место за тобой — друзья увидят тебя в плане.");
   return sentences.join(" ");
 }
 
@@ -85,7 +88,7 @@ export function waitlistCtaLabel(ahead: number): string {
 
 export function primaryCtaLabel(details: EventDetails): string {
   if (details.activeBookingId !== null) return "Вы записаны";
-  return details.event.isPaid ? "Купить билет у организатора" : "Записаться";
+  return eventCharges(details.event) ? "Купить билет у организатора" : "Записаться";
 }
 
 export interface BookingSheetProps {
@@ -109,7 +112,7 @@ export function BookingSheet({ details, offer, organizerName, promo, waitlist, o
   const opensAt = details.event.bookingOpensAt;
   const earlyAccess = opensAt !== null && new Date(opensAt).getTime() > Date.now();
   const occupancy = seatOccupancy(details);
-  return (
+  const view = (
     <div className="app-evb" role="dialog" aria-modal="true" aria-label="Запись на событие">
       <button type="button" className="app-evb-scrim" aria-label="Закрыть" onClick={onClose} />
       <div className="app-evb-sheet app-sheet" style={swipe.style}>
@@ -149,6 +152,8 @@ export function BookingSheet({ details, offer, organizerName, promo, waitlist, o
             </div>
           )}
           {promo.error !== null && <AppState error>{promo.error}</AppState>}
+        </div>
+        <div className="app-evb-actions">
           {booked ? (
             <button type="button" className="app-evb-cta app-evb-cta--booked" onClick={onCancel}>
               Отменить запись
@@ -156,7 +161,7 @@ export function BookingSheet({ details, offer, organizerName, promo, waitlist, o
           ) : (
             <button type="button" className="app-evb-cta" disabled={soldOut} onClick={onBook}>
               {primaryCtaLabel(details)}
-              {details.event.isPaid && <ActionIcon name="arrow" size={18} />}
+              {eventCharges(details.event) && <ActionIcon name="arrow" size={18} />}
             </button>
           )}
           {waitlist !== null && (
@@ -171,4 +176,6 @@ export function BookingSheet({ details, offer, organizerName, promo, waitlist, o
       </div>
     </div>
   );
+  const host = typeof document === "undefined" ? null : (document.querySelector(".app-root") ?? document.body);
+  return host === null ? view : createPortal(view, host);
 }

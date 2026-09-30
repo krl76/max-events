@@ -367,7 +367,7 @@ export function MicroEventCreateView({ draft, places, submitting, failed, onChan
         </button>
       </div>
       <button type="button" className="app-choose-go" disabled={submitting || !ready} onClick={onSubmit}>
-        {submitting ? "Создаём…" : "Создать событие"}
+        {submitting ? "Создаём…" : ready ? "Создать событие" : "Заполните поля"}
       </button>
       {failed && <AppState error>Не удалось опубликовать микро-событие.</AppState>}
       {placeMode !== null && (

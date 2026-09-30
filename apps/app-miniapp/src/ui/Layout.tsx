@@ -60,7 +60,7 @@ export const ROUTE_TITLES: Record<Route["name"], string> = {
   event: "Событие",
   place: "Место",
   whereto: "Куда пойдём?",
-  nearby: "Рядом со мной",
+  nearby: "Рядом",
   discovery: "Друзья открыли",
   people: "Люди рядом",
   "gathering-new": "Сбор компании",

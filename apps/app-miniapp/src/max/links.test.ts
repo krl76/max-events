@@ -22,7 +22,7 @@ describe("sharePayload", () => {
     const linked = sharePayload("План на вечер", "plan-1");
 
     expect(linked.link).toBe("https://max.ru/se14352055_bot?startapp=plan-1");
-    expect(linked.text).toBe("План на вечер\nhttps://max.ru/se14352055_bot?startapp=plan-1");
+    expect(linked.text).toBe("План на вечер");
     expect(sharePayload("Только текст", null)).toEqual({ text: "Только текст" });
   });
 });

@@ -183,8 +183,8 @@ export function nearbyErrorTitle(inCity: boolean): string {
   return inCity ? "Не удалось загрузить события рядом." : "Не удалось загрузить события в городе.";
 }
 
-export function nearbyScreenTitle(inCity: boolean): string {
-  return inCity ? "Рядом со мной" : "В городе";
+export function nearbyScreenTitle(_inCity = true): string {
+  return "Рядом";
 }
 
 function Timeline({ state, onRetryTimeline, onOpenEvent, onOpenLocation, radiusKm = NEARBY_RADIUS_KM, inCity = true, searching = false }: Pick<NearbyViewProps, "state" | "onRetryTimeline" | "onOpenEvent" | "onOpenLocation" | "radiusKm" | "inCity"> & { searching?: boolean }) {

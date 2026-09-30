@@ -13,7 +13,7 @@
 // - postEventLine - подпись привязанного события: дата, время и «привязано к посту»
 // - firstNameOf - первое слово имени: в макете отмечены «Анна, Дима», а не полные имена
 // - postFriendsLine - строка отметки друзей: «Отметить друзей» или «Отметить друзей · Анна, Дима»
-// - postDraftReady - пост готов к публикации: событие привязано и текст не пуст
+// - postDraftReady - пост готов к публикации: есть текст или хотя бы одно фото
 // - postPayload - черновик -> тело публикации
 // - postDraftOf - черновик -> тело автосохранения
 // - PostCreateView - презентационный экран 06
@@ -74,13 +74,12 @@ export function postFriendsLine(friends: Friend[]): string {
 }
 
 export function postDraftReady(draft: PostComposeDraft): boolean {
-  return draft.text.trim() !== "";
+  return draft.text.trim() !== "" || draft.photoUrls.length > 0;
 }
 
 export function missingPostFields(draft: PostComposeDraft): string[] {
-  const missing: string[] = [];
-  if (draft.text.trim() === "") missing.push("Напишите текст");
-  return missing;
+  if (postDraftReady(draft)) return [];
+  return ["Напишите текст или добавьте фото"];
 }
 
 /** Публикация несёт и photoUrl, и всю сетку: первое фото доживает до ленты, остальные ждут #502 и объектного хранилища (#477). */
@@ -129,7 +128,7 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
         <button
           type="button"
           className="app-post-compose-publish"
-          disabled={state === "publishing"}
+          disabled={state === "publishing" || missing.length > 0}
           onClick={() => {
             if (missing.length === 0) onPublish();
             else textRef.current?.focus();

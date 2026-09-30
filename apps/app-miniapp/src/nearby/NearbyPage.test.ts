@@ -56,7 +56,8 @@ describe("форматирование строк таймлайна", () => {
     expect(nearbyOriginCaption(true, "fallback")).toBe("от центра города");
     expect(nearbyEmptyTitle(true)).toBe("Рядом пока ничего не начинается");
     expect(nearbyEmptyTitle(false)).toBe("В городе пока ничего не начинается");
-    expect(nearbyScreenTitle(false)).toBe("В городе");
+    expect(nearbyScreenTitle(false)).toBe("Рядом");
+    expect(nearbyScreenTitle(true)).toBe("Рядом");
     expect(nearbyErrorTitle(false)).toBe("Не удалось загрузить события в городе.");
   });
 

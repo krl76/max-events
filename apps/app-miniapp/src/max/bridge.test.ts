@@ -88,6 +88,14 @@ describe("shareResult", () => {
     expect(shareMaxContent).toHaveBeenCalledWith({ text: "подборка" });
   });
 
+  it("keeps the max.ru link off the sentence so the chat does not print the URL twice", async () => {
+    const shareMaxContent = vi.fn();
+    const link = "https://max.ru/se14352055_bot?startapp=plan-1";
+
+    expect(await shareResult({ shareMaxContent }, "План на вечер", link)).toBe("bridge");
+    expect(shareMaxContent).toHaveBeenCalledWith({ text: "План на вечер", link });
+  });
+
   it("falls back to the clipboard outside the MAX client", async () => {
     const writeText = vi.fn();
     vi.stubGlobal("navigator", { clipboard: { writeText } });

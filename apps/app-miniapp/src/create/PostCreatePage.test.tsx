@@ -51,6 +51,10 @@ describe("postDraftReady", () => {
     expect(postDraftReady(draftOf({ eventId: mockEvents[0].id, text: "   " }))).toBe(false);
   });
 
+  it("accepts a photo without text", () => {
+    expect(postDraftReady(draftOf({ text: "", photoUrls: ["data:image/jpeg;base64,a"] }))).toBe(true);
+  });
+
   it("accepts a bound event with text", () => {
     expect(postDraftReady(draftOf({ eventId: mockEvents[0].id, text: "Собираемся" }))).toBe(true);
   });

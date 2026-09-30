@@ -100,9 +100,12 @@ export function HomePage() {
 }
 
 export function RoutedPages() {
+  const { route } = useRoute();
   return (
     <Suspense fallback={<PageFallback />}>
-      <Routed />
+      <ScreenErrorBoundary key={route.name} label={`${route.name} crashed`}>
+        <Routed />
+      </ScreenErrorBoundary>
     </Suspense>
   );
 }

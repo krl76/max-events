@@ -24,7 +24,6 @@ import { OrganizerSpace } from "./organizer/OrganizerSpace";
 import { readStoredSession } from "./organizer/OrganizerAuthContext";
 import { RoutedPages } from "./pages/pages";
 import { RouteProvider } from "./routing/router";
-import { ScreenErrorBoundary } from "./ui/ErrorBoundary";
 import { Layout } from "./ui/Layout";
 import { AppButton, AppState } from "./ui/primitives";
 
@@ -64,9 +63,7 @@ export function App() {
               <OnboardingGate>
                 <RouteProvider>
                   <Layout>
-                    <ScreenErrorBoundary label="route crashed">
-                      <RoutedPages />
-                    </ScreenErrorBoundary>
+                    <RoutedPages />
                   </Layout>
                 </RouteProvider>
               </OnboardingGate>

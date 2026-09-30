@@ -93,6 +93,15 @@ describe("walk wizard", () => {
     expect(html).not.toContain("disabled");
     expect(html).toContain('aria-pressed="false"');
   });
+
+  it("marks skipped steps empty so a jump to interests still shows what is missing", () => {
+    const html = renderToStaticMarkup(createElement(WalkWizard, { city: "Москва", choice: EMPTY_WALK_CHOICE, onChange: () => {} }));
+
+    expect(html).toContain("app-walk-tab--empty");
+    expect(html).toContain("Время");
+    expect(html).toContain("Бюджет");
+    expect(html).toContain("Интересы");
+  });
 });
 
 const PLACE_ID = "11111111-1111-4111-8111-111111111111";
@@ -218,7 +227,7 @@ describe("composed walk", () => {
     expect(host.textContent).toContain("Старая крепость.");
     expect(host.textContent).toContain("Река рядом.");
     expect(host.textContent).not.toContain("★");
-    expect(readFileSync("src/search/WalkPage.tsx", "utf8")).not.toContain("assistDay");
+    expect(readFileSync("apps/app-miniapp/src/search/WalkPage.tsx", "utf8")).not.toContain("assistDay");
     root.unmount();
     host.remove();
   });

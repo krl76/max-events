@@ -46,6 +46,5 @@ export function startParamFromSharedUrl(raw: string): string | null {
 export function sharePayload(sentence: string, startParam: string | null): { text: string; link?: string } {
   const payload = startParam?.trim() ?? "";
   if (payload.length === 0) return { text: sentence };
-  const link = maxAppLink(payload);
-  return { text: sentence.includes(link) ? sentence : `${sentence}\n${link}`, link };
+  return { text: sentence, link: maxAppLink(payload) };
 }

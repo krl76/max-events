@@ -887,7 +887,6 @@ export function StoryCreateView({ draft, sticker, poll, events, friends = [], st
           </div>
           <button type="button" className="app-story-publish" disabled={state === "publishing"} onClick={onPublish}>
             {state === "publishing" ? "Публикуем…" : "В историю"}
-            <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
           </button>
         </div>
       </div>

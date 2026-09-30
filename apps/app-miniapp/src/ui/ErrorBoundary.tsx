@@ -5,7 +5,7 @@
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 
-import { Component, type ReactNode } from "react";
+import { Component, Fragment, type ReactNode } from "react";
 import { AppState } from "./primitives";
 
 /**
@@ -25,7 +25,9 @@ export class ScreenErrorBoundary extends Component<{ children: ReactNode; label?
   }
 
   render(): ReactNode {
-    if (!this.state.failed) return this.props.children;
+    if (!this.state.failed) {
+      return <Fragment key={this.state.epoch}>{this.props.children}</Fragment>;
+    }
     return (
       <AppState
         action={{
