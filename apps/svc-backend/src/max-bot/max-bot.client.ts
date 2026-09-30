@@ -122,9 +122,21 @@ export class MaxBotClient {
   /** Point MAX at our HTTPS webhook. Returns true when the platform accepted the subscription. */
   async subscribe(url: string, updateTypes: readonly string[], secret?: string | undefined): Promise<boolean> {
     if (!this.token) return false;
-    const body: Record<string, unknown> = { url, update_types: [...updateTypes] };
-    if (secret && secret.trim() !== "") body.secret = secret;
-    return this.post(`${this.baseUrl}/subscriptions`, body);
+    const payload: Record<string, unknown> = { url, update_types: [...updateTypes] };
+    if (secret && secret.trim() !== "") payload.secret = secret;
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}/subscriptions`, {
+        method: "POST",
+        headers: this.jsonHeaders(),
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) return false;
+      const body = (await response.json()) as { success?: unknown };
+      // MAX answers 200 with success:false when the URL is rejected; treat that as a failed subscribe.
+      return body.success !== false;
+    } catch {
+      return false;
+    }
   }
 
   /** Drop the webhook so long polling becomes available again. */

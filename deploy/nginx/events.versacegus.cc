@@ -6,6 +6,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name events.versacegus.cc;
+    underscores_in_headers on;
 
     location /.well-known/acme-challenge/ {
         root /var/www/html;

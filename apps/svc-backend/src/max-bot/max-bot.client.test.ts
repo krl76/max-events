@@ -157,6 +157,11 @@ describe("MaxBotClient.subscribe", () => {
     });
     expect(calls[1]?.init.method).toBe("DELETE");
   });
+
+  it("treats a 200 with success:false as a failed subscribe", async () => {
+    const client = new MaxBotClient(token, MAX_BOT_API_BASE_URL, async () => jsonResponse(200, { success: false, message: "url already used" }));
+    await expect(client.subscribe("https://events.versacegus.cc/api/bot/webhook", ["bot_started"], "secret-1")).resolves.toBe(false);
+  });
 });
 
 describe("MaxBotClient.sendTyping", () => {
