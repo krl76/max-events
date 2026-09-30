@@ -111,7 +111,7 @@ interface PostCreateViewProps {
 export function PostCreateView({ draft, authorName, authorAvatar = null, events, places, friends, state, photoRejected, onDraft, onPickPhoto, onPublish }: PostCreateViewProps) {
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const [taggingOpen, setTaggingOpen] = useState(false);
-  const [pickingPlace, setPickingPlace] = useState(false);
+  const [placeMode, setPlaceMode] = useState<"address" | "map" | null>(null);
   const [pickingEvent, setPickingEvent] = useState(false);
   const missing = missingPostFields(draft);
   const boundEvent = events.find((event) => event.id === draft.eventId) ?? null;
@@ -215,12 +215,22 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
             />
           )}
 
-          <button type="button" className="app-post-compose-row app-post-compose-row--button" onClick={() => setPickingPlace(true)}>
+          <div className="app-post-compose-row app-post-compose-row--place">
             <span className="app-post-compose-row-text">
               <span className="app-post-compose-row-title">{whereLine === "" ? "Место" : whereLine}</span>
-              <span className="app-post-compose-row-note">{whereLine === "" ? "Адрес, место из списка или карта" : "Адрес"}</span>
+              <span className="app-post-compose-row-note">{whereLine === "" ? "На карте или вписать адрес" : "Адрес"}</span>
             </span>
-          </button>
+            <span className="app-field-side">
+              <button type="button" className="app-field-action" onClick={() => setPlaceMode("address")}>
+                <ActionIcon name="pin" size={18} strokeWidth={2.2} />
+                Адрес
+              </button>
+              <button type="button" className="app-field-action" onClick={() => setPlaceMode("map")}>
+                <ActionIcon name="layers" size={18} strokeWidth={2.2} />
+                Карта
+              </button>
+            </span>
+          </div>
           <button type="button" className="app-post-compose-row app-post-compose-row--button" aria-expanded={taggingOpen} onClick={() => setTaggingOpen(true)}>
             <span className="app-post-compose-row-text">
               <span className="app-post-compose-row-title">{tagged.length === 0 ? "Отметить друзей" : tagged.map((friend) => friend.name.split(" ")[0]).join(", ")}</span>
@@ -241,16 +251,17 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
               onClose={() => setTaggingOpen(false)}
             />
           )}
-          {pickingPlace && (
+          {placeMode !== null && (
             <PlaceSheet
               title="Место поста"
+              mode={placeMode}
               places={places}
               onConfirm={(choice) => {
                 const pinLabel = choice.latitude !== undefined && choice.longitude !== undefined ? placePinLabel(choice.label, choice.latitude, choice.longitude) : choice.placeId === null ? choice.label : null;
                 onDraft({ ...draft, pinLabel, placeId: choice.placeId });
-                setPickingPlace(false);
+                setPlaceMode(null);
               }}
-              onClose={() => setPickingPlace(false)}
+              onClose={() => setPlaceMode(null)}
             />
           )}
         </div>

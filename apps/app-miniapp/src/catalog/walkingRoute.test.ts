@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { drivingRoute, stitchWalkingRoute, walkingRoute } from "./walkingRoute";
+import { drivingRoute, osrmTrip, stitchWalkingRoute, walkingRoute } from "./walkingRoute";
 
 const from: [number, number] = [55.75, 37.61];
 const to: [number, number] = [55.76, 37.62];
@@ -11,6 +11,7 @@ describe("walkingRoute", () => {
         JSON.stringify({
           routes: [
             {
+              duration: 540,
               geometry: {
                 coordinates: [
                   [37.61, 55.75],
@@ -33,6 +34,30 @@ describe("walkingRoute", () => {
   it("falls back to the two endpoints when the router fails", async () => {
     const fetchImpl: typeof fetch = async () => new Response(null, { status: 502 });
     await expect(walkingRoute(from, to, fetchImpl)).resolves.toEqual([from, to]);
+  });
+
+  it("reads OSRM duration as whole minutes", async () => {
+    const fetchImpl: typeof fetch = async () =>
+      new Response(
+        JSON.stringify({
+          routes: [
+            {
+              duration: 125,
+              geometry: {
+                coordinates: [
+                  [37.61, 55.75],
+                  [37.62, 55.76],
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    await expect(osrmTrip(from, to, "foot", fetchImpl)).resolves.toEqual({
+      path: [from, to],
+      minutes: 2,
+    });
   });
 
   it("asks the driving graph for a car path", async () => {

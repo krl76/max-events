@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { mockEvents, mockPlaces } from "../api/mock";
-import { escapeHtml, filterMapEvents, formatMapChange, formatMapHour, formatMapTemperature, formatTravelOption, mapFriendsLine, mapHourGlyph, mapHourlyWindow, MAP_HOURLY_COLUMNS, mapNotice, mapRainHint, mapWeatherChipText, type MapNoticeInput } from "./MapScreen";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { escapeHtml, filterMapEvents, formatDrawnRoute, formatMapChange, formatMapHour, formatMapTemperature, formatTravelOption, MapSelectionCard, mapFriendsLine, mapHourGlyph, mapHourlyWindow, MAP_HOURLY_COLUMNS, mapNotice, mapRainHint, mapWeatherChipText, routeGlyphs, type MapNoticeInput } from "./MapScreen";
 
 const NOTICE: MapNoticeInput = { mapFailed: false, tilesFailed: false, vectorFallback: false, loading: false, placesFailed: false, eventsFailed: false, markerCount: 4, query: "", anyLayerOn: true, geoDenied: false, locateOn: false };
 
@@ -94,6 +96,38 @@ describe("map chrome formatting", () => {
     expect(formatTravelOption({ ...METRO, transfers: 0 })).toEqual({ value: "9 мин", note: "метро · без пересадок" });
     expect(formatTravelOption({ ...METRO, transfers: 2 })).toEqual({ value: "9 мин", note: "метро · 2 пересадки" });
     expect(formatTravelOption({ mode: "car", minutes: 8, distanceKm: 1.4, transfers: null })).toEqual({ value: "8 мин", note: "на машине · 1,4 км" });
+  });
+
+  it("shows walk, walk+metro or car glyphs for the drawn OSM line", () => {
+    expect(routeGlyphs("foot")).toEqual(["walk"]);
+    expect(routeGlyphs("metro")).toEqual(["walk", "metro"]);
+    expect(routeGlyphs("driving")).toEqual(["car"]);
+    expect(formatDrawnRoute(12)).toBe("12 мин");
+  });
+
+  it("prints travel times as information, with one button to build the route", () => {
+    const html = renderToStaticMarkup(
+      createElement(MapSelectionCard, {
+        title: "памятник Георгию Жукову",
+        subtitle: "Манежная площадь",
+        category: null,
+        friendsLine: null,
+        travel: [WALK, METRO, { mode: "car", minutes: 8, distanceKm: 1.4, transfers: null }],
+        rainHint: null,
+        metroSteps: null,
+        metroFar: false,
+        onRoute: () => {},
+        onClose: () => {},
+      }),
+    );
+
+    expect(html).toContain("18 мин");
+    expect(html).toContain("9 мин");
+    expect(html).toContain("8 мин");
+    expect(html).toContain("Построить маршрут");
+    expect(html).not.toContain("Пешком");
+    expect(html).not.toContain("На машине");
+    expect(html).not.toContain("app-map16-travel-item--on");
   });
 
   it("names the friends who were at the selected place, in the past tense the layer answers in", () => {

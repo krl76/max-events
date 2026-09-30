@@ -23,6 +23,8 @@ export interface MetroItinerary {
   transfers: number;
   steps: string[];
   stations: MetroStation[];
+  /** Walk to the station, ride, transfers and walk from the exit. */
+  minutes: number;
 }
 
 /** Дальше этого метро «рядом» уже не честно: человек дойдёт пешком быстрее, чем дойдёт до станции. */
@@ -317,13 +319,16 @@ export function planMetroRide(from: { lat: number; lng: number }, to: { lat: num
   if (origin === undefined || destination === undefined) return null;
   const steps = [`Пешком до «${origin.name}» · ${walkMinutes(start.meters)} мин`];
   const asStation = (stop: Stop): MetroStation => ({ name: stop.name, lat: stop.lat, lng: stop.lng });
+  const walkA = walkMinutes(start.meters);
+  const walkB = walkMinutes(finish.meters);
   if (start.index === finish.index) {
-    steps.push(`От «${destination.name}» пешком · ${walkMinutes(finish.meters)} мин`);
-    return { transfers: 0, steps, stations: [asStation(origin)] };
+    steps.push(`От «${destination.name}» пешком · ${walkB} мин`);
+    return { transfers: 0, steps, stations: [asStation(origin)], minutes: walkA + walkB };
   }
   const found = route(start.index, finish.index);
   if (found === null) return null;
   let transfers = 0;
+  let rideHops = 0;
   let cursor = 0;
   while (cursor < found.path.length - 1) {
     const here = GRAPH.stops[found.path[cursor] ?? -1];
@@ -347,15 +352,18 @@ export function planMetroRide(from: { lat: number; lng: number }, to: { lat: num
       cursor += 1;
     }
     const end = GRAPH.stops[found.path[cursor] ?? -1];
-    if (end !== undefined && hops > 0) steps.push(rideLabel(here, end, hops));
+    if (end !== undefined && hops > 0) {
+      rideHops += hops;
+      steps.push(rideLabel(here, end, hops));
+    }
   }
-  steps.push(`От «${destination.name}» пешком · ${walkMinutes(finish.meters)} мин`);
+  steps.push(`От «${destination.name}» пешком · ${walkB} мин`);
   const stations: MetroStation[] = [];
   for (const index of found.path) {
     const stop = GRAPH.stops[index];
     if (stop !== undefined) stations.push(asStation(stop));
   }
-  return { transfers, steps, stations };
+  return { transfers, steps, stations, minutes: walkA + walkB + rideHops * 2 + transfers * 4 };
 }
 
 /** Foot to the first station, the station line, foot from the last station. Null when metro is not nearby. */

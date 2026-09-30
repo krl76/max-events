@@ -11,6 +11,7 @@ describe("planMetroRide", () => {
 
     expect(ride).not.toBeNull();
     expect(ride?.transfers).toBe(0);
+    expect(ride?.minutes).toBe(2);
     expect(ride?.steps).toEqual(["Пешком до «Кропоткинская» · 1 мин", "От «Кропоткинская» пешком · 1 мин"]);
     expect(ride?.steps.some((step) => step.includes("линия:") || step.includes("Пересадка"))).toBe(false);
   });

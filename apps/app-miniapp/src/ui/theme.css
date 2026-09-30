@@ -7263,20 +7263,13 @@ button.app-today-stat {
 .app-map16-travel-item {
   align-items: center;
   background: var(--app-surface);
-  border: none;
   border-radius: 12px;
   color: inherit;
-  cursor: pointer;
   display: flex;
   flex: 1;
   gap: 6px;
   min-width: 0;
   padding: 8px 10px;
-}
-
-.app-map16-travel-item--on {
-  background: color-mix(in srgb, var(--app-accent) 14%, var(--app-surface));
-  color: var(--app-accent);
 }
 
 .app-map16-travel-line {
@@ -8903,6 +8896,14 @@ button.app-today-stat {
 
 .app-post-compose-row--button {
   cursor: pointer;
+}
+
+.app-post-compose-row--place {
+  align-items: center;
+}
+
+.app-post-compose-row--place .app-field-action {
+  background: var(--app-surface);
 }
 
 .app-post-compose-rows > :last-child {
@@ -25321,29 +25322,20 @@ button.app-story-viewer-author {
   padding: 0 12px;
 }
 
-.app-map16-route-modes {
+.app-map16-route-summary {
+  align-items: center;
+  color: var(--app-text);
+  display: flex;
+  font-size: 15px;
+  font-weight: 800;
+  gap: 10px;
+}
+
+.app-map16-route-glyphs {
+  align-items: center;
+  color: var(--app-accent);
   display: flex;
   gap: 6px;
-  width: 100%;
-}
-
-.app-map16-route-mode {
-  background: var(--app-surface);
-  border: none;
-  border-radius: 12px;
-  color: var(--app-text);
-  cursor: pointer;
-  flex: 1;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 800;
-  height: 32px;
-  padding: 0 8px;
-}
-
-.app-map16-route-mode--on {
-  background: color-mix(in srgb, var(--app-accent) 14%, var(--app-surface));
-  color: var(--app-accent);
 }
 
 .app-post-action--danger {

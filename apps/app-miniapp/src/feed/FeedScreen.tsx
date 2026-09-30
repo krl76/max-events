@@ -209,6 +209,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onShare
   const dropped = parsePinLabel(card.locationLabel ?? card.placeTitle ?? "");
   const markLabel = dropped ? placePinTitle(card.locationLabel ?? card.placeTitle ?? "") : where;
   const canMark = onOpenMark !== undefined && markLabel !== "" && (dropped !== null || (card.event !== null && card.event.placeId !== null));
+  const caption = typeof card.text === "string" ? card.text : "";
   const photos = card.photoUrls && card.photoUrls.length > 0 ? card.photoUrls : card.photoUrl ? [card.photoUrl] : [];
   const going = card.goingByMe !== undefined ? card.goingByMe : card.myStatus === "going";
   const mine = userId !== null && card.author.id === userId;
@@ -301,7 +302,7 @@ export function FeedFriendPost({ card, now, onToggleLike, onToggleGoing, onShare
       </div>
       {saving && userId !== null && <SaveToList feedPostId={card.id} userId={userId} open onClose={() => setSaving(false)} />}
       <LikeFaces people={(card.likedByFriends ?? []).filter((person) => person.id !== userId)} onOpen={onOpenPerson ?? onOpenAuthor} />
-      {card.text.trim() !== "" && <PostText text={card.text} className="app-feed-caption" />}
+      {caption.trim() !== "" && <PostText text={caption} className="app-feed-caption" />}
       {/* No line at all rather than «только что» about a post whose card carries no publication time. */}
       {card.publishedAt !== null && <p className="app-feed-time">{formatFeedAgo(card.publishedAt, now)}</p>}
       {commentsOpen &&
@@ -805,32 +806,37 @@ export function FeedScreen() {
     if (top === undefined || !(el instanceof HTMLElement)) return;
     let stop = false;
     let applies = 0;
+    let observer: ResizeObserver | null = null;
+    const halt = () => {
+      stop = true;
+      observer?.disconnect();
+    };
     const apply = () => {
       if (stop) return;
       applies += 1;
       if (applies > 20) {
-        stop = true;
-        observer.disconnect();
+        halt();
         return;
       }
       const room = el.scrollHeight - el.clientHeight;
       if (room + 8 < top) return;
       el.scrollTop = top;
-      if (Math.abs(el.scrollTop - top) < 2) {
-        stop = true;
-        observer.disconnect();
-      }
+      if (Math.abs(el.scrollTop - top) < 2) halt();
     };
     apply();
-    const observer = new ResizeObserver(apply);
-    observer.observe(el);
-    const later = window.setTimeout(() => {
-      stop = true;
-      observer.disconnect();
-    }, 1500);
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(() => {
+        window.requestAnimationFrame(apply);
+      });
+      try {
+        observer.observe(el);
+      } catch {
+        halt();
+      }
+    }
+    const later = window.setTimeout(halt, 1500);
     return () => {
-      stop = true;
-      observer.disconnect();
+      halt();
       window.clearTimeout(later);
     };
   }, [state.status]);
@@ -900,7 +906,9 @@ export function FeedScreen() {
 
   return (
     <section className="app-feed" aria-label="Лента">
-      <StoriesRow />
+      <FeedCardBoundary>
+        <StoriesRow />
+      </FeedCardBoundary>
       <FeedWhereToCard onStart={() => navigate({ name: "whereto" })} />
       {state.status === "error" ? (
         <AppState error action={{ label: "Повторить", onClick: () => fetchCards(true) }}>

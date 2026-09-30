@@ -787,13 +787,13 @@ export function StoriesRow() {
             {rail.own.storyCount > 0 ? (
               <StoryRing total={rail.own.storyCount} unseen={rail.own.unseenCount} label={rail.own.unseenCount > 0 ? `Твои истории, новых ${rail.own.unseenCount} из ${rail.own.storyCount}` : `Твои истории, ${rail.own.storyCount}, уже смотрел`}>
                 <AppAvatar size={52} src={me?.avatarUrl}>
-                  {me?.firstName[0] ?? "Я"}
+                  {me?.firstName?.[0] ?? "Я"}
                 </AppAvatar>
               </StoryRing>
             ) : (
               <span className={storyRingClass(false)}>
                 <AppAvatar size={58} src={me?.avatarUrl}>
-                  {me?.firstName[0] ?? "Я"}
+                  {me?.firstName?.[0] ?? "Я"}
                 </AppAvatar>
               </span>
             )}

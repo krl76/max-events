@@ -10,10 +10,11 @@ import { AppState } from "./primitives";
 
 /**
  * A crashed screen used to unmount the whole mini-app: the MAX webview stayed white
- * until the process was killed. This boundary keeps the tab bar and offers a reload.
+ * until the process was killed. This boundary keeps the tab bar and remounts the
+ * screen on «Повторить» without reloading the document.
  */
-export class ScreenErrorBoundary extends Component<{ children: ReactNode; label?: string }, { failed: boolean }> {
-  state = { failed: false };
+export class ScreenErrorBoundary extends Component<{ children: ReactNode; label?: string }, { failed: boolean; epoch: number }> {
+  state = { failed: false, epoch: 0 };
 
   static getDerivedStateFromError(): { failed: boolean } {
     return { failed: true };
@@ -26,8 +27,13 @@ export class ScreenErrorBoundary extends Component<{ children: ReactNode; label?
   render(): ReactNode {
     if (!this.state.failed) return this.props.children;
     return (
-      <AppState error action={{ label: "Обновить", onClick: () => window.location.reload() }}>
-        Экран не открылся. Можно обновить, не перезапуская MAX.
+      <AppState
+        action={{
+          label: "Повторить",
+          onClick: () => this.setState((current) => ({ failed: false, epoch: current.epoch + 1 })),
+        }}
+      >
+        Не удалось открыть экран.
       </AppState>
     );
   }

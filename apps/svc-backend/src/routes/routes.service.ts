@@ -36,7 +36,8 @@ export function walkingMinutes(meters: number): number {
 
 export function travelMinutes(meters: number, mode: RouteMode): number {
   const speed = mode === "taxi" ? TAXI_M_PER_MIN : mode === "metro" ? METRO_M_PER_MIN : WALK_M_PER_MIN;
-  return Math.max(0, Math.round(meters / speed));
+  if (meters <= 0) return 0;
+  return Math.max(1, Math.round(meters / speed));
 }
 
 export function pickMode(meters: number, prefer: RoutePrefer = "default"): RouteMode {

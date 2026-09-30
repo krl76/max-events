@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
-import { pickMode, shortestPermutation, toDayRoute, walkingMinutes } from "./routes.service";
+import { pickMode, shortestPermutation, toDayRoute, travelMinutes, walkingMinutes } from "./routes.service";
 import { RoutesService } from "./routes.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
@@ -19,6 +19,12 @@ describe("walkingMinutes", () => {
   it("rounds meters at 80 m/min", () => {
     expect(walkingMinutes(0)).toBe(0);
     expect(walkingMinutes(160)).toBe(2);
+  });
+
+  it("keeps a short metro or car hop at one minute instead of zero", () => {
+    expect(travelMinutes(100, "metro")).toBe(1);
+    expect(travelMinutes(100, "taxi")).toBe(1);
+    expect(travelMinutes(0, "metro")).toBe(0);
   });
 });
 

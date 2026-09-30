@@ -136,6 +136,16 @@ describe("PostCreateView", () => {
     expect(view({ draft: draftOf({ eventId: mockEvents[0].id, text: "Собираемся", allowJoin: true }) })).toContain('aria-checked="true"');
   });
 
+  it("offers address and map buttons for the place, like the micro-event form", () => {
+    const html = view({ draft: draftOf() });
+
+    expect(html).toContain("Место");
+    expect(html).toContain("На карте или вписать адрес");
+    expect(html).toContain("Адрес");
+    expect(html).toContain("Карта");
+    expect(html).toContain("app-field-action");
+  });
+
   it("offers to bind an event while none is bound, instead of showing an empty card", () => {
     const html = view({ draft: draftOf() });
 
