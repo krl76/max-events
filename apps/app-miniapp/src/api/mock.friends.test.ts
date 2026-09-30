@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { FriendSchema } from "@max-events/api-contracts";
 import { ApiClient } from "./client";
-import { friendActivityByFriend, friendsSyncState, installMockApi, mockEvents, mockFriendIds, mockFriends, resetMockFriendsSync, resetMockParticipations, syncMockFriends } from "./mock";
+import { friendActivityByFriend, friendsSyncState, installMockApi, mockDemoUser, mockEvents, mockFriendIds, mockFriends, mockOnboardingContacts, resetMockFollows, resetMockFriendsSync, resetMockParticipations, syncMockFriends } from "./mock";
 
 const DEMO_USER_ID = "a0000000-0000-4000-8000-000000000001";
 
@@ -79,5 +79,36 @@ describe("MAX contacts sync mock", () => {
 
     expect(typeof (await api.getFriendsSync()).syncedAt).toBe("string");
     expect((await api.syncFriends()).map((friend) => friend.id)).toEqual(mockFriendIds);
+  });
+});
+
+describe("in-app add friend", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    resetMockFollows();
+  });
+
+  it("puts the other person on the friends list so both sides can see them", async () => {
+    restore = installMockApi();
+    const api = new ApiClient("/api");
+    const stranger = mockOnboardingContacts.find((person) => !mockFriendIds.includes(person.id));
+    expect(stranger).toBeDefined();
+
+    const afterAdd = await api.addFriend(stranger!.id);
+    expect(afterAdd.map((friend) => friend.id)).toContain(stranger!.id);
+    expect((await api.listFriends()).map((friend) => friend.id)).toContain(stranger!.id);
+    expect((await api.listFollowing(mockDemoUser.id)).map((friend) => friend.id)).toContain(stranger!.id);
+
+    const afterRemove = await api.removeFriend(stranger!.id);
+    expect(afterRemove.map((friend) => friend.id)).not.toContain(stranger!.id);
+    expect((await api.listFriends()).map((friend) => friend.id)).not.toContain(stranger!.id);
+  });
+
+  it("rejects adding yourself", async () => {
+    restore = installMockApi();
+    await expect(new ApiClient("/api").addFriend(mockDemoUser.id)).rejects.toMatchObject({ status: 400 });
   });
 });

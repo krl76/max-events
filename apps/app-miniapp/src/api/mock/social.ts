@@ -15,6 +15,10 @@
 // - resetMockFollows - restore the three seeded follows (test isolation)
 // - friendSuggestions - mock GET /friends/suggestions: the onboarding contacts with their hint line and current follow state
 // - followMockFriends - mock PUT /friends/follows: replace the followed set, "unknown" when an id is not a contact
+// - listMockFriends - GET /friends: seeded friends plus people added in this session
+// - addMockFriend - mock POST /friends/:id: both lists, both follows
+// - removeMockFriend - mock DELETE /friends/:id
+// - resetMockAddedFriends - drop in-session adds (test isolation)
 // - followingOf - mock GET /users/:id/following: the people the viewer follows, in contact order
 // - withContactNick - copy a contact with the demo nick used by the close-friends sheet
 // - followersOf - mock GET /users/:id/followers: the people following the viewer; the backend keeps no reverse direction at all
@@ -119,8 +123,38 @@ const MOCK_SEEDED_FOLLOWS: readonly string[] = mockOnboardingContacts.slice(0, 3
 
 let mockFollowedIds = new Set<string>(MOCK_SEEDED_FOLLOWS);
 
+let mockAddedFriends: Friend[] = [];
+
+export function resetMockAddedFriends(): void {
+  mockAddedFriends = [];
+}
+
 export function resetMockFollows(): void {
   mockFollowedIds = new Set<string>(MOCK_SEEDED_FOLLOWS);
+  resetMockAddedFriends();
+}
+
+export function listMockFriends(): Friend[] {
+  const have = new Set(mockFriends.map((friend) => friend.id));
+  return [...mockFriends, ...mockAddedFriends.filter((friend) => !have.has(friend.id))];
+}
+
+export function addMockFriend(userId: string): Friend[] | "unknown" | "self" {
+  if (userId === mockDemoUser.id) return "self";
+  const person = mockOnboardingContacts.find((contact) => contact.id === userId);
+  if (person === undefined) return "unknown";
+  if (!mockFriends.some((friend) => friend.id === userId) && !mockAddedFriends.some((friend) => friend.id === userId)) mockAddedFriends.push(person);
+  mockFollowedIds.add(userId);
+  return listMockFriends();
+}
+
+export function removeMockFriend(userId: string): Friend[] | "unknown" | "self" {
+  if (userId === mockDemoUser.id) return "self";
+  const known = mockOnboardingContacts.some((contact) => contact.id === userId) || mockFriends.some((friend) => friend.id === userId);
+  if (!known) return "unknown";
+  mockAddedFriends = mockAddedFriends.filter((friend) => friend.id !== userId);
+  mockFollowedIds.delete(userId);
+  return listMockFriends();
 }
 
 export function friendSuggestions(): FriendSuggestion[] {

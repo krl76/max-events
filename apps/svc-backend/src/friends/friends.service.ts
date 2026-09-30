@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Friend graph sync, "your people are going" activity, and per-event friend counters.
-// SCOPE: Replace-on-sync from MaxBotClient.listFriends; without a list the graph is left untouched unless FRIENDS_DEMO_ALL_USERS opts into the demo fallback, which only a development or test NODE_ENV can unlock; activity grouped by friend; event summary.
+// PURPOSE: Friend graph sync, in-app add/remove, "your people are going" activity, and per-event friend counters.
+// SCOPE: Replace-on-sync from MaxBotClient.listFriends; without a list the graph is left untouched unless FRIENDS_DEMO_ALL_USERS opts into the demo fallback, which only a development or test NODE_ENV can unlock; POST add writes both directed edges so each person sees the other; activity grouped by friend; event summary.
 // DEPENDS: @nestjs/common, @nestjs/config, @nestjs/typeorm, typeorm, @max-events/api-contracts, ../max-bot, ../users, ../events, ../participations
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - FriendsService - sync, list, activity, eventFriends, friendIds
+// - FriendsService - sync, add, remove, list, activity, eventFriends, friendIds
 // - toFriendDto - map UserEntity to api-contracts Friend
 // END_MODULE_MAP
 
@@ -181,6 +181,56 @@ export class FriendsService {
       await this.subscriptions.save(this.subscriptions.create({ userId, type: "user", organizerUserId: null, placeId: null, targetUserId: id, interest: null }));
     }
     return nextIds;
+  }
+
+  /**
+   * The other person opened a profile (often from «Пригласить в MAX») and tapped «Добавить».
+   * Both directed edges go in so each friends list shows the other; both follows go in so the
+   * profile button reads «Друзья».
+   */
+  async add(userId: string, friendUserId: string): Promise<Friend[]> {
+    if (userId === friendUserId) throw new BadRequestException("Cannot add yourself");
+    const me = await this.users.findOneBy({ id: userId });
+    if (!me) throw new NotFoundException("User not found");
+    const person = await this.users.findOneBy({ id: friendUserId });
+    if (!person) throw new NotFoundException("User not found");
+    await this.ensureEdge(userId, friendUserId);
+    await this.ensureEdge(friendUserId, userId);
+    await this.ensureFollow(userId, friendUserId);
+    await this.ensureFollow(friendUserId, userId);
+    return this.list(userId);
+  }
+
+  async remove(userId: string, friendUserId: string): Promise<Friend[]> {
+    if (userId === friendUserId) throw new BadRequestException("Cannot remove yourself");
+    const me = await this.users.findOneBy({ id: userId });
+    if (!me) throw new NotFoundException("User not found");
+    await this.dropEdge(userId, friendUserId);
+    await this.dropEdge(friendUserId, userId);
+    await this.dropFollow(userId, friendUserId);
+    return this.list(userId);
+  }
+
+  private async ensureEdge(userId: string, friendUserId: string): Promise<void> {
+    const existing = await this.friendships.findOneBy({ userId, friendUserId });
+    if (existing) return;
+    await this.friendships.save(this.friendships.create({ userId, friendUserId }));
+  }
+
+  private async dropEdge(userId: string, friendUserId: string): Promise<void> {
+    const existing = await this.friendships.findOneBy({ userId, friendUserId });
+    if (existing) await this.friendships.delete({ id: existing.id });
+  }
+
+  private async ensureFollow(userId: string, targetUserId: string): Promise<void> {
+    const existing = await this.subscriptions.find({ where: { userId, type: "user", targetUserId } });
+    if (existing.length > 0) return;
+    await this.subscriptions.save(this.subscriptions.create({ userId, type: "user", organizerUserId: null, placeId: null, targetUserId, interest: null }));
+  }
+
+  private async dropFollow(userId: string, targetUserId: string): Promise<void> {
+    const rows = await this.subscriptions.find({ where: { userId, type: "user", targetUserId } });
+    for (const row of rows) await this.subscriptions.delete({ id: row.id });
   }
 
   private demoFallbackEnabled(): boolean {

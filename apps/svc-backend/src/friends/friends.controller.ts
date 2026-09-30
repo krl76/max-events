@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for friend graph sync, activity feed, and per-event friend summary.
-// SCOPE: POST /friends/sync, GET /friends, GET /friends/close, GET /friends/activity, GET /friends/suggestions, GET /friends/sync, PUT /friends/follows, GET /users/:id/following, GET /users/:id/followers, GET/PUT /users/:id/close, GET /events/:eventId/friends; CurrentUser identity.
+// SCOPE: POST /friends/sync, POST/DELETE /friends/:userId, GET /friends, GET /friends/close, GET /friends/activity, GET /friends/suggestions, GET /friends/sync, PUT /friends/follows, GET /users/:id/following, GET /users/:id/followers, GET/PUT /users/:id/close, GET /events/:eventId/friends; CurrentUser identity.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./friends.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -11,7 +11,7 @@
 // - EventFriendsController - /events/:eventId/friends summary
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Get, Inject, Param, ParseUUIDPipe, Post, Put } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Post, Put } from "@nestjs/common";
 import { ReplaceFollowsWriteSchema, type EventFriendsSummary, type Friend, type FriendActivityByFriend, type FriendSuggestion, type FriendsSyncStatus } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
@@ -56,6 +56,16 @@ export class FriendsController {
     const parsed = ReplaceFollowsWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid follows payload");
     return this.friends.replaceFollows(user.id, parsed.data.userIds);
+  }
+
+  @Post(":userId")
+  add(@CurrentUser() user: UserEntity, @Param("userId", ParseUUIDPipe) userId: string): Promise<Friend[]> {
+    return this.friends.add(user.id, userId);
+  }
+
+  @Delete(":userId")
+  remove(@CurrentUser() user: UserEntity, @Param("userId", ParseUUIDPipe) userId: string): Promise<Friend[]> {
+    return this.friends.remove(user.id, userId);
   }
 }
 

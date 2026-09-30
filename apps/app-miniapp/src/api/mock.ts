@@ -115,7 +115,8 @@
 // - resetMockCampaigns - clear in-memory promo campaigns (test isolation)
 // - resetMockCheckIns - clear in-memory check-ins (test isolation)
 // - resetMockFeed - restore seeded impression posts (test isolation)
-// - resetMockFollows - restore the three seeded follows (test isolation)
+// - resetMockFollows - restore the three seeded follows and drop in-session friend adds (test isolation)
+// - addMockFriend / removeMockFriend / listMockFriends - mock POST/DELETE/GET /friends[/:id]
 // - resetMockFriendsSync - restore the «two hours ago» contacts sync stamp (test isolation)
 // - resetMockGatherings - restore the seeded demo gathering and clear created ones (test isolation)
 // - resetMockLists - clear in-memory lists (test isolation)
@@ -211,7 +212,7 @@ export { addMockPlanParticipant, addMockSharedCalendarPeer, buildMockDayRoute, c
 export { DEFAULT_APP_SETTINGS, achievementsFor, afterMePicks, appSettingsFor, myCityFor, profileCountersFor, resetMockAppSettings, resetMockProfiles, tasteProfile, visitedPlacesFor } from "./mock/profile";
 export { mockPromotionPlacements, mockTargetedPromotions } from "./mock/promo";
 export { REVIEW_FACT_TAGS, eventRating, resetMockReviews } from "./mock/reviews";
-export { MOCK_GATHERING_ID, addMockMicroEventExpense, createMockGathering, createMockMicroEvent, discoverySummary, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, microEventCard, microEvents, mockMicroEventBudget, mockOnboardingContacts, peopleSuggest, resetMockFollows, resetMockFriendsSync, resetMockGatherings, resetMockMicroEvents, respondMockGathering, syncMockFriends } from "./mock/social";
+export { MOCK_GATHERING_ID, addMockFriend, addMockMicroEventExpense, createMockGathering, createMockMicroEvent, discoverySummary, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, listMockFriends, microEventCard, microEvents, mockMicroEventBudget, mockOnboardingContacts, peopleSuggest, removeMockFriend, resetMockAddedFriends, resetMockFollows, resetMockFriendsSync, resetMockGatherings, resetMockMicroEvents, respondMockGathering, syncMockFriends } from "./mock/social";
 export { MOCK_SILVER_FOREST, MOCK_SLOT_EXTRAS, cancelMockSlotBooking, createMockSlotBooking, leaveMockSlotWaitlist, mockCheckInCodes, mockMySlots, mockPlaceBoard, mockSlotBoard, mockSlotBookingScreen, mockSlotBookings, mockSlotUnits, mockSlotWaitlist, mockSlotWeather, resetMockSlots, slotById, slotsOfDay } from "./mock/slots";
 export { answerMockNotification, markAllMockNotificationsRead, markMockNotificationRead, mockNotifications, mockNotificationsSummary, resetMockNotifications } from "./mock/notifications";
 // Отдельными строками, а не в списки профиля и соцграфа выше: так правка не встречается с чужой в одной строке

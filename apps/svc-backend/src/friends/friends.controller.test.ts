@@ -11,7 +11,7 @@ const activity: FriendActivityByFriend[] = [{ friend: friends[0], events: [] }];
 const summary: EventFriendsSummary = { friends: [], going: 0, lookingForCompany: 0 };
 
 function createService() {
-  const calls: { list?: string; sync?: string; activity?: string; suggestions?: string; syncStatus?: string; follows?: string[]; eventFriends?: { userId: string; eventId: string }; followers?: string } = {};
+  const calls: { list?: string; sync?: string; activity?: string; suggestions?: string; syncStatus?: string; follows?: string[]; add?: { userId: string; friendUserId: string }; remove?: { userId: string; friendUserId: string }; eventFriends?: { userId: string; eventId: string }; followers?: string } = {};
   const service = {
     list: async (userId: string) => {
       calls.list = userId;
@@ -36,6 +36,14 @@ function createService() {
     replaceFollows: async (_userId: string, userIds: string[]) => {
       calls.follows = userIds;
       return userIds;
+    },
+    add: async (userId: string, friendUserId: string) => {
+      calls.add = { userId, friendUserId };
+      return friends;
+    },
+    remove: async (userId: string, friendUserId: string) => {
+      calls.remove = { userId, friendUserId };
+      return [];
     },
     eventFriends: async (userId: string, bookedEventId: string) => {
       calls.eventFriends = { userId, eventId: bookedEventId };
@@ -63,7 +71,18 @@ describe("FriendsController", () => {
     await expect(controller.suggestions(user)).resolves.toMatchObject([{ following: false }]);
     await expect(controller.syncStatus(user)).resolves.toMatchObject({ lastSyncedAt: null, friends });
     await expect(controller.replaceFollows(user, { userIds: [friends[0]!.id] })).resolves.toEqual([friends[0]!.id]);
-    expect(calls).toEqual({ list: user.id, sync: user.id, activity: user.id, suggestions: user.id, syncStatus: user.id, follows: [friends[0]!.id] });
+    await expect(controller.add(user, friends[0]!.id)).resolves.toEqual(friends);
+    await expect(controller.remove(user, friends[0]!.id)).resolves.toEqual([]);
+    expect(calls).toEqual({
+      list: user.id,
+      sync: user.id,
+      activity: user.id,
+      suggestions: user.id,
+      syncStatus: user.id,
+      follows: [friends[0]!.id],
+      add: { userId: user.id, friendUserId: friends[0]!.id },
+      remove: { userId: user.id, friendUserId: friends[0]!.id },
+    });
   });
 });
 

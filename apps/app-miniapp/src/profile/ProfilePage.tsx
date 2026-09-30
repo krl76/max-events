@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 36 «Профиль»: обложка со шапкой и меню, аватар без бейджа, имя и строка подписок, для своего профиля — строчные переходы в календарь, прогулки, планы, брони, достижения, группы и друзья, затем вкладки «Посты» / «Места» / «Сохранённое». Чужой профиль вместо переходов показывает действия с человеком.
-// SCOPE: The profile screen only — data via apiClient.getProfile/getProfileCounters/listUserPosts/listVisitedPlaces/listLists/listSubscriptions/listFollowing/listFollowers/getAchievements/listWeGroups/listFriends; secondary blocks stay silent when their request fails. Editing lives on the settings route (./SettingsPage.tsx), the follow lists on ../subscriptions/.
+// SCOPE: The profile screen only — data via apiClient.getProfile/getProfileCounters/listUserPosts/listVisitedPlaces/listLists/listSubscriptions/listFollowing/listFollowers/getAchievements/listWeGroups/listFriends; «Добавить» writes apiClient.addFriend so both people land in GET /friends. Editing lives on the settings route (./SettingsPage.tsx), the follow lists on ../subscriptions/.
 // DEPENDS: ../api/client.js (apiClient, ListSummary, ProfileCounters, ProfilePost, VisitedPlace), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../feed/photo.js (readFeedPhoto), ../max/bridge.js (shareResult, webApp), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, @max-events/api-contracts (Achievement, Friend, Profile, Subscription, User, WeGroupScreen), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -384,10 +384,12 @@ interface ProfileViewProps extends ProfileEntries {
   followingThem?: boolean;
   /** They already added the viewer, so a return add makes the two friends. */
   followsYou?: boolean;
+  /** GET /friends already has this person — the two are in each other's lists. */
+  areFriends?: boolean;
   subscribePending?: boolean;
 }
 
-export function ProfileView({ user, profile, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, posts, postsFailed, visitedPlaces, tab, own = true, followingThem = false, subscribePending = false, ...entries }: ProfileViewProps) {
+export function ProfileView({ user, profile, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, posts, postsFailed, visitedPlaces, tab, own = true, followingThem = false, followsYou = false, areFriends = false, subscribePending = false, ...entries }: ProfileViewProps) {
   const [mediaMenu, setMediaMenu] = useState<"avatar" | "cover" | null>(null);
   const [pendingDelete, setPendingDelete] = useState<ProfilePost | null>(null);
   const [clickShield, setClickShield] = useState(false);
@@ -504,7 +506,7 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
         {!own && (
           <div className="app-me-actions">
             <button type="button" className="app-me-action app-me-action--primary" disabled={subscribePending} onClick={entries.onSubscribe}>
-              {followingThem && entries.followsYou ? "Друзья" : followingThem ? "Вы добавили" : "Добавить"}
+              {areFriends || (followingThem && followsYou) ? "Друзья" : "Добавить"}
             </button>
             <button type="button" className="app-me-action" onClick={entries.onWrite}>
               Написать
@@ -519,7 +521,7 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
             </button>
           </div>
         )}
-        {!own && <p className="app-me-link-hint">Добавьте человека или позовите ссылкой в MAX. Друзья — когда добавление взаимное.</p>}
+        {!own && <p className="app-me-link-hint">После «Добавить» вы оба появитесь в друзьях.</p>}
         {own && <ProfileDashboard achievements={achievements} weGroups={weGroups} friendsCount={friendsCount} onPlans={entries.onPlans} onBookings={entries.onBookings} onCalendar={entries.onCalendar} onWalks={entries.onWalks} onAchievements={entries.onAchievements} onWeGroups={entries.onWeGroups} onFriends={entries.onFriends} />}
         <div
           className="app-me-tabs"
@@ -695,10 +697,10 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
   const [tab, setTab] = useState<ProfileTab>("posts");
   const [subject, setSubject] = useState<User | null>(own ? viewer : null);
   const [followingThem, setFollowingThem] = useState(false);
+  const [areFriends, setAreFriends] = useState(false);
   const [subscribePending, setSubscribePending] = useState(false);
   const [closeFriend, setCloseFriend] = useState(false);
   const [followedByThem, setFollowedByThem] = useState(false);
-  const [myFollows, setMyFollows] = useState<string[]>([]);
   const [localCover, setLocalCover] = useState<string | null | undefined>(undefined);
   const [hiddenPosts, setHiddenPosts] = useState<string[]>([]);
   const avatarRef = useRef<HTMLInputElement | null>(null);
@@ -706,6 +708,9 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
 
   useEffect(() => {
     setHiddenPosts([]);
+    setAreFriends(false);
+    setFollowingThem(false);
+    setFollowedByThem(false);
   }, [subjectId]);
 
   useEffect(() => {
@@ -730,15 +735,19 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
     );
     apiClient.listFollowing(viewer.id).then(
       (list) => {
-        if (!alive) return;
-        setMyFollows(list.map((person) => person.id));
-        setFollowingThem(list.some((person) => person.id === subjectId));
+        if (alive) setFollowingThem((prev) => prev || list.some((person) => person.id === subjectId));
       },
       () => {},
     );
     apiClient.listFollowers(viewer.id).then(
       (list) => {
-        if (alive) setFollowedByThem(list.some((person) => person.id === subjectId));
+        if (alive) setFollowedByThem((prev) => prev || list.some((person) => person.id === subjectId));
+      },
+      () => {},
+    );
+    apiClient.listFriends().then(
+      (friends) => {
+        if (alive) setAreFriends((prev) => prev || friends.some((person) => person.id === subjectId));
       },
       () => {},
     );
@@ -776,16 +785,18 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
   const toggleFollow = useCallback(() => {
     if (own || subjectId === null) return;
     setSubscribePending(true);
-    const next = followingThem ? myFollows.filter((id) => id !== subjectId) : [...myFollows, subjectId];
-    apiClient.followFriends(next).then(
-      (stored) => {
-        setMyFollows(stored);
-        setFollowingThem(stored.includes(subjectId));
+    const already = areFriends || (followingThem && followedByThem);
+    const write = already ? apiClient.removeFriend(subjectId) : apiClient.addFriend(subjectId);
+    write.then(
+      () => {
+        setAreFriends(!already);
+        setFollowingThem(!already);
+        if (!already) setFollowedByThem(true);
         setSubscribePending(false);
       },
       () => setSubscribePending(false),
     );
-  }, [followingThem, myFollows, own, subjectId]);
+  }, [areFriends, followedByThem, followingThem, own, subjectId]);
 
   if (data.failed) return <AppState error>Не удалось загрузить профиль.</AppState>;
   if (data.profile === null || subject === null)
@@ -843,6 +854,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         own={own}
         followingThem={followingThem}
         followsYou={followedByThem}
+        areFriends={areFriends}
         subscribePending={subscribePending}
         onTab={setTab}
         onSettings={() => navigate({ name: "settings" })}

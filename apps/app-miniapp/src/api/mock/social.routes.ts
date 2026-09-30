@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock route table for the social graph: friends, the gathering flow, UGC micro-events, reverse discovery and people matching.
-// SCOPE: /api/friends[/activity|/availability|/close|/suggestions|/follows|/sync], /api/gatherings[/:id[/response]], /api/micro-events[/:id[/join]], /api/discovery[/friend-places|/friends/:userId/route], /api/people.
+// SCOPE: /api/friends[/activity|/availability|/close|/suggestions|/follows|/sync|/:id], /api/gatherings[/:id[/response]], /api/micro-events[/:id[/join]], /api/discovery[/friend-places|/friends/:userId/route], /api/people.
 // DEPENDS: ./social.js, ./fixtures.js, ../client.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -11,9 +11,9 @@
 
 import { CreatePlanExpenseWriteSchema, GatheringResponseWriteSchema, IdSchema } from "@max-events/api-contracts";
 import { type CreateGathering, type CreateMicroEvent } from "../client";
-import { MOCK_PEOPLE_CENTER, mockEvents, mockFriends, parseBookingBody, parseMockOrigin } from "./fixtures";
+import { MOCK_PEOPLE_CENTER, mockEvents, parseBookingBody, parseMockOrigin } from "./fixtures";
 import { mockCloseFriendsOf } from "./profile.routes";
-import { addMockMicroEventExpense, createMockGathering, createMockMicroEvent, discoverySummary, followMockFriends, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, microEventCard, microEvents, mockGatherings, mockMicroEventBudget, peopleSuggest, respondMockGathering, syncMockFriends } from "./social";
+import { addMockFriend, addMockMicroEventExpense, createMockGathering, createMockMicroEvent, discoverySummary, followMockFriends, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, listMockFriends, microEventCard, microEvents, mockGatherings, mockMicroEventBudget, peopleSuggest, removeMockFriend, respondMockGathering, syncMockFriends } from "./social";
 
 export function socialRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/friends/activity") {
@@ -34,8 +34,16 @@ export function socialRoutes(url: URL, init: RequestInit | undefined): Response 
     const followed = followMockFriends(payload.userIds);
     return followed === "unknown" ? new Response(null, { status: 404 }) : Response.json(followed);
   }
+  const friendPerson = /^\/api\/friends\/([^/]+)$/.exec(url.pathname);
+  if (friendPerson && (init?.method === "POST" || init?.method === "DELETE")) {
+    if (!IdSchema.safeParse(friendPerson[1]).success) return new Response(null, { status: 400 });
+    const result = init.method === "DELETE" ? removeMockFriend(friendPerson[1]) : addMockFriend(friendPerson[1]);
+    if (result === "self") return new Response(null, { status: 400 });
+    if (result === "unknown") return new Response(null, { status: 404 });
+    return Response.json(result);
+  }
   if (url.pathname === "/api/friends") {
-    return Response.json(mockFriends);
+    return Response.json(listMockFriends());
   }
   if (url.pathname === "/api/friends/availability") {
     if (!url.searchParams.get("eventId")) return new Response(null, { status: 400 });

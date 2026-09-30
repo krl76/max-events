@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: «Подписчики»: who follows the viewer, opened by the counter in the profile header, with the follow-back action next to every name.
-// SCOPE: The followers list only. The three catalog follow kinds live on ./MySubscriptions.tsx; this screen is the people half of the social graph, which the backend keeps no reverse direction for — the list is mock-backed behind the signature the endpoint will take.
+// SCOPE: The followers list only. The three catalog follow kinds live on ./MySubscriptions.tsx; this screen is the people half of the social graph. «Добавить» writes a mutual friendship.
 // DEPENDS: @max-events/api-contracts (Friend), ../api/client.js (apiClient), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -116,10 +116,9 @@ export function FollowersPage() {
     (personId: string) => {
       setPendingId(personId);
       setFailed(false);
-      // The follow set is written whole, not toggled: PUT /friends/follows is the only writer there is.
-      apiClient.followFriends([...followingIds, personId]).then(
-        (stored) => {
-          setFollowingIds(stored);
+      apiClient.addFriend(personId).then(
+        () => {
+          setFollowingIds((ids) => (ids.includes(personId) ? ids : [...ids, personId]));
           setPendingId(null);
         },
         () => {
@@ -128,7 +127,7 @@ export function FollowersPage() {
         },
       );
     },
-    [followingIds],
+    [],
   );
 
   if (userId === null) return <AppState>Откройте приложение внутри MAX, чтобы увидеть подписчиков.</AppState>;

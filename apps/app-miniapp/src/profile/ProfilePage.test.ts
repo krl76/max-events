@@ -256,6 +256,7 @@ describe("ProfileView", () => {
     });
 
     expect(html).toContain("Добавить");
+    expect(html).toContain("После «Добавить» вы оба появитесь в друзьях.");
     expect(html).toContain("Написать");
     expect(html).toContain("Позвать");
     expect(html).not.toContain("Настройки");
@@ -266,6 +267,16 @@ describe("ProfileView", () => {
     expect(html).not.toContain("Фото профиля");
     expect(html).not.toContain("Шапка профиля");
     expect(html).not.toContain("Удалить");
+  });
+
+  it("calls the pair friends after they add each other", () => {
+    const friends = renderProfileView({ own: false, areFriends: true });
+    const oneWay = renderProfileView({ own: false, followingThem: true });
+
+    expect(friends).toContain("Друзья");
+    expect(friends).not.toContain(">Добавить<");
+    expect(oneWay).toContain("Добавить");
+    expect(oneWay).not.toContain("Друзья");
   });
 
   it("prints 0 when nobody follows the profile yet", () => {

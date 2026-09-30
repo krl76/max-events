@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
 import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
@@ -277,5 +277,33 @@ describe("FriendsService", () => {
     expect(await service.followers(meId)).toEqual([]);
     expect(await service.list(meId)).toEqual([]);
     await expect(service.following("00000000-0000-4000-8000-0000000000ff")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("adds both people to each other's friends list and keeps them after a blind MAX sync", async () => {
+    const { service, friendships } = createService({ botFriends: null });
+    const mine = await service.add(meId, annaId);
+    expect(mine.map((row) => row.id)).toEqual([annaId]);
+    expect((await service.list(annaId)).map((row) => row.id)).toEqual([meId]);
+    expect((await service.following(meId)).map((row) => row.id)).toEqual([annaId]);
+    expect((await service.followers(meId)).map((row) => row.id)).toEqual([annaId]);
+    expect(friendships.store).toHaveLength(2);
+
+    await service.add(meId, annaId);
+    expect(friendships.store).toHaveLength(2);
+
+    await service.sync(meId);
+    expect((await service.list(meId)).map((row) => row.id)).toEqual([annaId]);
+    expect((await service.list(annaId)).map((row) => row.id)).toEqual([meId]);
+  });
+
+  it("drops both friendship edges when either person removes the other", async () => {
+    const { service } = createService({ botFriends: null });
+    await service.add(meId, annaId);
+    expect((await service.remove(meId, annaId)).map((row) => row.id)).toEqual([]);
+    expect(await service.list(annaId)).toEqual([]);
+    expect(await service.following(meId)).toEqual([]);
+    expect((await service.following(annaId)).map((row) => row.id)).toEqual([meId]);
+    await expect(service.add(meId, meId)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.add(meId, "00000000-0000-4000-8000-0000000000ff")).rejects.toBeInstanceOf(NotFoundException);
   });
 });

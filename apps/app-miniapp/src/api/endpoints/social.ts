@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Social graph endpoints of the api client: friends, the gathering flow, UGC micro-events, reverse discovery and people matching.
-// SCOPE: GET /friends[/activity|/availability|/sync], POST /friends/sync, PUT /friends/follows, GET /users/:id/{following,followers}, the /gatherings surface, the /micro-events surface (the card falling back to the list plus GET /places and GET /friends), GET /discovery[/friend-places|/friends/:userId/route], GET /people.
+// SCOPE: GET /friends[/activity|/availability|/sync], POST /friends/sync, POST/DELETE /friends/:id, PUT /friends/follows, GET /users/:id/{following,followers}, the /gatherings surface, the /micro-events surface (the card falling back to the list plus GET /places and GET /friends), GET /discovery[/friend-places|/friends/:userId/route], GET /people.
 // DEPENDS: ./transport.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -17,7 +17,7 @@
 // - DiscoveryScreen - экран 27 payload: the total of unseen places and the friend rows
 // - FriendRouteStop - one stop of a friend route: place, when they were there and what they did
 // - FriendRouteScreen - экран 28 payload: the friend and their ordered stops
-// - withSocial - ApiClient.listFriends / getFriendsActivity / getFriendAvailability / getFriendsSync / syncFriends / listFriendSuggestions / followFriends / listFollowing / listFollowers / createGathering / getGathering / respondToGathering / listMicroEvents / getMicroEventCard / createMicroEvent / joinMicroEvent / leaveMicroEvent / getDiscovery / listFriendPlaces / getFriendRoute / getPeople
+// - withSocial - ApiClient.listFriends / addFriend / removeFriend / getFriendsActivity / getFriendAvailability / getFriendsSync / syncFriends / listFriendSuggestions / followFriends / listFollowing / listFollowers / createGathering / getGathering / respondToGathering / listMicroEvents / getMicroEventCard / createMicroEvent / joinMicroEvent / leaveMicroEvent / getDiscovery / listFriendPlaces / getFriendRoute / getPeople
 // END_MODULE_MAP
 
 import { DiscoveryResponseSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, GatheringSchema, MicroBudgetSchema, MicroEventSchema, PeopleResponseSchema, PlaceSchema } from "@max-events/api-contracts";
@@ -244,6 +244,16 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
   return class SocialEndpoints extends Base {
     listFriends(): Promise<Friend[]> {
       return this.request("/friends", FriendSchema.array());
+    }
+
+    /** «Добавить» on a profile: both people land in each other's friends lists. */
+    addFriend(userId: string): Promise<Friend[]> {
+      return this.request(`/friends/${encodeURIComponent(userId)}`, FriendSchema.array(), { method: "POST" });
+    }
+
+    /** Undo «Добавить»: both directed edges go away, the viewer's follow of them goes away. */
+    removeFriend(userId: string): Promise<Friend[]> {
+      return this.request(`/friends/${encodeURIComponent(userId)}`, FriendSchema.array(), { method: "DELETE" });
     }
 
     /** People the viewer marked close. Adding someone is limited to followers; this list is whoever is marked now. */
