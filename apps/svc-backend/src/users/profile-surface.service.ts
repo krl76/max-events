@@ -18,6 +18,7 @@ import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
 import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "../feed/feed-post.entity";
 import { PlaceEntity } from "../places/place.entity";
+import { placePhotoUrl } from "../places/place-covers";
 import { ProfileEntity } from "./profile.entity";
 import { UserEntity } from "./user.entity";
 
@@ -62,7 +63,7 @@ export class ProfileSurfaceService {
     const ids = [...counts.keys()];
     const places = ids.length === 0 ? [] : await this.places.find({ where: { id: In(ids) } });
     return places
-      .map((place) => ({ placeId: place.id, title: place.title, visits: counts.get(place.id) ?? 0, photoUrl: place.logoUrl ?? null }))
+      .map((place) => ({ placeId: place.id, title: place.title, visits: counts.get(place.id) ?? 0, photoUrl: placePhotoUrl(place) }))
       .filter((row) => row.visits > 0)
       .sort((a, b) => b.visits - a.visits || a.title.localeCompare(b.title) || a.placeId.localeCompare(b.placeId));
   }

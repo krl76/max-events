@@ -219,7 +219,7 @@ export function visitedPlacesFor(userId: string): VisitedPlace[] {
   return [...visits.entries()]
     .flatMap(([placeId, count]) => {
       const place = mockPlaces.find((candidate) => candidate.id === placeId);
-      return place ? [{ placeId, title: place.title, visits: count, photoUrl: place.logoUrl ?? null }] : [];
+      return place ? [{ placeId, title: place.title, visits: count, photoUrl: place.logoUrl ?? "/onboarding/gorky.jpg" }] : [];
     })
     .sort((a, b) => b.visits - a.visits || a.title.localeCompare(b.title));
 }

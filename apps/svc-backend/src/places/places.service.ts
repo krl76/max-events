@@ -19,6 +19,7 @@ import { OrganizationsService } from "../organizations/organizations.service";
 import { isOrganizerOwner } from "../organizations/organizer-ownership";
 import { UsersService } from "../users/users.service";
 import { PlaceEntity } from "./place.entity";
+import { placePhotoUrl } from "./place-covers";
 
 export type PlaceListQuery = {
   city?: string;
@@ -160,7 +161,7 @@ export function toPlaceDto(place: PlaceEntity): Place {
     latitude: place.latitude,
     longitude: place.longitude,
     published: place.published,
-    logoUrl: place.logoUrl ?? null,
+    logoUrl: placePhotoUrl(place),
     createdAt: place.createdAt.toISOString(),
     updatedAt: place.updatedAt.toISOString(),
   };

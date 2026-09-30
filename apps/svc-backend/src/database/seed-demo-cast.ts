@@ -8,6 +8,8 @@
 
 import type { CityWalk, EventCategory, WalkInterest } from "@max-events/api-contracts";
 
+export { PLACE_LOGOS } from "../places/place-covers";
+
 export type DemoSex = "female" | "male";
 
 export type DemoCastPerson = {
@@ -44,36 +46,6 @@ export const DEMO_CAST: readonly DemoCastPerson[] = [
   { slug: "roma", firstName: "Рома", lastName: "Лебедев", username: "roma.leb", sex: "male", city: "Москва", bio: "Мяч, парк, иногда забег. Компания важнее темпа.", interests: ["Спорт", "Бег", "Настольные игры"], avatarUrl: "/covers/people/roma.jpg" },
   { slug: "kirill", firstName: "Кирилл", lastName: "Морозов", username: "kir.moroz", sex: "male", city: "Москва", bio: "ВДНХ и павильоны. Хожу смотреть, не фотографировать.", interests: ["Путешествия", "Лекции", "Фотография"], avatarUrl: "/covers/people/kirill.jpg" },
 ];
-
-/** Cover for every venue in the seed pool — profile tiles and place cards read this. */
-export const PLACE_LOGOS: Readonly<Record<string, string>> = {
-  "Парк Горького": "/onboarding/gorky.jpg",
-  Сокольники: "/covers/places/sokolniki.jpg",
-  ВДНХ: "/covers/places/vdnh.jpg",
-  "Парк «Зарядье»": "/covers/places/zaryadye.jpg",
-  Коломенское: "/covers/kolomenskoe.jpg",
-  Царицыно: "/covers/visits/tsaritsyno.jpg",
-  Кусково: "/covers/places/kuskovo.jpg",
-  "Аптекарский огород": "/covers/places/apothecary.jpg",
-  "Измайловский парк": "/covers/places/izmailovo.jpg",
-  "Парк Победы": "/covers/places/pobedy.jpg",
-  "Нескучный сад": "/covers/places/neskuchny.jpg",
-  "Третьяковская галерея": "/covers/visits/museum.jpg",
-  "ГМИИ им. А.С. Пушкина": "/covers/places/pushkin.jpg",
-  "Музей космонавтики": "/covers/places/cosmos.jpg",
-  "Дарвиновский музей": "/covers/places/darwin.jpg",
-  "Музей «Гараж»": "/covers/places/garage.jpg",
-  "Кофейня «Даблби»": "/covers/visits/cafe.jpg",
-  "Пекарня «Батон»": "/covers/places/baton.jpg",
-  "Кофейня «Сёрф»": "/covers/places/surf.jpg",
-  "Антикафе «Циферблат»": "/covers/concert.jpg",
-  Лужники: "/covers/places/luzhniki.jpg",
-  "СК «Олимпийский»": "/covers/places/olympic.jpg",
-  "ВТБ Арена": "/covers/places/vtb.jpg",
-  "УСЗ «Москвич»": "/covers/places/moskvich.jpg",
-  "ДК «Москва»": "/covers/places/dk.jpg",
-  "Кинотеатр «Иллюзион»": "/covers/places/illusion.jpg",
-};
 
 export type AuthoredPost = {
   authorSlug: string;

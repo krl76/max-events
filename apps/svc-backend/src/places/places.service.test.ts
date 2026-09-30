@@ -107,7 +107,7 @@ describe("PlacesService", () => {
     const created = await service.create(payload);
     expect(repo.store).toHaveLength(1);
     expect(created.title).toBe("Парк Горького");
-    expect(created.logoUrl).toBeNull();
+    expect(created.logoUrl).toBe("/onboarding/gorky.jpg");
     expect(created.category).toBe("park");
     expect(created.latitude).toBe(55.7297);
     expect(created.id).toMatch(/^[0-9a-f-]{36}$/);
@@ -255,7 +255,7 @@ describe("toPlaceDto", () => {
       latitude: 55.7297,
       longitude: 37.6035,
       published: true,
-      logoUrl: null,
+      logoUrl: "/onboarding/gorky.jpg",
       createdAt: "2026-09-01T07:00:00.000Z",
       updatedAt: "2026-09-01T07:00:00.000Z",
     });

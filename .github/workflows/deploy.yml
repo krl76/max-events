@@ -109,12 +109,12 @@ jobs:
           DEPLOY_SLUG: ${{ steps.env.outputs.slug }}
           HOST_PORT: ${{ steps.env.outputs.port }}
           COMPOSE_PROJECT_NAME: ${{ steps.env.outputs.project }}
-          # Стенд без контура MAX наполняется демо-данными. На events.versacegus.cc сид
-          # запускается только вручную, с reset_demo: старые строки стираются один раз.
-          SEED_DEMO: ${{ (github.event.inputs.reset_demo == 'true' || github.ref_name == 'dev-events') && '1' || '' }}
+          # Каталог наполняется на каждом деплое. Сброс базы — только по галочке reset_demo.
+          # На проде личный срез выключен: реальный вход из MAX остаётся пустым.
+          SEED_DEMO: "1"
           SEED_DEMO_RESET: ${{ github.event.inputs.reset_demo == 'true' && '1' || '' }}
           SEED_DEMO_SCALE: ${{ github.event.inputs.reset_demo == 'true' && 'big' || '' }}
-          SEED_DEMO_PERSONAL: ${{ github.ref_name == 'main' && github.event.inputs.reset_demo == 'true' && '0' || '1' }}
+          SEED_DEMO_PERSONAL: ${{ github.ref_name == 'main' && '0' || '1' }}
         run: |
           set -e
           ssh deploy "DEPLOY_ROOT='$DEPLOY_ROOT' DEPLOY_SLUG='$DEPLOY_SLUG' HOST_PORT='$HOST_PORT' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' SEED_DEMO='$SEED_DEMO' SEED_DEMO_RESET='$SEED_DEMO_RESET' SEED_DEMO_SCALE='$SEED_DEMO_SCALE' SEED_DEMO_PERSONAL='$SEED_DEMO_PERSONAL' bash '$DEPLOY_ROOT/deploy/ci-run.sh'"

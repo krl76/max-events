@@ -413,6 +413,7 @@ describe("ProfileView", () => {
     expect(html).toContain("app-me-cell--2");
     expect(html).toContain("app-me-cell--photo");
     expect(html).toContain("/onboarding/gorky.jpg");
+    expect(html.match(/app-me-cell-photo/g)?.length).toBe(2);
   });
 
   it("explains the impressions tab instead of leaving it blank when the viewer has been nowhere", () => {
