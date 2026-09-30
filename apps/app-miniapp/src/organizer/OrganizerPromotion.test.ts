@@ -258,8 +258,8 @@ describe("OrganizerPromotion", () => {
     expect(form).not.toContain('<input aria-label="Период действия"');
     expect(form).not.toContain("app-pcodes-cal");
     expect(form).toContain("Без ограничений");
-    expect(form).toContain("Применять ко всем билетам");
-    expect(form).toContain('aria-checked="true"');
+    expect(form).not.toContain("Применять ко всем билетам");
+    expect(form).not.toContain('role="switch"');
     expect(form).toContain('aria-haspopup="listbox"');
     expect(form).toContain('aria-haspopup="dialog"');
     expect(form).not.toContain("Органный вечер в соборе");

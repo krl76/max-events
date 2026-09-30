@@ -68,7 +68,7 @@ describe("OrganizerFinance", () => {
     const html = renderToStaticMarkup(createElement(OrganizerFinance));
 
     expect(html).toContain("Финансы");
-    expect(html).toContain("Доходы, выплаты и аналитика");
+    expect(html).not.toContain("Доходы, выплаты и аналитика");
     expect(html).toContain("Общий доход");
     expect(html).toContain(formatRub(482_750));
     expect(html).toContain("+24%");

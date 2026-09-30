@@ -78,7 +78,6 @@ export interface PromoDraft {
   discountKind: string;
   period: string;
   limitMode: string;
-  allTickets: boolean;
   limit: string;
   message: string;
 }
@@ -94,7 +93,6 @@ export const EMPTY_PROMO_DRAFT: PromoDraft = {
   discountKind: "Процент",
   period: "",
   limitMode: "Без ограничений",
-  allTickets: true,
   limit: "",
   message: "",
 };
@@ -610,12 +608,6 @@ export function PromoCodeCreate({ draft, block, events, onChange, onSubmit, onBa
         <span>Лимит использований</span>
         <PromoSelect label="Лимит использований" value={draft.limitMode} options={LIMIT_MODES} onChange={(limitMode) => onChange({ limitMode })} />
       </div>
-      <div className="app-pcodes-toggle-row">
-        <span>Применять ко всем билетам</span>
-        <button type="button" role="switch" aria-checked={draft.allTickets} aria-label="Применять ко всем билетам" className={draft.allTickets ? "app-pcodes-switch app-pcodes-switch--on" : "app-pcodes-switch"} onClick={() => onChange({ allTickets: !draft.allTickets })}>
-          <i />
-        </button>
-      </div>
       {block !== null && <p className="app-fin-block">{block}</p>}
       <button type="button" className="app-pcodes-submit" onClick={onSubmit}>
         Создать промокод
@@ -786,7 +778,7 @@ export function OrganizerPromotion() {
 
   return (
     <section className="app-cab app-promo" aria-label="Продвижение">
-      <h1 className="app-promo-title">Продвижение</h1>
+      <h1 className="app-promo-title app-cab-page-title">Продвижение</h1>
       <div className="app-promo-list">
         {PROMO_HOME_TOOLS.map((id) => {
           const card = PROMO_TOOL_CARDS.find((item) => item.id === id);

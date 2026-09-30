@@ -1,6 +1,9 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { OrganizerParticipant } from "../api/client";
-import { fillPercent, formatArrival, formatBookedAgo, formatSlot, guestsNote, participantFilterCounts, participantInitial, participantNote, reviewRecommendShare, reviewVerdict, splitParticipants } from "./OrganizerEventManage";
+import { CABINET_EVENTS, cabinetAsOrganizerEvent, displayBooked } from "./cabinet-catalog";
+import { eventDossierFacts, eventScheduleLine, eventScheduleShort, fillPercent, formatArrival, formatBookedAgo, formatSlot, guestsNote, OrganizerEventManageView, participantFilterCounts, participantInitial, participantNote, reviewRecommendShare, reviewVerdict, splitParticipants } from "./OrganizerEventManage";
 
 const participant = (over: Partial<OrganizerParticipant> = {}): OrganizerParticipant => ({ bookingId: "e00000f2-0000-4000-8000-0000000000f1", userId: "a0000000-0000-4000-8000-0000000000b1", name: "Анна Мельник", guests: 1, checkedInAt: null, bookedAt: "2026-09-16T12:00:00+03:00", ...over });
 
@@ -98,6 +101,85 @@ describe("reviewVerdict", () => {
     expect(reviewVerdict(3, false)).toBe("Норм");
     expect(reviewVerdict(5, false)).toBe("Отлично");
     expect(reviewVerdict(5, true)).toBe("Ещё раз");
+  });
+});
+
+describe("event dossier", () => {
+  it("reads the showcase copy and the same seat count the list prints", () => {
+    const jazz = cabinetAsOrganizerEvent(CABINET_EVENTS[0]!);
+    const facts = eventDossierFacts(jazz);
+
+    expect(facts.where).toBe("Клуб «Ритм», Москва");
+    expect(facts.tags).toEqual(["Музыка", "Джаз", "Концерт"]);
+    expect(facts.category).toBe("Концерт");
+    expect(facts.age).toBe("16+");
+    expect(facts.description).toContain("Погрузитесь в атмосферу живого джаза");
+    expect(facts.promos).toBe(2);
+    expect(facts.mailed).toBe(0);
+    expect(facts.sold).toBe(64);
+    expect(facts.capacityLabel).toBe("80");
+    expect(facts.freeLabel).toBe("16");
+    expect(displayBooked({ ...jazz, id: "f1000000-0000-4000-8000-000000000099" })).toBe(48);
+    expect(eventDossierFacts({ ...jazz, id: "f1000000-0000-4000-8000-000000000099" }).where).toBe("Клуб «Ритм», Москва");
+    expect(eventScheduleLine(jazz.startsAt, jazz.endsAt)).toMatch(/3 октября · \d{2}:\d{2} – \d{2}:\d{2}/);
+    expect(eventScheduleShort(jazz.startsAt, jazz.endsAt)).toMatch(/3 окт, \d{2}:\d{2} – \d{2}:\d{2}/);
+  });
+
+  it("draws the information page instead of the old guest list", () => {
+    const jazz = cabinetAsOrganizerEvent(CABINET_EVENTS[0]!);
+    const noop = () => {};
+    const html = renderToStaticMarkup(
+      createElement(OrganizerEventManageView, {
+        event: jazz,
+        attendance: null,
+        options: null,
+        stats: null,
+        rating: null,
+        moods: [],
+        reviews: null,
+        screen: "hub",
+        query: "",
+        filter: "all",
+        code: "",
+        busy: false,
+        publishing: false,
+        unpublishing: false,
+        confirmUnpublish: false,
+        notice: null,
+        failed: null,
+        onScreen: noop,
+        onQuery: noop,
+        onFilter: noop,
+        onCode: noop,
+        onSubmitCode: noop,
+        onCheckIn: noop,
+        onInvite: noop,
+        onRefresh: noop,
+        onPromo: noop,
+        onEdit: noop,
+        onPublish: noop,
+        onUnpublish: noop,
+        onAskUnpublish: noop,
+        onCancelUnpublish: noop,
+        onShare: noop,
+        onBack: noop,
+      }),
+    );
+
+    expect(html).toContain("Событие");
+    expect(html).toContain("Вечер джаза на Патриарших");
+    expect(html).toContain("Опубликовано");
+    expect(html).toContain("Редактировать");
+    expect(html).toContain("Информация");
+    expect(html).toContain("Билеты");
+    expect(html).toContain("Статистика");
+    expect(html).toContain("Основная информация");
+    expect(html).toContain("Возрастное ограничение");
+    expect(html).toContain("Активных: 2");
+    expect(html).toContain("Отправлено: 0");
+    expect(html).toContain("Снять с публикации");
+    expect(html).toContain("app-evt-edit");
+    expect(html).not.toContain("Гости");
   });
 });
 

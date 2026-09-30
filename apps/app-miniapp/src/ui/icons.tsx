@@ -25,7 +25,7 @@ const TAB_GLYPHS: Record<TabIcon, LucideIcon> = {
   map: MapPin,
   plans: Bookmark,
   profile: User,
-  dashboard: House,
+  dashboard: BarChart3,
   events: CalendarDays,
   promo: Megaphone,
   finance: CreditCard,

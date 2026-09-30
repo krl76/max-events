@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: The tab bar of the organizer contour: Обзор · События · Продвижение · Финансы · Профиль.
+// PURPOSE: The tab bar of the organizer contour: Статистика · События · Продвижение · Финансы · Профиль.
 // SCOPE: The bar and its section union only — presentational, driven by the caller's state. The organizer space has no router of its own (it lives outside RouteProvider, behind its own login), so the section is local state, not a route.
 // DEPENDS: ../ui/icons.js (TabIconGlyph), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -16,7 +16,7 @@ import { TabIconGlyph, type TabIcon } from "../ui/icons";
 export type OrganizerSection = "dashboard" | "events" | "promo" | "finance" | "profile";
 
 export const ORGANIZER_TABS: Array<{ section: OrganizerSection; icon: TabIcon; label: string }> = [
-  { section: "dashboard", icon: "dashboard", label: "Обзор" },
+  { section: "dashboard", icon: "dashboard", label: "Статистика" },
   { section: "events", icon: "events", label: "События" },
   { section: "promo", icon: "promo", label: "Продвижение" },
   { section: "finance", icon: "finance", label: "Финансы" },

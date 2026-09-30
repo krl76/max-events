@@ -21,16 +21,17 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { OrganizerEventStats } from "@max-events/api-contracts";
 import { apiClient, organizerEntryCode, type EventRating, type EventMoodTag, type OrganizerAttendance, type OrganizerEvent, type OrganizerEventOptions, type OrganizerEventReview, type OrganizerParticipant, type OrganizerSlot, type OrganizerWaitlistEntry } from "../api/client";
-import { pluralRu } from "../catalog/format";
+import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
 import { EventMoodTags } from "../event/EventScreen";
 import { CATEGORY_SCORE_LABELS, RatingView } from "../event/ReviewSection";
 import { getWebApp, shareResult } from "../max/bridge";
 import { sharePayload } from "../max/links";
 import { SettingsGroup } from "../profile/SettingsPage";
-import { ActionIcon } from "../ui/icons";
+import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { AppButton, AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 import { ConfirmSheet } from "../ui/ConfirmSheet";
+import { CABINET_EVENTS, displayBooked } from "./cabinet-catalog";
 
 export type ManageScreen = "hub" | "participants" | "tickets" | "checkin" | "stats" | "reviews";
 
@@ -134,12 +135,57 @@ export function publicationLabel(event: OrganizerEvent, now = new Date()): strin
   return "Опубликовано";
 }
 
-function metricLine(event: OrganizerEvent, attendance: OrganizerAttendance | null, options: OrganizerEventOptions | null): string {
-  const booked = attendance?.bookedCount;
-  const seats = booked === undefined ? "нет данных" : event.capacity === null ? String(booked) : `${booked} из ${event.capacity}`;
-  if (event.isPaid) return `Записи: ${seats}. Оплата проходит на внешнем сайте, сумма заказа в кабинет не приходит.`;
-  const waiting = options?.waitlistEnabled ? ` · в листе ожидания ${attendance?.waitlistCount ?? 0}` : "";
-  return `Зарегистрировано: ${seats}${waiting}`;
+function clock(at: string): string {
+  return new Date(at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
+
+/** «3 октября · 19:00 – 23:00» — the line under the event title. */
+export function eventScheduleLine(startsAt: string, endsAt: string | null): string {
+  const day = new Date(startsAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  const from = clock(startsAt);
+  return endsAt === null ? `${day} · ${from}` : `${day} · ${from} – ${clock(endsAt)}`;
+}
+
+/** «3 окт, 19:00 – 23:00» — the short value in the information row. */
+export function eventScheduleShort(startsAt: string, endsAt: string | null): string {
+  const day = new Date(startsAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(/\./g, "");
+  const from = clock(startsAt);
+  const span = endsAt === null ? from : `${from} – ${clock(endsAt)}`;
+  return `${day}, ${span}`;
+}
+
+export interface EventDossierFacts {
+  where: string;
+  tags: string[];
+  age: string;
+  category: string;
+  description: string;
+  sold: number;
+  capacityLabel: string;
+  freeLabel: string;
+  promos: number;
+  mailed: number;
+}
+
+/** Cabinet copy fills the dossier when the opened card is the showcase event, even if the stored id differs. */
+export function eventDossierFacts(event: OrganizerEvent): EventDossierFacts {
+  const known = CABINET_EVENTS.find((row) => row.id === event.id) ?? CABINET_EVENTS.find((row) => row.title === event.title);
+  const place = known?.place ?? "";
+  const where = place !== "" && event.city !== "" ? `${place}, ${event.city}` : place !== "" ? place : event.city;
+  const sold = displayBooked(event);
+  const capacity = event.capacity;
+  return {
+    where,
+    tags: known?.tags ?? [CATEGORY_LABELS[event.category]],
+    age: known?.age ?? "Не указано",
+    category: known !== undefined ? (known.tags[known.tags.length - 1] ?? CATEGORY_LABELS[event.category]) : CATEGORY_LABELS[event.category],
+    description: known?.description ?? event.description,
+    sold,
+    capacityLabel: capacity === null ? "—" : String(capacity),
+    freeLabel: capacity === null ? "—" : String(Math.max(capacity - sold, 0)),
+    promos: event.title === "Вечер джаза на Патриарших" ? 2 : 0,
+    mailed: 0,
+  };
 }
 
 interface OrganizerEventManageViewProps {
@@ -175,6 +221,20 @@ interface OrganizerEventManageViewProps {
   onAskUnpublish: () => void;
   onCancelUnpublish: () => void;
   onShare: () => void;
+  onBack: () => void;
+}
+
+function FactRow({ icon, label, value, note = false, onClick }: { icon: ActionIconName; label: string; value: string; note?: boolean; onClick: () => void }) {
+  return (
+    <button type="button" className={note ? "app-evt-row app-evt-row--note" : "app-evt-row"} onClick={onClick}>
+      <span className="app-evt-row-icon" aria-hidden="true">
+        <ActionIcon name={icon} size={16} strokeWidth={2.1} />
+      </span>
+      <span className="app-evt-row-label">{label}</span>
+      <span className="app-evt-row-value">{value === "" ? "Не указано" : value}</span>
+      <ActionIcon name="chevron" size={16} strokeWidth={2.2} />
+    </button>
+  );
 }
 
 function HubRow({ title, hint, onClick }: { title: string; hint: string; onClick: () => void }) {
@@ -189,12 +249,14 @@ function HubRow({ title, hint, onClick }: { title: string; hint: string; onClick
   );
 }
 
-export function OrganizerEventManageView({ event, attendance, options, stats, rating, moods, reviews, screen, query, filter, code, busy, publishing, unpublishing, confirmUnpublish, notice, failed, onScreen, onQuery, onFilter, onCode, onSubmitCode, onCheckIn, onInvite, onRefresh, onPromo, onEdit, onPublish, onUnpublish, onAskUnpublish, onCancelUnpublish, onShare }: OrganizerEventManageViewProps) {
+export function OrganizerEventManageView({ event, attendance, options, stats, rating, moods, reviews, screen, query, filter, code, busy, publishing, unpublishing, confirmUnpublish, notice, failed, onScreen, onQuery, onFilter, onCode, onSubmitCode, onCheckIn, onInvite, onRefresh, onPromo, onEdit, onPublish, onUnpublish, onAskUnpublish, onCancelUnpublish, onShare, onBack }: OrganizerEventManageViewProps) {
+  const [menu, setMenu] = useState(false);
   const waitlist: OrganizerWaitlistEntry[] = attendance?.waitlist ?? [];
-  const when = `${new Date(event.startsAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })} · ${hhmm(event.startsAt)}`;
   const now = new Date();
   const today = !event.draft && sameDay(event.startsAt, now);
-  const past = !event.draft && !today && new Date(event.endsAt ?? event.startsAt).getTime() < now.getTime();
+  const dossier = screen === "hub" || screen === "tickets" || screen === "stats";
+  const facts = eventDossierFacts(event);
+  const status = publicationLabel(event);
   const booked = attendance?.bookedCount;
   const needle = query.trim().toLowerCase();
   const participants = (attendance?.participants ?? []).filter((row) => {
@@ -206,76 +268,118 @@ export function OrganizerEventManageView({ event, attendance, options, stats, ra
     return filter !== "wait";
   });
   const waiting = waitlist.filter((row) => needle === "" || row.name.toLowerCase().includes(needle));
+  const closeMenu = () => setMenu(false);
   return (
-    <section className="app-gathering" aria-label="Управление событием">
-      {screen === "hub" && (
+    <section className={dossier ? "app-evt" : "app-gathering"} aria-label="Управление событием">
+      {dossier && (
         <>
-          <article className="app-card app-card--row">
-            <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} />
-            <div className="app-card-body">
-              <span className="app-micro-badge">{publicationLabel(event)}</span>
-              <span className="app-card-title">{event.title}</span>
-              <span className="app-card-subtitle">{when}</span>
-              {event.city !== "" && <span className="app-card-subtitle">{event.city}</span>}
-            </div>
-          </article>
-          <p className="app-gathering-hint">{metricLine(event, attendance, options)}</p>
-          <SettingsGroup title="Гости">
-            <HubRow title="Участники" hint={booked === undefined ? "Список загружается" : `${booked} ${pluralRu(booked, "регистрация", "регистрации", "регистраций")}`} onClick={() => onScreen("participants")} />
-            <HubRow title="Билеты и регистрация" hint={event.isPaid ? "Оплата на внешнем сайте" : "Бесплатная запись в приложении"} onClick={() => onScreen("tickets")} />
-            <HubRow
-              title="Отзывы"
-              hint={rating === null || rating.summary.reviewsCount === 0 ? "Гости оставляют их после события" : `${rating.summary.averageStars.toFixed(1).replace(".", ",")} · ${rating.summary.reviewsCount} ${pluralRu(rating.summary.reviewsCount, "отзыв", "отзыва", "отзывов")}`}
-              onClick={() => onScreen("reviews")}
-            />
-          </SettingsGroup>
-          <SettingsGroup title="Событие">
-            <HubRow title="Редактировать" hint="Обложка, дата, место и способ участия" onClick={onEdit} />
-            <HubRow title="Продвижение" hint="Лента, подборка, код, друг, ранний доступ" onClick={onPromo} />
-            <HubRow title="Статистика" hint="Регистрации и отмены этого события" onClick={() => onScreen("stats")} />
-            {!event.draft && <HubRow title="Поделиться" hint="Ссылка откроет карточку в афише" onClick={onShare} />}
-            {event.chatLink !== null && <HubRow title="Чат события" hint="Открыть чат MAX" onClick={() => window.open(event.chatLink!, "_blank", "noopener")} />}
-            {event.draft ? (
-              <button type="button" className="app-set-row" disabled={publishing} onClick={onPublish}>
-                <span className="app-set-row-text">
-                  <span className="app-set-row-title">{publishing ? "Публикация…" : "Опубликовать"}</span>
-                  <span className="app-set-row-hint">Сразу появится в афише</span>
-                </span>
-              </button>
-            ) : (
-              <button type="button" className="app-set-row" disabled={unpublishing} onClick={onAskUnpublish}>
-                <span className="app-set-row-text">
-                  <span className="app-set-row-title">Снять с публикации</span>
-                  <span className="app-set-row-hint">Событие уйдёт в черновики</span>
-                </span>
-              </button>
+          <header className="app-evt-bar">
+            <button type="button" className="app-evt-bar-btn" aria-label="Назад" onClick={onBack}>
+              <span className="app-evt-back">
+                <ActionIcon name="chevron" size={22} strokeWidth={2.2} />
+              </span>
+            </button>
+            <h1 className="app-evt-bar-title">Событие</h1>
+            <button type="button" className="app-evt-bar-btn" aria-label="Ещё" aria-expanded={menu} onClick={() => setMenu((open) => !open)}>
+              <ActionIcon name="dots" size={20} strokeWidth={2.2} />
+            </button>
+            {menu && (
+              <div className="app-evt-menu" role="menu">
+                <button type="button" role="menuitem" onClick={() => { closeMenu(); onScreen("participants"); }}>Участники</button>
+                <button type="button" role="menuitem" onClick={() => { closeMenu(); onScreen("reviews"); }}>Отзывы</button>
+                {today && (
+                  <button type="button" role="menuitem" onClick={() => { closeMenu(); onScreen("checkin"); }}>Контроль входа</button>
+                )}
+                {!event.draft && (
+                  <button type="button" role="menuitem" onClick={() => { closeMenu(); onShare(); }}>Поделиться</button>
+                )}
+                {event.chatLink !== null && (
+                  <button type="button" role="menuitem" onClick={() => { closeMenu(); window.open(event.chatLink!, "_blank", "noopener"); }}>Чат события</button>
+                )}
+              </div>
             )}
-          </SettingsGroup>
-          {event.draft && (
-            <AppButton stretched disabled={publishing} onClick={onEdit}>
-              Продолжить подготовку
-            </AppButton>
+          </header>
+          <div className="app-evt-cover">
+            <AppMedia category={event.category} src={event.coverUrl === null && event.title === "Вечер джаза на Патриарших" ? "/covers/promo-jazz.jpg" : pictured(event.id, event.coverUrl)} />
+            <span className={status === "Опубликовано" ? "app-evt-badge app-evt-badge--live" : status === "Завершено" ? "app-evt-badge app-evt-badge--done" : "app-evt-badge"}>
+              {status === "Опубликовано" && <ActionIcon name="check" size={12} strokeWidth={3} />}
+              {status}
+            </span>
+          </div>
+          <h2 className="app-evt-title">{event.title}</h2>
+          <p className="app-evt-meta">
+            <ActionIcon name="calendar" size={16} strokeWidth={2} />
+            <span>{eventScheduleLine(event.startsAt, event.endsAt)}</span>
+          </p>
+          {facts.where !== "" && (
+            <p className="app-evt-meta">
+              <ActionIcon name="pin" size={16} strokeWidth={2} />
+              <span>{facts.where}</span>
+            </p>
           )}
-          {!event.draft && today && (
-            <AppButton stretched onClick={() => onScreen("checkin")}>
-              Контроль входа
-            </AppButton>
+          {facts.tags.length > 0 && (
+            <div className="app-evt-tags">
+              {facts.tags.map((tag) => (
+                <span key={tag} className="app-evt-tag">{tag}</span>
+              ))}
+            </div>
           )}
-          {!event.draft && past && (
-            <AppButton stretched onClick={() => onScreen("reviews")}>
-              Смотреть отзывы
-            </AppButton>
+          {facts.description !== "" && <p className="app-evt-lead">{facts.description}</p>}
+          <div className="app-evt-stats">
+            <div className="app-evt-stat">
+              <ActionIcon name="users" size={18} strokeWidth={2} />
+              <b>{facts.capacityLabel}</b>
+              <span>Всего мест</span>
+            </div>
+            <div className="app-evt-stat">
+              <ActionIcon name="ticket" size={18} strokeWidth={2} />
+              <b>{facts.sold}</b>
+              <span>Продано</span>
+            </div>
+            <div className="app-evt-stat">
+              <ActionIcon name="cards" size={18} strokeWidth={2} />
+              <b>{facts.freeLabel}</b>
+              <span>Свободно</span>
+            </div>
+          </div>
+          <button type="button" className="app-evt-edit" onClick={onEdit}>
+            <ActionIcon name="pen" size={18} strokeWidth={2.2} />
+            Редактировать
+          </button>
+          <div className="app-evt-tabs" role="tablist" aria-label="Разделы события">
+            <button type="button" role="tab" aria-selected={screen === "hub"} onClick={() => onScreen("hub")}>Информация</button>
+            <button type="button" role="tab" aria-selected={screen === "tickets"} onClick={() => onScreen("tickets")}>Билеты</button>
+            <button type="button" role="tab" aria-selected={screen === "stats"} onClick={() => onScreen("stats")}>Статистика</button>
+          </div>
+          {screen === "hub" && (
+            <>
+              <h3 className="app-evt-h">Основная информация</h3>
+              <div className="app-evt-card">
+                <FactRow icon="pin" label="Локация" value={facts.where} onClick={onEdit} />
+                <FactRow icon="calendar" label="Дата и время" value={eventScheduleShort(event.startsAt, event.endsAt)} onClick={onEdit} />
+                <FactRow icon="tag" label="Категория" value={facts.category} onClick={onEdit} />
+                <FactRow icon="user" label="Возрастное ограничение" value={facts.age} onClick={onEdit} />
+                <FactRow icon="info" label="Описание" value={facts.description} note onClick={onEdit} />
+              </div>
+              <h3 className="app-evt-h">Дополнительно</h3>
+              <div className="app-evt-card">
+                <FactRow icon="percent" label="Промокоды" value={`Активных: ${facts.promos}`} onClick={onPromo} />
+                <FactRow icon="mail" label="Рассылка" value={`Отправлено: ${facts.mailed}`} onClick={onPromo} />
+              </div>
+              {event.draft ? (
+                <button type="button" className="app-evt-publish" disabled={publishing} onClick={onPublish}>
+                  {publishing ? "Публикация…" : "Опубликовать"}
+                </button>
+              ) : (
+                <button type="button" className="app-evt-unpublish" disabled={unpublishing} onClick={onAskUnpublish}>
+                  Снять с публикации
+                </button>
+              )}
+              {notice !== null && <p className="app-org-notice">{notice}</p>}
+              {failed !== null && <AppState error>{failed}</AppState>}
+              {confirmUnpublish && <ConfirmSheet title="Снять событие с афиши?" confirmLabel="Да, снять" onConfirm={onUnpublish} onClose={onCancelUnpublish} />}
+            </>
           )}
-          {!event.draft && !today && !past && (
-            <AppButton stretched onClick={onShare}>
-              Поделиться событием
-            </AppButton>
-          )}
-          {notice !== null && <p className="app-org-notice">{notice}</p>}
-          {failed !== null && <AppState error>{failed}</AppState>}
-          {confirmUnpublish && <ConfirmSheet title="Снять событие с афиши?" confirmLabel="Да, снять" onConfirm={onUnpublish} onClose={onCancelUnpublish} />}
-        </>
-      )}
       {screen === "tickets" && (
         <>
           <SettingsGroup title="Участие">
@@ -323,6 +427,44 @@ export function OrganizerEventManageView({ event, attendance, options, stats, ra
           <AppButton tone="secondary" stretched onClick={onEdit}>
             Изменить способ участия
           </AppButton>
+        </>
+      )}
+          {screen === "stats" && (
+            <>
+              <h3 className="app-evt-h">Статистика</h3>
+              <p className="app-evt-lead">Цифры только этого события. Оплата на внешнем сайте покупкой здесь не считается.</p>
+              {stats === null && failed === null && <AppSkeletonList rows={3} />}
+              {failed !== null && <AppState error>{failed}</AppState>}
+              {stats !== null && (
+                <div className="app-org-tiles">
+                  <div className="app-org-tile">
+                    <span className="app-org-tile-label">Просмотры страниц</span>
+                    <span className="app-org-tile-big">{stats.views > 0 ? stats.views : "Нет данных"}</span>
+                  </div>
+                  <div className="app-org-tile">
+                    <span className="app-org-tile-label">Регистрации</span>
+                    <span className="app-org-tile-big">{stats.bookings}</span>
+                  </div>
+                  <div className="app-org-tile">
+                    <span className="app-org-tile-label">Отмены</span>
+                    <span className="app-org-tile-big">{stats.cancellations}</span>
+                  </div>
+                  {event.isPaid && (
+                    <div className="app-org-tile">
+                      <span className="app-org-tile-label">Записи на платное событие</span>
+                      <span className="app-org-tile-big">{stats.paidBookings}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {event.isPaid && <p className="app-evt-lead">Число записей на платное событие не подтверждает, что деньги дошли.</p>}
+              {rating !== null && rating.summary.reviewsCount > 0 && (
+                <AppButton tone="secondary" stretched onClick={() => onScreen("reviews")}>
+                  Отзывы гостей
+                </AppButton>
+              )}
+            </>
+          )}
         </>
       )}
       {screen === "participants" && (
@@ -413,42 +555,6 @@ export function OrganizerEventManageView({ event, attendance, options, stats, ra
           </AppButton>
         </>
       )}
-      {screen === "stats" && (
-        <>
-          <h1 className="app-section-title">Статистика события</h1>
-          <p className="app-gathering-hint">Цифры только этого события. Оплата на внешнем сайте покупкой здесь не считается.</p>
-          {stats === null && failed === null && <AppSkeletonList rows={3} />}
-          {failed !== null && <AppState error>{failed}</AppState>}
-          {stats !== null && (
-            <div className="app-org-tiles">
-              <div className="app-org-tile">
-                <span className="app-org-tile-label">Просмотры страниц</span>
-                <span className="app-org-tile-big">{stats.views > 0 ? stats.views : "Нет данных"}</span>
-              </div>
-              <div className="app-org-tile">
-                <span className="app-org-tile-label">Регистрации</span>
-                <span className="app-org-tile-big">{stats.bookings}</span>
-              </div>
-              <div className="app-org-tile">
-                <span className="app-org-tile-label">Отмены</span>
-                <span className="app-org-tile-big">{stats.cancellations}</span>
-              </div>
-              {event.isPaid && (
-                <div className="app-org-tile">
-                  <span className="app-org-tile-label">Записи на платное событие</span>
-                  <span className="app-org-tile-big">{stats.paidBookings}</span>
-                </div>
-              )}
-            </div>
-          )}
-          {event.isPaid && <p className="app-gathering-hint">Число записей на платное событие не подтверждает, что деньги дошли.</p>}
-          {rating !== null && rating.summary.reviewsCount > 0 && (
-            <AppButton tone="secondary" stretched onClick={() => onScreen("reviews")}>
-              Отзывы гостей
-            </AppButton>
-          )}
-        </>
-      )}
       {screen === "reviews" && (
         <>
           {reviews === null && failed === null && <AppSkeletonList rows={3} />}
@@ -487,7 +593,7 @@ export function OrganizerEventManageView({ event, attendance, options, stats, ra
   );
 }
 
-export function OrganizerEventManage({ event, screen, onScreen, onPromo, onEdit, onPublished }: { event: OrganizerEvent; screen: ManageScreen; onScreen: (screen: ManageScreen) => void; onPromo: () => void; onEdit: () => void; onPublished: (event: OrganizerEvent) => void }) {
+export function OrganizerEventManage({ event, screen, onScreen, onPromo, onEdit, onPublished, onBack }: { event: OrganizerEvent; screen: ManageScreen; onScreen: (screen: ManageScreen) => void; onPromo: () => void; onEdit: () => void; onPublished: (event: OrganizerEvent) => void; onBack: () => void }) {
   const [attendance, setAttendance] = useState<OrganizerAttendance | null>(null);
   const [options, setOptions] = useState<OrganizerEventOptions | null>(null);
   const [stats, setStats] = useState<OrganizerEventStats | null>(null);
@@ -681,6 +787,7 @@ export function OrganizerEventManage({ event, screen, onScreen, onPromo, onEdit,
           setNotice(channel === "clipboard" ? "Ссылка скопирована." : channel === "bridge" ? "Ссылка отправлена." : "Поделиться не получилось.");
         });
       }}
+      onBack={onBack}
     />
   );
 }

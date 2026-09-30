@@ -100,6 +100,14 @@ export function cabinetSold(event: Pick<CabinetEvent, "draft" | "sold">): number
   return event.draft ? 0 : event.sold;
 }
 
+/** The same occupied-seat figure the events list prints on a card. */
+export function displayBooked(event: Pick<OrganizerEvent, "id" | "draft" | "capacity">): number {
+  const known = CABINET_EVENTS.find((row) => row.id === event.id);
+  if (known) return cabinetSold(known);
+  if (event.draft || event.capacity === null) return 0;
+  return Math.min(event.capacity, Math.round(event.capacity * 0.6));
+}
+
 export function cabinetIncome(events: CabinetEvent[]): number {
   return events.reduce((sum, event) => sum + (event.isPaid && event.priceRub !== null ? event.priceRub * cabinetSold(event) : 0), 0);
 }

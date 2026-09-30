@@ -29309,7 +29309,7 @@ button.app-field-copy {
   background: #f9fbfe;
   gap: 12px;
   min-height: 100%;
-  padding: 20px 16px 28px;
+  padding: 16px 16px 28px;
 }
 
 .app-promo-title {
@@ -31846,4 +31846,398 @@ button.app-mail-card {
 .app-root .app-cab .app-fin-notice {
   background: color-mix(in srgb, var(--brand-green) 16%, var(--app-card));
   color: var(--brand-green);
+}
+
+/* Карточка события организатора: обложка, счётчики, вкладки и блоки информации. */
+.app-evt {
+  background: #f5f8fc;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100%;
+  padding: 0 16px 28px;
+}
+
+.app-evt-bar {
+  align-items: center;
+  background: #f5f8fc;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  margin: 0 -16px;
+  min-height: 52px;
+  padding: 4px 8px 0;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.app-evt-bar-title {
+  color: #12183a;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-align: center;
+}
+
+.app-evt-bar-btn {
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: #1a2744;
+  cursor: pointer;
+  display: flex;
+  height: 44px;
+  justify-content: center;
+  padding: 0;
+  width: 44px;
+}
+
+.app-evt-back {
+  display: flex;
+  transform: rotate(180deg);
+}
+
+.app-evt-menu {
+  background: #ffffff;
+  border: 1px solid #e7eef8;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(24, 42, 84, 0.12);
+  display: flex;
+  flex-direction: column;
+  min-width: 196px;
+  overflow: hidden;
+  position: absolute;
+  right: 12px;
+  top: 48px;
+}
+
+.app-evt-menu button {
+  background: transparent;
+  border: none;
+  color: #1a2468;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.app-evt-menu button + button {
+  border-top: 1px solid #eef2f8;
+}
+
+.app-evt-cover {
+  position: relative;
+}
+
+.app-evt-cover .app-card-media {
+  aspect-ratio: auto;
+  border-radius: 18px;
+  height: 176px;
+}
+
+.app-evt-badge {
+  align-items: center;
+  background: #eef2f8;
+  border-radius: 999px;
+  color: #6d7c99;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 4px;
+  padding: 5px 10px;
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 1;
+}
+
+.app-evt-badge--live {
+  background: #e5f8ee;
+  color: #14945f;
+}
+
+.app-evt-badge--done {
+  background: #e7f1ff;
+  color: #007aff;
+}
+
+.app-evt-title {
+  color: #12183a;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  margin: 2px 0 0;
+}
+
+.app-evt-meta {
+  align-items: center;
+  color: #6d7ea3;
+  display: flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 8px;
+  margin: 0;
+}
+
+.app-evt-meta svg {
+  color: #8aa0c2;
+  flex: none;
+}
+
+.app-evt-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-evt-tag {
+  background: #eef2f8;
+  border-radius: 999px;
+  color: #5c6d8c;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 12px;
+}
+
+.app-evt-lead {
+  color: #44556f;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.app-evt-stats {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.app-evt-stat {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e7eef8;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(40, 72, 140, 0.04);
+  color: #2f6bff;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 6px 10px;
+  text-align: center;
+}
+
+.app-evt-stat b {
+  color: #1a2468;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.app-evt-stat span {
+  color: #8ea0bd;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-evt-edit {
+  align-items: center;
+  background: #007aff;
+  border: none;
+  border-radius: 16px;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  gap: 8px;
+  justify-content: center;
+  min-height: 50px;
+  width: 100%;
+}
+
+.app-evt-tabs {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.app-evt-tabs button {
+  background: #eef2f8;
+  border: none;
+  border-radius: 999px;
+  color: #6d7c99;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 40px;
+  padding: 8px 4px;
+  white-space: nowrap;
+}
+
+.app-evt-tabs button[aria-selected="true"] {
+  background: #007aff;
+  color: #ffffff;
+}
+
+.app-evt-h {
+  color: #1a2468;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 4px 0 0;
+}
+
+.app-evt .app-evt-card {
+  align-items: stretch;
+  background: #ffffff;
+  border: 1px solid #e7eef8;
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(40, 72, 140, 0.04);
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+
+.app-evt .app-evt-row {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-bottom: none;
+  border-top: 1px solid #eef2f8;
+  color: #c5d0e2;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 8px;
+  grid-template-columns: 32px auto minmax(0, 1fr) 16px;
+  padding: 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-evt .app-evt-row > span {
+  display: block;
+  flex: none;
+  gap: 0;
+  min-width: 0;
+}
+
+.app-evt .app-evt-row > .app-evt-row-icon {
+  display: flex;
+  flex: none;
+}
+
+.app-evt .app-evt-row-icon svg {
+  color: #2f6bff;
+}
+
+.app-evt .app-evt-row > svg {
+  color: #c5d0e2;
+  flex: none;
+}
+
+.app-evt-card .app-evt-row:first-child {
+  border-top: none;
+}
+
+.app-evt-row-icon {
+  align-items: center;
+  background: #eef4ff;
+  border-radius: 10px;
+  color: #2f6bff;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+
+.app-evt-row-label {
+  color: #1a2468;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.app-evt-row-value {
+  color: #8ea0bd;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.app-evt .app-evt-row--note {
+  align-items: start;
+}
+
+.app-evt .app-evt-row--note > .app-evt-row-value {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  overflow: hidden;
+}
+
+.app-evt .app-evt-unpublish,
+.app-evt .app-evt-publish {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 4px 0 0;
+  min-height: 0;
+  padding: 8px;
+  text-align: center;
+  width: 100%;
+}
+
+.app-cab-page-title,
+.app-cab.app-fin .app-cab-page-title,
+.app-cab.app-promo .app-cab-page-title,
+.app-gathering .app-cab-page-title,
+.app-org-head .app-cab-page-title {
+  color: var(--app-text);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  margin: 0;
+  text-align: left;
+}
+
+.app-content--flush .app-gathering:has(> .app-cab-page-title),
+.app-content--flush .app-gathering:has(> .app-org-head > .app-cab-page-title) {
+  box-sizing: border-box;
+  padding: 16px 16px 28px;
+}
+
+.app-gathering .app-org-head:has(> .app-cab-page-title) {
+  align-items: flex-start;
+  padding-bottom: 0;
+}
+
+.app-evt-unpublish {
+  color: #ff4d6a;
+}
+
+.app-evt-publish {
+  color: #007aff;
+}
+
+.app-evt-unpublish:disabled,
+.app-evt-publish:disabled,
+.app-evt-edit:disabled {
+  cursor: default;
+  opacity: 0.6;
 }

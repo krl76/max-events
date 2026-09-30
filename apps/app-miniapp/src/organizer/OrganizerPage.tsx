@@ -36,7 +36,7 @@ import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganiz
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { PLACE_CATEGORY_LABELS } from "../catalog/format";
 import { eventFillLabel, pictured } from "../ui/photos";
-import { CABINET_EVENTS, mergeCabinetEvents, posterEvents } from "./cabinet-catalog";
+import { displayBooked, mergeCabinetEvents, posterEvents } from "./cabinet-catalog";
 import { weeklySeriesUntil } from "./OrganizerEventForm";
 import { SettingsSwitchRow } from "../profile/SettingsPage";
 import { ActionIcon } from "../ui/icons";
@@ -1009,12 +1009,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
   const merged = events.status === "ready" ? mergeCabinetEvents(events.items) : [];
   const listedAt = Date.now();
   const groups = events.status === "ready" ? splitOrganizerEvents(merged, listedAt) : null;
-  const seatsSold = (item: OrganizerEvent) => {
-    const known = CABINET_EVENTS.find((row) => row.id === item.id);
-    if (known) return known.draft ? 0 : known.sold;
-    if (item.draft || item.capacity === null) return 0;
-    return Math.min(item.capacity, Math.round(item.capacity * 0.6));
-  };
+  const seatsSold = (item: OrganizerEvent) => displayBooked(item);
   const matchesQuery = (item: OrganizerEvent) => item.title.toLowerCase().includes(eventQuery.trim().toLowerCase());
   const visibleEvents = groups === null ? [] : (eventFilter === "drafts" ? groups.drafts : eventFilter === "archive" ? groups.past : eventFilter === "published" ? posterEvents(merged, listedAt) : merged).filter(matchesQuery);
   const renderEvents = (items: OrganizerEvent[]) => (
@@ -1027,7 +1022,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
 
   return (
     <section className="app-gathering">
-      <h1 className="app-section-title">События</h1>
+      <h1 className="app-cab-page-title">События</h1>
       <CabinetListSwitch tab={tab} onTab={setTab} />
       {tab === "events" && (
         <>

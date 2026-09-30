@@ -463,8 +463,7 @@ export function OrganizerFinance() {
 
   return (
     <section className="app-cab app-fin" aria-label="Финансы">
-      <h1 className="app-fin-title">Финансы</h1>
-      <p className="app-fin-lead">Доходы, выплаты и аналитика</p>
+      <h1 className="app-fin-title app-cab-page-title">Финансы</h1>
       <div className="app-fin-scopes" role="group" aria-label="Срез дохода">
         {FINANCE_SCOPES.map((item) => (
           <button key={item.id} type="button" className={scope === item.id ? "app-fin-chip app-fin-chip--on" : "app-fin-chip"} aria-pressed={scope === item.id} onClick={() => setScope(item.id)}>
