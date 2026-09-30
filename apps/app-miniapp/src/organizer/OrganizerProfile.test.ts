@@ -154,7 +154,7 @@ describe("OrganizerProfileView", () => {
     expect(opened).toContain("Борис Наумова");
     expect(opened).toContain("Вечер джаза на Патриарших");
     expect(opened).toContain("Играли близко, без сцены.");
-    expect(opened).toContain("Ещё раз");
+    expect(opened).not.toContain("Ещё раз");
     expect(opened).toContain('aria-label="5 из 5"');
     expect(opened).toContain("Атмосфера");
     expect(opened).toContain("Спокойно");

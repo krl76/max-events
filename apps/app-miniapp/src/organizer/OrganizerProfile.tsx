@@ -82,7 +82,7 @@ function ReviewCard({ row }: { row: OrganizerProfileReview }) {
         <span aria-hidden="true"> · </span>
         <time dateTime={row.createdAt}>{reviewWhen(row.createdAt)}</time>
       </p>
-      <span className={row.wouldGoAgain ? "app-org-review-chip" : "app-org-review-chip app-org-review-chip--muted"}>{reviewVerdict(row.stars, row.wouldGoAgain)}</span>
+      {!row.wouldGoAgain && <span className="app-org-review-chip app-org-review-chip--muted">{reviewVerdict(row.stars, false)}</span>}
       {row.text !== null && row.text !== "" && <p className="app-org-review-text">{row.text}</p>}
       {scores.length > 0 && (
         <dl className="app-org-review-scores">
