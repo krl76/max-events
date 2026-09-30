@@ -8,6 +8,7 @@
 // START_MODULE_MAP
 // - humanWhen - «сегодня в 20:30», «завтра в 20:30», or «12 сентября в 20:30»
 // - humanMeeting - humanWhen plus a place, comma-separated
+// - DEFAULT_MAX_BOT_USERNAME - public bot username used when MAX_APP_URL is unset
 // - DEFAULT_MAX_APP_URL - https://max.ru/<bot> used when MAX_APP_URL is unset
 // - miniappLink - https://max.ru/<bot>?startapp=, or null when the payload or override URL is unusable
 // - withAppLink - append that URL to a sentence when it exists
@@ -42,8 +43,11 @@ export function humanMeeting(at: Date, place: string, now = new Date()): string 
   return where ? `${when}, ${where}` : when;
 }
 
+/** Public bot username. Override the full window with MAX_APP_URL when it changes. */
+export const DEFAULT_MAX_BOT_USERNAME = "t691_hakaton_max_bot";
+
 /** Public bot window. Override with MAX_APP_URL when the bot username changes. */
-export const DEFAULT_MAX_APP_URL = "https://max.ru/se14352055_bot";
+export const DEFAULT_MAX_APP_URL = `https://max.ru/${DEFAULT_MAX_BOT_USERNAME}`;
 
 /**
  * A link that opens the mini-app inside MAX on a given screen.

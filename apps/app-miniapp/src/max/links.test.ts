@@ -3,8 +3,8 @@ import { maxAppLink, sharePayload, startParamFromSharedUrl } from "./links";
 
 describe("maxAppLink", () => {
   it("opens the bot window on the screen named by startapp", () => {
-    expect(maxAppLink("event-42")).toBe("https://max.ru/se14352055_bot?startapp=event-42");
-    expect(maxAppLink("  plan-1  ")).toBe("https://max.ru/se14352055_bot?startapp=plan-1");
+    expect(maxAppLink("event-42")).toBe("https://max.ru/t691_hakaton_max_bot?startapp=event-42");
+    expect(maxAppLink("  plan-1  ")).toBe("https://max.ru/t691_hakaton_max_bot?startapp=plan-1");
   });
 });
 
@@ -21,7 +21,7 @@ describe("sharePayload", () => {
   it("attaches the bot link once and leaves a sentence without a screen alone", () => {
     const linked = sharePayload("План на вечер", "plan-1");
 
-    expect(linked.link).toBe("https://max.ru/se14352055_bot?startapp=plan-1");
+    expect(linked.link).toBe("https://max.ru/t691_hakaton_max_bot?startapp=plan-1");
     expect(linked.text).toBe("План на вечер");
     expect(sharePayload("Только текст", null)).toEqual({ text: "Только текст" });
   });

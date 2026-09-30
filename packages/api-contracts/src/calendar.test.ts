@@ -55,7 +55,7 @@ const shared = {
       eventId: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90",
     },
   ],
-  inviteUrl: "https://max.ru/se14352055_bot?startapp=calendar-018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93",
+  inviteUrl: "https://max.ru/t691_hakaton_max_bot?startapp=calendar-018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93",
 };
 
 describe("SharedCalendarSchema", () => {

@@ -13,7 +13,7 @@
 // END_MODULE_MAP
 
 /** Public bot of this mini-app. Same default as MAX_APP_URL on the backend. */
-export const MAX_BOT_APP_URL = "https://max.ru/se14352055_bot";
+export const MAX_BOT_APP_URL = "https://max.ru/t691_hakaton_max_bot";
 
 const CALENDAR_INVITE = /\/calendar\/invite\/([^/?#]+)/;
 

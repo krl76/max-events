@@ -21,11 +21,11 @@ describe("humanMeeting", () => {
 
 describe("miniappLink", () => {
   it("opens the MAX bot on the screen, not the website the mini-app is hosted on", () => {
-    expect(miniappLink("plan-abc")).toBe("https://max.ru/se14352055_bot?startapp=plan-abc");
+    expect(miniappLink("plan-abc")).toBe("https://max.ru/t691_hakaton_max_bot?startapp=plan-abc");
     expect(miniappLink("plan-abc", "https://max.ru/other_bot")).toBe("https://max.ru/other_bot?startapp=plan-abc");
     expect(miniappLink("")).toBeNull();
     expect(miniappLink("plan-abc", "not a url")).toBeNull();
     expect(withAppLink("Сбор сегодня в 20:30.", null)).toBe("Сбор сегодня в 20:30.");
-    expect(withAppLink("Сбор сегодня в 20:30.", "https://max.ru/se14352055_bot?startapp=plan-abc")).toBe("Сбор сегодня в 20:30. https://max.ru/se14352055_bot?startapp=plan-abc");
+    expect(withAppLink("Сбор сегодня в 20:30.", "https://max.ru/t691_hakaton_max_bot?startapp=plan-abc")).toBe("Сбор сегодня в 20:30. https://max.ru/t691_hakaton_max_bot?startapp=plan-abc");
   });
 });

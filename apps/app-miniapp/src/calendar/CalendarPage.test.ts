@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CalendarView, SharedCalendarView, calendarShareText, filterCalendarScope, instrumentalName, peersLabel, splitCalendarEntries } from "./CalendarPage";
+import { CalendarView, SharedCalendarView, calendarShare, calendarShareText, filterCalendarScope, instrumentalName, peersLabel, splitCalendarEntries } from "./CalendarPage";
 import type { Booking, Friend } from "@max-events/api-contracts";
 import type { CalendarEntry, SharedCalendar } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
@@ -75,8 +75,9 @@ describe("peersLabel", () => {
 describe("calendarShareText", () => {
   it("carries the invite link when one was issued", () => {
     expect(calendarShareText(sharedWith(["Анна Соколова"], "https://max.ru/c/1"))).toContain("https://max.ru/c/1");
-    expect(calendarShareText(sharedWith([], "https://events.versacegus.cc/calendar/invite/018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93"))).toContain("https://max.ru/se14352055_bot?startapp=calendar-018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93");
-    expect(calendarShareText(sharedWith([], "https://events.versacegus.cc/calendar/invite/018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93"))).not.toContain("events.versacegus.cc");
+    const rewritten = calendarShare(sharedWith([], "https://events.versacegus.cc/calendar/invite/018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93"));
+    expect(rewritten.link).toBe("https://max.ru/t691_hakaton_max_bot?startapp=calendar-018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93");
+    expect(rewritten.text).not.toContain("events.versacegus.cc");
   });
 
   it("stays a sentence without peers and without a link", () => {

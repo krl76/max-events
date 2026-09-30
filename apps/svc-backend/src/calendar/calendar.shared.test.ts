@@ -105,7 +105,7 @@ describe("CalendarService shared", () => {
     const calendar = await service.shared(userId, { from: null, to: null }, host);
     expect(calendar.peers).toEqual([]);
     expect(calendar.entries).toEqual([]);
-    expect(calendar.inviteUrl).toMatch(/^https:\/\/max\.ru\/se14352055_bot\?startapp=calendar-/);
+    expect(calendar.inviteUrl).toMatch(/^https:\/\/max\.ru\/t691_hakaton_max_bot\?startapp=calendar-/);
   });
 
   it("adds a friend mutually so their bookings show up with an owner and «Пойду»", async () => {

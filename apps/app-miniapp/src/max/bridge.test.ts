@@ -96,7 +96,7 @@ describe("shareResult", () => {
 
   it("keeps the max.ru link off the sentence so the chat does not print the URL twice", async () => {
     const shareMaxContent = vi.fn();
-    const link = "https://max.ru/se14352055_bot?startapp=plan-1";
+    const link = "https://max.ru/t691_hakaton_max_bot?startapp=plan-1";
 
     expect(await shareResult({ shareMaxContent }, "План на вечер", link)).toBe("bridge");
     expect(shareMaxContent).toHaveBeenCalledWith({ text: "План на вечер", link });
