@@ -130,11 +130,23 @@ describe("ApiClient", () => {
     expect(details.event.id).toBe(validEvent.id);
   });
 
-  it("rejects a details payload whose organizer is neither a user nor null", async () => {
+  it("opens the event and hides a broken organizer card", async () => {
     mockFetchOnce(true, 200, detailsPayload({ organizer: { id: "not-a-uuid" } }));
     const client = new ApiClient("http://localhost:3100/api");
 
-    await expect(client.getEventDetails(validEvent.id, validEvent.id)).rejects.toMatchObject({ name: "ApiError" });
+    const details = await client.getEventDetails(validEvent.id, validEvent.id);
+
+    expect(details.event.id).toBe(validEvent.id);
+    expect(details.organizer).toBeNull();
+  });
+
+  it("retries a dropped request once so a MAX webview blip does not blank the screen", async () => {
+    const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError("fetch failed")).mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve(validEvent) });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.getEvent(validEvent.id)).resolves.toEqual(validEvent);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   function mockFetchCaptureUrls(body: unknown): string[] {

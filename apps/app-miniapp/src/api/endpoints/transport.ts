@@ -9,7 +9,7 @@
 // - ZodSchema - minimal structural shape of a zod schema needed to validate responses
 // - ApiError - unified API error with HTTP status
 // - MethodOptions - per-request HTTP method and JSON body
-// - ApiTransport - base class: baseUrl, init-data/organizer headers, request/requestVoid
+// - ApiTransport - base class: baseUrl, init-data/organizer headers, request/requestVoid; retries a dropped MAX webview call and refreshes initData on 401
 // - ApiMixin - constructor bound the domain mixins extend
 // - isEndpointMissing - the server answered 404 to a path that has nothing to miss, i.e. the endpoint is not there yet
 // - whenEndpointMissing - rejection handler turning a missing endpoint into a value, leaving every other failure a failure
@@ -39,6 +39,20 @@ export interface MethodOptions {
   body?: unknown;
 }
 
+const TRANSIENT_STATUSES = new Set([0, 429, 502, 503, 504]);
+
+function liveInitData(): string | null {
+  if (typeof window === "undefined") return null;
+  const value = (window as Window & { WebApp?: { initData?: string } }).WebApp?.initData?.trim();
+  return value ? value : null;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export class ApiTransport {
   private initData: string | null = null;
   private organizerToken: string | null = null;
@@ -56,50 +70,66 @@ export class ApiTransport {
   }
 
   /** For an endpoint that answers 204: there is no body to validate, only a status to respect. */
-  protected async requestVoid(path: string, options: MethodOptions = {}): Promise<void> {
+  protected requestVoid(path: string, options: MethodOptions = {}): Promise<void> {
+    return this.withRetry(path, async () => {
+      const response = await this.send(path, { ...options, method: options.method ?? "POST" });
+      if (!response.ok) throw new ApiError(response.status, `API ${path} failed with ${response.status}`);
+    });
+  }
+
+  protected request<T>(path: string, schema: ZodSchema<T>, options: MethodOptions = {}): Promise<T> {
+    return this.withRetry(path, async () => {
+      const response = await this.send(path, options);
+      if (!response.ok) throw new ApiError(response.status, `API ${path} failed with ${response.status}`);
+      const data: unknown = await response.json().catch(() => undefined);
+      const parsed = schema.safeParse(data);
+      if (!parsed.success) {
+        throw new ApiError(response.status, `API ${path} returned invalid payload`);
+      }
+      return parsed.data;
+    });
+  }
+
+  private headers(options: MethodOptions): Record<string, string> {
+    const live = liveInitData();
+    if (live) this.initData = live;
     const headers: Record<string, string> = { accept: "application/json" };
     if (this.initData !== null) headers["x-max-init-data"] = this.initData;
     if (this.organizerToken !== null) headers["authorization"] = `Bearer ${this.organizerToken}`;
     if (options.body !== undefined) headers["content-type"] = "application/json";
-    let response: Response;
-    try {
-      response = await fetch(`${this.baseUrl}${path}`, { method: options.method ?? "POST", headers, body: options.body !== undefined ? JSON.stringify(options.body) : undefined });
-    } catch {
-      throw new ApiError(0, `network error while fetching ${path}`);
-    }
-    if (!response.ok) throw new ApiError(response.status, `API ${path} failed with ${response.status}`);
+    return headers;
   }
 
-  protected async request<T>(path: string, schema: ZodSchema<T>, options: MethodOptions = {}): Promise<T> {
-    const headers: Record<string, string> = { accept: "application/json" };
-    if (this.initData !== null) {
-      headers["x-max-init-data"] = this.initData;
-    }
-    if (this.organizerToken !== null) {
-      headers["authorization"] = `Bearer ${this.organizerToken}`;
-    }
-    if (options.body !== undefined) {
-      headers["content-type"] = "application/json";
-    }
-    let response: Response;
+  private async send(path: string, options: MethodOptions): Promise<Response> {
     try {
-      response = await fetch(`${this.baseUrl}${path}`, {
+      return await fetch(`${this.baseUrl}${path}`, {
         method: options.method ?? (options.body !== undefined ? "POST" : "GET"),
-        headers,
+        headers: this.headers(options),
         body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
       });
     } catch {
       throw new ApiError(0, `network error while fetching ${path}`);
     }
-    if (!response.ok) {
-      throw new ApiError(response.status, `API ${path} failed with ${response.status}`);
+  }
+
+  private async withRetry<T>(path: string, run: () => Promise<T>): Promise<T> {
+    try {
+      return await run();
+    } catch (error) {
+      if (!(error instanceof ApiError)) throw error;
+      if (error.status === 401) {
+        const fresh = liveInitData();
+        if (fresh && fresh !== this.initData) {
+          this.initData = fresh;
+          return run();
+        }
+      }
+      if (TRANSIENT_STATUSES.has(error.status)) {
+        await sleep(200);
+        return run();
+      }
+      throw error;
     }
-    const data: unknown = await response.json().catch(() => undefined);
-    const parsed = schema.safeParse(data);
-    if (!parsed.success) {
-      throw new ApiError(response.status, `API ${path} returned invalid payload`);
-    }
-    return parsed.data;
   }
 }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "../api/client";
 import type { EventDetails, TravelOption } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
-import { bookingErrorMessage, eventShareText, fastestTravelOption, organizerDisplayName, PARTICIPATION_STATUS_LABELS, walkingOption } from "./EventPage";
+import { bookingErrorMessage, eventLoadErrorMessage, eventShareText, fastestTravelOption, organizerDisplayName, PARTICIPATION_STATUS_LABELS, walkingOption } from "./EventPage";
 
 // Локальное время без смещения: «14:00» обязано читаться одинаково в любой зоне прогона.
 const STARTS_AT = "2026-09-19T14:00:00";
@@ -18,6 +18,14 @@ const detailsOf = (over: Partial<EventDetails> = {}): EventDetails => ({
   checkInId: null,
   organizerEventsCount: 34,
   ...over,
+});
+
+describe("eventLoadErrorMessage", () => {
+  it("names a missing event and keeps a retry line for everything else", () => {
+    expect(eventLoadErrorMessage(new ApiError(404, "missing"))).toBe("Такого события больше нет.");
+    expect(eventLoadErrorMessage(new ApiError(0, "network"))).toBe("Не удалось загрузить событие.");
+    expect(eventLoadErrorMessage(new Error("boom"))).toBe("Не удалось загрузить событие.");
+  });
 });
 
 describe("bookingErrorMessage", () => {

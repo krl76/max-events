@@ -90,6 +90,8 @@ function createService(
     reviews?: ReviewEntity[];
     place?: Place | null;
     nearbyPlaces?: Place[];
+    promotions?: PromotionService;
+    reviewsService?: ReviewsService;
   } = {},
 ) {
   const events = createStoreRepo<EventEntity>(opts.event ? [opts.event] : []);
@@ -105,8 +107,8 @@ function createService(
     },
     list: async () => opts.nearbyPlaces ?? (opts.place ? [opts.place] : []),
   } as unknown as PlacesService;
-  const reviews = new ReviewsService(reviewRows as unknown as Repository<ReviewEntity>, bookings as unknown as Repository<BookingEntity>, events as unknown as Repository<EventEntity>);
-  const promotions = { promotedEventIds: async () => new Set<string>() } as unknown as PromotionService;
+  const reviews = opts.reviewsService ?? new ReviewsService(reviewRows as unknown as Repository<ReviewEntity>, bookings as unknown as Repository<BookingEntity>, events as unknown as Repository<EventEntity>);
+  const promotions = opts.promotions ?? ({ promotedEventIds: async () => new Set<string>() } as unknown as PromotionService);
   const weather = { attach: async (rows: { weather?: unknown }[]) => rows } as unknown as EventWeatherService;
   const organizations = {
     findById: async (id: string) => (opts.organization?.id === id ? opts.organization : null),
@@ -199,6 +201,20 @@ describe("EventDetailsService.get", () => {
     expect(details.organizer).toBeNull();
     expect(details.remainingSeats).toBeNull();
     expect(details.rating.summary.reviewsCount).toBe(0);
+  });
+
+  it("still opens the event when rating or promotions fail", async () => {
+    const { service } = createService({
+      event: makeEvent(),
+      reviewsService: { eventRating: async () => Promise.reject(new Error("reviews down")) } as unknown as ReviewsService,
+      promotions: { promotedEventIds: async () => Promise.reject(new Error("promo down")) } as unknown as PromotionService,
+    });
+
+    const details = await service.get(eventId, viewerId);
+
+    expect(details.event.id).toBe(eventId);
+    expect(details.rating.summary.reviewsCount).toBe(0);
+    expect(details.event.promoted).toBe(false);
   });
 
   it("throws NotFound for an unpublished event", async () => {

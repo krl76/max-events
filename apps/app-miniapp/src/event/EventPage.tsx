@@ -7,6 +7,7 @@
 //
 // START_MODULE_MAP
 // - EventDetailsState - union of details fetch states (loading / error / ready)
+// - eventLoadErrorMessage - 404 = gone event, anything else = retry
 // - bookingErrorMessage - booking failure -> inline text: 403 = promo code rejected / early access needs a code, 409 = sold out (#202)
 // - PromoCodeState - promo code fields of the booking sheet (discount code, referral/campaign code, inline error, onCode/onReferral) (#372)
 // - eventShareText - what «Поделиться» puts in a MAX chat: the title and when it starts
@@ -38,7 +39,13 @@ import { BookingSheet } from "./BookingSheet";
 import { ConfirmSheet } from "../ui/ConfirmSheet";
 import { EventBookingBar, EventForecastCard, EventHero, EventInviteSheet, EventMoodTags, EventNearbyList, EventOrganizerCard, EventRouteCard, EventWhenRow, EventWhoGoesRow, formatDayLine, formatTimeRange } from "./EventScreen";
 
-export type EventDetailsState = { status: "loading" } | { status: "error" } | { status: "ready"; details: EventDetails };
+export type EventDetailsState = { status: "loading" } | { status: "error"; error: unknown } | { status: "ready"; details: EventDetails };
+
+/** What the event screen says when the aggregate did not arrive. 404 is a gone event, everything else is a retry. */
+export function eventLoadErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status === 404) return "Такого события больше нет.";
+  return "Не удалось загрузить событие.";
+}
 
 function useEventDetails(id: string, userId: string | null): [EventDetailsState, () => void] {
   const [state, setState] = useState<EventDetailsState>({ status: "loading" });
@@ -52,8 +59,8 @@ function useEventDetails(id: string, userId: string | null): [EventDetailsState,
       (details) => {
         if (alive) setState({ status: "ready", details });
       },
-      () => {
-        if (alive) setState({ status: "error" });
+      (error: unknown) => {
+        if (alive) setState({ status: "error", error });
       },
     );
     return () => {
@@ -307,7 +314,7 @@ export function EventPage({ id }: { id: string }) {
   if (state.status === "error")
     return (
       <AppState error action={{ label: "Повторить", onClick: refetch }}>
-        Не удалось загрузить событие.
+        {eventLoadErrorMessage(state.error)}
       </AppState>
     );
   const { details } = state;

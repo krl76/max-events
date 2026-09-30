@@ -226,24 +226,36 @@ export interface EventDetails {
   organizerEventsCount?: number | null;
 }
 
+function parseEventPayload(raw: unknown): Event | null {
+  const first = EventSchema.safeParse(raw);
+  if (first.success) return first.data;
+  if (typeof raw !== "object" || raw === null) return null;
+  const record = raw as Record<string, unknown>;
+  const paid = record.isPaid === true;
+  const url = typeof record.paymentUrl === "string" ? record.paymentUrl : null;
+  const second = EventSchema.safeParse({ ...record, weather: null, isPaid: paid && url !== null, paymentUrl: paid ? url : null });
+  return second.success ? second.data : null;
+}
+
 const EventDetailsSchema: ZodSchema<EventDetails> = {
   safeParse(data: unknown) {
     if (typeof data !== "object" || data === null) return { success: false as const, error: "expected an event details object" };
     const raw = data as Record<string, unknown>;
-    const event = EventSchema.safeParse(raw.event);
-    const organizer = raw.organizer === null ? { success: true as const, data: null } : UserSchema.safeParse(raw.organizer);
-    // Absent, not just null: a backend that predates the organization field must not blank the page.
-    const organization = raw.organization === null || raw.organization === undefined ? { success: true as const, data: null } : OrganizationSchema.safeParse(raw.organization);
-    const place = raw.place === null ? { success: true as const, data: null } : PlaceSchema.safeParse(raw.place);
-    if (!event.success || !organizer.success || !organization.success || !place.success) return { success: false as const, error: "invalid event details" };
-    if (raw.remainingSeats !== null && typeof raw.remainingSeats !== "number") return { success: false as const, error: "invalid event details" };
-    if (raw.activeBookingId !== null && typeof raw.activeBookingId !== "string") return { success: false as const, error: "invalid event details" };
-    if (raw.checkInId !== null && typeof raw.checkInId !== "string") return { success: false as const, error: "invalid event details" };
-    // Absent, not just null: a backend that predates the organizer counter must not blank the page either.
+    const event = parseEventPayload(raw.event);
+    if (event === null) return { success: false as const, error: "invalid event details" };
+    const organizerParsed = raw.organizer === null || raw.organizer === undefined ? null : UserSchema.safeParse(raw.organizer);
+    const organizationParsed = raw.organization === null || raw.organization === undefined ? null : OrganizationSchema.safeParse(raw.organization);
+    const placeParsed = raw.place === null || raw.place === undefined ? null : PlaceSchema.safeParse(raw.place);
+    const organizer = organizerParsed === null || organizerParsed.success === false ? null : organizerParsed.data;
+    const organization = organizationParsed === null || organizationParsed.success === false ? null : organizationParsed.data;
+    const place = placeParsed === null || placeParsed.success === false ? null : placeParsed.data;
+    if (raw.remainingSeats !== null && raw.remainingSeats !== undefined && typeof raw.remainingSeats !== "number") return { success: false as const, error: "invalid event details" };
+    if (raw.activeBookingId !== null && raw.activeBookingId !== undefined && typeof raw.activeBookingId !== "string") return { success: false as const, error: "invalid event details" };
+    if (raw.checkInId !== null && raw.checkInId !== undefined && typeof raw.checkInId !== "string") return { success: false as const, error: "invalid event details" };
     if (raw.organizerEventsCount !== null && raw.organizerEventsCount !== undefined && typeof raw.organizerEventsCount !== "number") return { success: false as const, error: "invalid event details" };
     return {
       success: true as const,
-      data: { event: event.data, place: place.data, organizer: organizer.data, organization: organization.data, remainingSeats: raw.remainingSeats, activeBookingId: raw.activeBookingId, checkInId: raw.checkInId, organizerEventsCount: raw.organizerEventsCount ?? null },
+      data: { event, place, organizer, organization, remainingSeats: typeof raw.remainingSeats === "number" ? raw.remainingSeats : null, activeBookingId: typeof raw.activeBookingId === "string" ? raw.activeBookingId : null, checkInId: typeof raw.checkInId === "string" ? raw.checkInId : null, organizerEventsCount: raw.organizerEventsCount ?? null },
     };
   },
 };

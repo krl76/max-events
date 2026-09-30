@@ -185,4 +185,21 @@ describe("toUserDto", () => {
       updatedAt: "2026-09-01T07:00:00.000Z",
     });
   });
+
+  it("fills an empty MAX first name so the event page schema still parses the organizer", () => {
+    const entity: UserEntity = {
+      id: "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f",
+      maxUserId: "67890",
+      firstName: "  ",
+      lastName: null,
+      username: null,
+      avatarUrl: null,
+      avatarCustom: false,
+      bannedFromPublishing: false,
+      friendsSyncedAt: null,
+      createdAt: new Date("2026-09-01T07:00:00Z"),
+      updatedAt: new Date("2026-09-01T07:00:00.000Z"),
+    };
+    expect(toUserDto(entity).firstName).toBe("Гость");
+  });
 });

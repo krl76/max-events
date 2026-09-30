@@ -14,7 +14,7 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import type { EventDetails, Organization, Place, User } from "@max-events/api-contracts";
+import type { EventDetails, EventRating, Organization, Place, User } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { OrganizationsService, toOrganizationDto } from "../organizations/organizations.service";
@@ -56,9 +56,9 @@ export class EventDetailsService {
   async get(eventId: string, viewerId: string): Promise<EventDetails> {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event || event.published === false) throw new NotFoundException("Event not found");
-    const [place, organizer, organization, activeBooking, checkIn, participation, rating, promoted] = await Promise.all([this.placeFor(event.placeId), this.organizerFor(event.organizerUserId), this.organizationFor(event), this.bookings.findOneBy({ userId: viewerId, eventId, status: "active" }), this.checkIns.findOneBy({ userId: viewerId, eventId }), this.participations.findOneBy({ userId: viewerId, eventId }), this.reviews.eventRating(eventId), this.promotions.promotedEventIds()]);
+    const [place, organizer, organization, activeBooking, checkIn, participation, rating, promoted] = await Promise.all([this.placeFor(event.placeId), this.organizerFor(event.organizerUserId), this.organizationFor(event), this.bookings.findOneBy({ userId: viewerId, eventId, status: "active" }), this.checkIns.findOneBy({ userId: viewerId, eventId }), this.participations.findOneBy({ userId: viewerId, eventId }), this.ratingFor(eventId), this.promotedSet()]);
     const mapped = toEventDto(event, { promoted: promoted.has(event.id) });
-    const [withWeather] = await this.eventWeather.attach([mapped]);
+    const [withWeather] = await this.attachWeather(mapped);
     return {
       event: withWeather ?? mapped,
       place,
@@ -90,13 +90,37 @@ export class EventDetailsService {
       .sort((a, b) => a.distanceM - b.distanceM || a.id.localeCompare(b.id));
   }
 
+  private async ratingFor(eventId: string): Promise<EventRating> {
+    try {
+      return await this.reviews.eventRating(eventId);
+    } catch {
+      return { summary: { eventId, placeId: null, averageStars: 0, reviewsCount: 0 }, categoryAverages: { atmosphere: null, organization: null, price: null, place: null } };
+    }
+  }
+
+  private async promotedSet(): Promise<Set<string>> {
+    try {
+      return await this.promotions.promotedEventIds();
+    } catch {
+      return new Set();
+    }
+  }
+
+  private async attachWeather(event: EventDetails["event"]): Promise<[EventDetails["event"]]> {
+    try {
+      const attached = await this.eventWeather.attach([event]);
+      return [attached[0] ?? event];
+    } catch {
+      return [event];
+    }
+  }
+
   private async placeFor(placeId: string | null): Promise<Place | null> {
     if (!placeId) return null;
     try {
       return await this.places.getById(placeId);
-    } catch (error) {
-      if (error instanceof NotFoundException) return null;
-      throw error;
+    } catch {
+      return null;
     }
   }
 
@@ -107,12 +131,16 @@ export class EventDetailsService {
   }
 
   private async organizationFor(event: EventEntity): Promise<Organization | null> {
-    if (event.organizerOrganizationId) {
-      const byId = await this.organizations.findById(event.organizerOrganizationId);
-      if (byId) return toOrganizationDto(byId);
+    try {
+      if (event.organizerOrganizationId) {
+        const byId = await this.organizations.findById(event.organizerOrganizationId);
+        if (byId) return toOrganizationDto(byId);
+      }
+      if (!event.organizerUserId) return null;
+      const organization = await this.organizations.findByOrganizerUserId(event.organizerUserId);
+      return organization ? toOrganizationDto(organization) : null;
+    } catch {
+      return null;
     }
-    if (!event.organizerUserId) return null;
-    const organization = await this.organizations.findByOrganizerUserId(event.organizerUserId);
-    return organization ? toOrganizationDto(organization) : null;
   }
 }

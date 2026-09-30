@@ -102,7 +102,7 @@ export function toUserDto(user: UserEntity): User {
   return {
     id: user.id,
     maxUserId: user.maxUserId,
-    firstName: user.firstName,
+    firstName: user.firstName.trim() || "Гость",
     lastName: user.lastName,
     username: user.username ?? null,
     avatarUrl: user.avatarUrl,
