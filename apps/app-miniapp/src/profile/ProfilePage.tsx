@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 36 «Профиль»: обложка со шапкой и меню, аватар без бейджа, имя и строка подписок, для своего профиля — строчные переходы в календарь, прогулки, планы, брони, достижения, группы и друзья, затем вкладки «Посты» / «Места» / «Сохранённое». Чужой профиль вместо переходов показывает действия с человеком.
-// SCOPE: The profile screen only — data via apiClient.getProfile/getProfileCounters/listUserPosts/listVisitedPlaces/listLists/listSubscriptions/listFollowing/listFollowers/getAchievements/listWeGroups/listFriends; «Добавить» writes apiClient.addFriend so both people land in GET /friends. Editing lives on the settings route (./SettingsPage.tsx), the follow lists on ../subscriptions/.
+// SCOPE: The profile screen only — data via apiClient.getProfile/getProfileCounters/listUserPosts/listVisitedPlaces/listLists/listSubscriptions/listFollowing/listFollowers/getAchievements/listWeGroups/listFriends/listCalendar; «Добавить» writes apiClient.addFriend so both people land in GET /friends. Editing lives on the settings route (./SettingsPage.tsx), the follow lists on ../subscriptions/.
 // DEPENDS: ../api/client.js (apiClient, ListSummary, ProfileCounters, ProfilePost, VisitedPlace), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../feed/photo.js (readFeedPhoto), ../max/bridge.js (shareResult, webApp), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, @max-events/api-contracts (Achievement, Friend, Profile, Subscription, User, WeGroupScreen), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -19,6 +19,7 @@
 // - achievementsHint - «1 из 4 собрано»; nothing collected yet has no hint
 // - weGroupsHint - «3 активные компании»; none open has no hint
 // - friendsHint - «25 друзей»; zero friends has no hint
+// - bookingsHint - «2 билета» on «Все брони» from GET /calendar upcoming active bookings
 // - visitsLabel - «12 визитов» under an impression cell
 // - achievementsProgress - доля собранных достижений для кольца и полосы; null, пока список не приехал
 // - communityLetters - до четырёх букв названий живых компаний для стопки в карточке сообщества
@@ -34,6 +35,7 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Achievement, Friend, Profile, Subscription, User, WeGroupScreen } from "@max-events/api-contracts";
 import { apiClient, type ListSummary, type ProfileCounters, type ProfilePost, type VisitedPlace } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
@@ -161,6 +163,11 @@ export function weGroupsHint(groups: WeGroupScreen[]): string | null {
 export function friendsHint(friends: number): string | null {
   if (friends <= 0) return null;
   return `${friends} ${pluralRu(friends, "друг", "друга", "друзей")}`;
+}
+
+export function bookingsHint(count: number): string | null {
+  if (count <= 0) return null;
+  return `${count} ${pluralRu(count, "билет", "билета", "билетов")}`;
 }
 
 export function visitsLabel(visits: number): string {
@@ -291,7 +298,7 @@ export function ProfileMediaDialog({ title, custom, onPick, onReset, onClose }: 
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  const node = (
     <div className="app-me-pop" role="dialog" aria-modal="true" aria-labelledby="app-me-pop-title">
       <button type="button" className="app-me-pop-scrim" tabIndex={-1} aria-label="Закрыть" onClick={onClose} />
       <div className="app-me-pop-card" onClick={stopClick}>
@@ -312,6 +319,8 @@ export function ProfileMediaDialog({ title, custom, onPick, onReset, onClose }: 
       </div>
     </div>
   );
+  const host = typeof document === "undefined" ? null : (document.querySelector(".app-root") ?? document.body);
+  return host === null ? node : createPortal(node, host);
 }
 
 const TAB_ICON = { posts: "cards", places: "pin", saved: "bookmark" } as const;
@@ -330,11 +339,13 @@ function QuietImage({ src, className }: { src: string; className: string }) {
   return <img className={className} alt="" src={src} onError={() => setFailedSrc(src)} />;
 }
 
-function ProfileDashboard({ achievements, weGroups, friendsCount, onPlans, onBookings, onCalendar, onWalks, onAchievements, onWeGroups, onFriends }: { achievements: Achievement[] | null; weGroups: WeGroupScreen[] | null; friendsCount: number | null; onPlans: () => void; onBookings: () => void; onCalendar: () => void; onWalks: () => void; onAchievements: () => void; onWeGroups: () => void; onFriends: () => void }) {
+function ProfileDashboard({ achievements, weGroups, friendsCount, bookingsCount, onPlans, onBookings, onCalendar, onWalks, onAchievements, onWeGroups, onFriends }: { achievements: Achievement[] | null; weGroups: WeGroupScreen[] | null; friendsCount: number | null; bookingsCount: number | null; onPlans: () => void; onBookings: () => void; onCalendar: () => void; onWalks: () => void; onAchievements: () => void; onWeGroups: () => void; onFriends: () => void }) {
   const hint = achievements === null ? null : achievementsHint(achievements);
   const groupsLine = weGroups === null ? null : weGroupsHint(weGroups);
   const friendsLine = friendsCount === null ? null : friendsHint(friendsCount);
+  const ticketsLine = bookingsCount === null ? null : bookingsHint(bookingsCount);
   const openShortcut = { calendar: onCalendar, walks: onWalks, plans: onPlans, bookings: onBookings };
+  const shortcutHint = { calendar: null, walks: null, plans: null, bookings: ticketsLine } as const;
   const extra = [
     { id: "achievements", label: "Достижения", icon: "medal" as const, hint, onClick: onAchievements },
     { id: "groups", label: "Группы", icon: "group" as const, hint: groupsLine, onClick: onWeGroups },
@@ -349,6 +360,7 @@ function ProfileDashboard({ achievements, weGroups, friendsCount, onPlans, onBoo
               <ActionIcon name={row.icon} size={18} strokeWidth={2.1} />
             </span>
             <span className="app-me-shortcut-label">{row.label}</span>
+            {shortcutHint[row.id] !== null && <span className="app-me-shortcut-hint">{shortcutHint[row.id]}</span>}
             <ActionIcon name="chevron" size={16} />
           </button>
         ))}
@@ -377,6 +389,7 @@ interface ProfileViewProps extends ProfileEntries {
   achievements: Achievement[] | null;
   weGroups: WeGroupScreen[] | null;
   friendsCount: number | null;
+  bookingsCount?: number | null;
   posts: ProfilePost[] | null;
   postsFailed: boolean;
   visitedPlaces: VisitedPlace[];
@@ -391,7 +404,7 @@ interface ProfileViewProps extends ProfileEntries {
   subscribePending?: boolean;
 }
 
-export function ProfileView({ user, profile, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, posts, postsFailed, visitedPlaces, tab, own = true, followingThem = false, followsYou = false, areFriends = false, subscribePending = false, ...entries }: ProfileViewProps) {
+export function ProfileView({ user, profile, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, bookingsCount = null, posts, postsFailed, visitedPlaces, tab, own = true, followingThem = false, followsYou = false, areFriends = false, subscribePending = false, ...entries }: ProfileViewProps) {
   const [mediaMenu, setMediaMenu] = useState<"avatar" | "cover" | null>(null);
   const [pendingDelete, setPendingDelete] = useState<ProfilePost | null>(null);
   const [clickShield, setClickShield] = useState(false);
@@ -524,7 +537,7 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
           </div>
         )}
         {!own && <p className="app-me-link-hint">После «Добавить» вы оба появитесь в друзьях.</p>}
-        {own && <ProfileDashboard achievements={achievements} weGroups={weGroups} friendsCount={friendsCount} onPlans={entries.onPlans} onBookings={entries.onBookings} onCalendar={entries.onCalendar} onWalks={entries.onWalks} onAchievements={entries.onAchievements} onWeGroups={entries.onWeGroups} onFriends={entries.onFriends} />}
+        {own && <ProfileDashboard achievements={achievements} weGroups={weGroups} friendsCount={friendsCount} bookingsCount={bookingsCount} onPlans={entries.onPlans} onBookings={entries.onBookings} onCalendar={entries.onCalendar} onWalks={entries.onWalks} onAchievements={entries.onAchievements} onWeGroups={entries.onWeGroups} onFriends={entries.onFriends} />}
         <div
           className="app-me-tabs"
           role="tablist"
@@ -614,12 +627,13 @@ interface ProfileData {
   achievements: Achievement[] | null;
   weGroups: WeGroupScreen[] | null;
   friendsCount: number | null;
+  bookingsCount: number | null;
   posts: ProfilePost[] | null;
   postsFailed: boolean;
   visitedPlaces: VisitedPlace[];
 }
 
-const EMPTY_PROFILE_DATA: ProfileData = { profile: null, failed: false, counters: null, lists: null, subscriptions: null, following: null, followers: null, achievements: null, weGroups: null, friendsCount: null, posts: null, postsFailed: false, visitedPlaces: [] };
+const EMPTY_PROFILE_DATA: ProfileData = { profile: null, failed: false, counters: null, lists: null, subscriptions: null, following: null, followers: null, achievements: null, weGroups: null, friendsCount: null, bookingsCount: null, posts: null, postsFailed: false, visitedPlaces: [] };
 
 function useProfileData(userId: string, own: boolean, socialTick = 0, reloadTick = 0): ProfileData {
   const [data, setData] = useState<ProfileData>(EMPTY_PROFILE_DATA);
@@ -668,6 +682,12 @@ function useProfileData(userId: string, own: boolean, socialTick = 0, reloadTick
       (friends) => put({ friendsCount: friends.length }),
       () => {},
     );
+    if (own) {
+      apiClient.listCalendar().then(
+        (entries) => put({ bookingsCount: entries.filter((entry) => new Date(entry.event.startsAt).getTime() >= Date.now()).length }),
+        () => {},
+      );
+    }
     return () => {
       alive = false;
     };
@@ -903,6 +923,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         achievements={data.achievements}
         weGroups={data.weGroups}
         friendsCount={data.friendsCount}
+        bookingsCount={data.bookingsCount}
         posts={data.posts === null ? null : data.posts.filter((post) => !hiddenPosts.includes(post.postId))}
         postsFailed={data.postsFailed}
         visitedPlaces={data.visitedPlaces}

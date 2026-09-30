@@ -27,12 +27,13 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { Event, Place } from "@max-events/api-contracts";
 import { ApiError, apiClient, type WeGroupCard } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { readFeedPhoto } from "../feed/photo";
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
 import { EventPicker } from "../ui/EventPicker";
 import { ActionIcon } from "../ui/icons";
 import { PlacePicker } from "../ui/PlacePicker";
-import { pictured } from "../ui/photos";
+import { pictured, showPhoto } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 import { WeGroupFaces, formatRub, weGroupMembersLabel } from "./WeGroupsPage";
 
@@ -363,8 +364,8 @@ export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, 
         ) : (
           <div className="app-we-photos">
             {card.photos.map((photo, index) => (
-              <span key={photo.url} className={`app-we-photo app-we-photo--${(index % 5) + 1}`}>
-                <img src={photo.url} alt="" loading="lazy" />
+              <span key={`${photo.url}-${index}`} className={`app-we-photo app-we-photo--${(index % 5) + 1}`}>
+                <img src={showPhoto(photo.url) ?? photo.url} alt="" loading="lazy" />
               </span>
             ))}
           </div>
@@ -477,11 +478,14 @@ export function WeGroupPage({ id }: { id: string }) {
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") apiClient.addWeGroupPhoto(id, reader.result).then(apply, fail);
-      };
-      reader.readAsDataURL(file);
+      setActionFailed(false);
+      void readFeedPhoto(file).then((dataUrl) => {
+        if (dataUrl === null) {
+          fail();
+          return;
+        }
+        apiClient.addWeGroupPhoto(id, dataUrl).then(apply, fail);
+      });
     };
     input.click();
   };

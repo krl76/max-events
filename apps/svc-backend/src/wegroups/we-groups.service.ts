@@ -111,7 +111,7 @@ export class WeGroupsService {
   }
 
   async addPhoto(actorId: string, groupId: string, url: string): Promise<WeGroupScreen> {
-    const group = await this.requireActiveMember(actorId, groupId);
+    const group = await this.requireMember(actorId, groupId);
     await this.groupPhotos.save(this.groupPhotos.create({ groupId: group.id, userId: actorId, url }));
     return this.get(actorId, groupId);
   }

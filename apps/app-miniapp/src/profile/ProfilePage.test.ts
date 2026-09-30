@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DEFAULT_SMART_ALERTS, type Achievement, type Friend, type Profile, type Subscription, type User, type WeGroupScreen } from "@max-events/api-contracts";
 import type { ListSummary, ProfileCounters, ProfilePost, VisitedPlace } from "../api/client";
-import { ProfileMediaDialog, ProfileView, achievementsHint, followMetrics, friendsHint, isCustomProfileAvatar, listsHint, profileAbout, profileInterestLine, profileMetrics, profileTabLabel, socialEntryLabel, socialMetrics, visitsLabel, weGroupsHint } from "./ProfilePage";
+import { ProfileMediaDialog, ProfileView, achievementsHint, bookingsHint, followMetrics, friendsHint, isCustomProfileAvatar, listsHint, profileAbout, profileInterestLine, profileMetrics, profileTabLabel, socialEntryLabel, socialMetrics, visitsLabel, weGroupsHint } from "./ProfilePage";
 
 const user: User = {
   id: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
@@ -225,6 +225,9 @@ describe("row hints", () => {
     expect(friendsHint(24)).toBe("24 друга");
     expect(friendsHint(25)).toBe("25 друзей");
     expect(friendsHint(0)).toBeNull();
+    expect(bookingsHint(1)).toBe("1 билет");
+    expect(bookingsHint(2)).toBe("2 билета");
+    expect(bookingsHint(0)).toBeNull();
   });
 
   it("declines the visit counter of an impression cell", () => {
@@ -304,6 +307,7 @@ describe("ProfileView", () => {
     expect(html).not.toContain("Создать план");
     expect(html).toContain("Все планы");
     expect(html).toContain("Все брони");
+    expect(renderProfileView({ bookingsCount: 2 })).toContain("2 билета");
     expect(html).not.toContain("Будущие бронирования");
     expect(html).not.toContain("Маршрут на день");
     expect(html).not.toContain("Микрособытия");

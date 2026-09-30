@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock route table for the «Мы» groups and the shared event vote.
-// SCOPE: GET/POST /api/we-groups, POST /api/we-groups/:id/(events|places|archive), GET /api/we-groups/:id, POST /api/votes, POST /api/votes/:id/(ballots|close), GET /api/votes/:id.
+// SCOPE: GET/POST /api/we-groups, POST /api/we-groups/:id/(events|places|photos|archive), GET /api/we-groups/:id, POST /api/votes, POST /api/votes/:id/(ballots|close), GET /api/votes/:id.
 // DEPENDS: ./groups.js, ./fixtures.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -9,9 +9,9 @@
 // - groupsRoutes - route table entry: null when the path belongs to another domain
 // END_MODULE_MAP
 
-import { CreateVoteWriteSchema, CreateWeGroupWriteSchema, IdSchema, VoteBallotWriteSchema } from "@max-events/api-contracts";
+import { AddWeGroupPhotoWriteSchema, CreateVoteWriteSchema, CreateWeGroupWriteSchema, IdSchema, VoteBallotWriteSchema } from "@max-events/api-contracts";
 import { parseBookingBody } from "./fixtures";
-import { archiveMockWeGroup, bindMockWeGroupItem, castMockBallot, closeMockVote, createMockVote, createMockWeGroup, getMockVote, getMockWeGroup, listMockWeGroups, mockWeGroupSummary } from "./groups";
+import { addMockWeGroupPhoto, archiveMockWeGroup, bindMockWeGroupItem, castMockBallot, closeMockVote, createMockVote, createMockWeGroup, getMockVote, getMockWeGroup, listMockWeGroups, mockWeGroupSummary } from "./groups";
 
 export function groupsRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/we-groups" && init?.method === "POST") {
@@ -23,6 +23,14 @@ export function groupsRoutes(url: URL, init: RequestInit | undefined): Response 
   if (url.pathname === "/api/we-groups") {
     // Backend parity: the list route answers summaries; the client fetches each screen by id afterwards.
     return Response.json(listMockWeGroups().map((card) => mockWeGroupSummary(card)));
+  }
+  const weGroupPhotos = /^\/api\/we-groups\/([^/]+)\/photos$/.exec(url.pathname);
+  if (weGroupPhotos && init?.method === "POST") {
+    if (!IdSchema.safeParse(weGroupPhotos[1]).success) return new Response(null, { status: 400 });
+    const parsed = AddWeGroupPhotoWriteSchema.safeParse(parseBookingBody(init));
+    if (!parsed.success) return new Response(null, { status: 400 });
+    const added = addMockWeGroupPhoto(weGroupPhotos[1], parsed.data.url);
+    return added === "unknown" ? new Response(null, { status: 404 }) : added === "forbidden" ? new Response(null, { status: 403 }) : Response.json(added);
   }
   const weGroupAction = /^\/api\/we-groups\/([^/]+)\/(events|places|archive)$/.exec(url.pathname);
   if (weGroupAction && init?.method === "POST") {

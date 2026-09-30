@@ -19,7 +19,7 @@ function localIso(day: number, hour: number): string {
   return new Date(2026, 8, day, hour, 0).toISOString();
 }
 
-function render(over: { state?: WeGroupState; ownId?: string | null; menuOpen?: boolean } = {}): string {
+function render(over: { state?: WeGroupState; ownId?: string | null; menuOpen?: boolean; onAddPhoto?: () => void } = {}): string {
   return renderToStaticMarkup(
     createElement(WeGroupView, {
       state: over.state ?? { status: "ready", card: OWNED },
@@ -42,6 +42,7 @@ function render(over: { state?: WeGroupState; ownId?: string | null; menuOpen?: 
       onOpenEvent: () => {},
       onOpenPlace: () => {},
       onOpenMap: () => {},
+      onAddPhoto: over.onAddPhoto,
     }),
   );
 }
@@ -152,6 +153,12 @@ describe("WeGroupView", () => {
     expect(html).toContain("Группа в архиве");
     expect(html).not.toContain("Архивировать группу");
     expect(html).not.toContain("Добавить место");
+  });
+
+  it("still lets a member add a photo to an archived group", () => {
+    const archived: WeGroupCard = { ...OWNED, group: { ...OWNED.group, status: "archived", archivedAt: localIso(1, 12) } };
+    const html = render({ state: { status: "ready", card: archived }, onAddPhoto: () => {} });
+    expect(html).toContain("Добавить фото");
   });
 
   it("hides the archive action from a member who does not own the group", () => {

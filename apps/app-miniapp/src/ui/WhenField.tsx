@@ -1,12 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type UIEvent } from "react";
 import { createPortal } from "react-dom";
 import { useSheetSwipe } from "./sheet";
 
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-const MINUTE_STEPS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55] as const;
+const WHEEL_ITEM_PX = 40;
+const WHEEL_VISIBLE = 5;
+const WHEEL_COPIES = 5;
+const WHEEL_PAD_PX = ((WHEEL_VISIBLE - 1) / 2) * WHEEL_ITEM_PX;
 
 function pad(value: number): string {
   return String(value).padStart(2, "0");
+}
+
+/** Wrap a clock face: 24 → 0, −1 → 23. */
+export function wrapClock(value: number, length: number): number {
+  if (length <= 0) return 0;
+  return ((value % length) + length) % length;
 }
 
 /** `YYYY-MM-DDTHH:mm` in local time, the same shape datetime-local used to produce. */
@@ -46,26 +55,89 @@ function monthCells(cursor: Date): Array<{ day: number; outside: boolean }> {
   return cells;
 }
 
+function TimeWheel({ length, value, onChange, label }: { length: number; value: number; onChange: (value: number) => void; label: string }) {
+  const scroller = useRef<HTMLDivElement | null>(null);
+  const skipping = useRef(false);
+  const midCopy = Math.floor(WHEEL_COPIES / 2);
+
+  const offsetOf = (tick: number, copy = midCopy) => copy * length * WHEEL_ITEM_PX + wrapClock(tick, length) * WHEEL_ITEM_PX;
+
+  const jump = (el: HTMLDivElement, top: number) => {
+    skipping.current = true;
+    el.scrollTop = top;
+    skipping.current = false;
+  };
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    jump(el, offsetOf(value));
+  }, [length]);
+
+  const readTick = (el: HTMLDivElement) => {
+    const index = Math.round(el.scrollTop / WHEEL_ITEM_PX);
+    return { index, tick: wrapClock(index, length), copy: Math.floor(index / length) };
+  };
+
+  const settle = () => {
+    const el = scroller.current;
+    if (!el) return;
+    const { tick, copy } = readTick(el);
+    const top = copy <= 0 || copy >= WHEEL_COPIES - 1 ? offsetOf(tick) : offsetOf(tick, copy);
+    if (el.scrollTop !== top) jump(el, top);
+    if (tick !== value) onChange(tick);
+  };
+
+  const onScroll = (event: UIEvent<HTMLDivElement>) => {
+    if (skipping.current) return;
+    const el = event.currentTarget;
+    const { tick, copy } = readTick(el);
+    if (copy <= 0 || copy >= WHEEL_COPIES - 1) jump(el, offsetOf(tick));
+    if (tick !== value) onChange(tick);
+  };
+
+  return (
+    <div className="app-when-time-col">
+      <span className="app-when-time-k">{label}</span>
+      <div className="app-when-wheel-frame">
+        <div className="app-when-wheel-mark" aria-hidden="true" />
+        <div ref={scroller} className="app-when-wheel" role="listbox" aria-label={label} onScroll={onScroll} onPointerUp={settle} onTouchEnd={settle}>
+          <div className="app-when-wheel-space" style={{ height: WHEEL_PAD_PX }} aria-hidden="true" />
+          {Array.from({ length: WHEEL_COPIES * length }, (_, index) => {
+            const tick = index % length;
+            return (
+              <div key={index} role="option" aria-selected={tick === value} className={tick === value ? "app-when-tick app-when-tick--on" : "app-when-tick"}>
+                {pad(tick)}
+              </div>
+            );
+          })}
+          <div className="app-when-wheel-space" style={{ height: WHEEL_PAD_PX }} aria-hidden="true" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function WhenField({ value, label, title, onChange }: { value: string; label: string; title?: string; onChange: (value: string) => void }) {
   const parsed = value === "" || Number.isNaN(new Date(value).getTime()) ? new Date() : new Date(value);
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(() => new Date(parsed.getFullYear(), parsed.getMonth(), 1));
   const [hour, setHour] = useState(parsed.getHours());
-  const [minute, setMinute] = useState(parsed.getMinutes() - (parsed.getMinutes() % 5));
+  const [minute, setMinute] = useState(parsed.getMinutes());
   const host = typeof document === "undefined" ? null : (document.querySelector(".app-root") ?? document.body);
   const swipe = useSheetSwipe(() => setOpen(false));
-  const hourRef = useRef<HTMLButtonElement | null>(null);
-  const minuteRef = useRef<HTMLButtonElement | null>(null);
   const today = new Date();
   const selectedDay = value === "" ? null : parsed.getDate();
   const selectedMonth = parsed.getMonth();
   const picked = value === "" ? null : whenSummary(value);
 
-  useEffect(() => {
-    if (!open) return;
-    hourRef.current?.scrollIntoView({ block: "center" });
-    minuteRef.current?.scrollIntoView({ block: "center" });
-  }, [open]);
+  const openSheet = () => {
+    const next = value === "" || Number.isNaN(new Date(value).getTime()) ? new Date() : new Date(value);
+    setHour(next.getHours());
+    setMinute(next.getMinutes());
+    setCursor(new Date(next.getFullYear(), next.getMonth(), 1));
+    setOpen(true);
+  };
 
   const commit = (day: number, nextHour: number, nextMinute: number) => {
     onChange(whenValue(new Date(cursor.getFullYear(), cursor.getMonth(), day, nextHour, nextMinute)));
@@ -114,48 +186,24 @@ export function WhenField({ value, label, title, onChange }: { value: string; la
                 })}
               </div>
               <div className="app-when-time">
-                <div className="app-when-time-col">
-                  <span className="app-when-time-k">Час</span>
-                  <div className="app-when-time-list" role="listbox" aria-label="Час">
-                    {Array.from({ length: 24 }, (_, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        role="option"
-                        ref={hour === index ? hourRef : undefined}
-                        aria-selected={hour === index}
-                        className={hour === index ? "app-when-tick app-when-tick--on" : "app-when-tick"}
-                        onClick={() => {
-                          setHour(index);
-                          commit(activeDay, index, minute);
-                        }}
-                      >
-                        {pad(index)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="app-when-time-col">
-                  <span className="app-when-time-k">Минуты</span>
-                  <div className="app-when-time-list" role="listbox" aria-label="Минуты">
-                    {MINUTE_STEPS.map((step) => (
-                      <button
-                        key={step}
-                        type="button"
-                        role="option"
-                        ref={minute === step ? minuteRef : undefined}
-                        aria-selected={minute === step}
-                        className={minute === step ? "app-when-tick app-when-tick--on" : "app-when-tick"}
-                        onClick={() => {
-                          setMinute(step);
-                          commit(activeDay, hour, step);
-                        }}
-                      >
-                        {pad(step)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <TimeWheel
+                  length={24}
+                  value={hour}
+                  label="Час"
+                  onChange={(next) => {
+                    setHour(next);
+                    commit(activeDay, next, minute);
+                  }}
+                />
+                <TimeWheel
+                  length={60}
+                  value={minute}
+                  label="Минуты"
+                  onChange={(next) => {
+                    setMinute(next);
+                    commit(activeDay, hour, next);
+                  }}
+                />
               </div>
               <button type="button" className="app-when-done" onClick={() => setOpen(false)}>
                 Готово
@@ -168,7 +216,7 @@ export function WhenField({ value, label, title, onChange }: { value: string; la
 
   return (
     <div className="app-when">
-      <button type="button" className={value === "" ? "app-when-open app-when-open--empty" : "app-when-open"} aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+      <button type="button" className={value === "" ? "app-when-open app-when-open--empty" : "app-when-open"} aria-expanded={open} onClick={() => (open ? setOpen(false) : openSheet())}>
         {value === "" ? label : whenLabel(value)}
       </button>
       {sheet}

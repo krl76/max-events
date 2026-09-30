@@ -216,4 +216,13 @@ describe("WeGroupsService", () => {
     expect(listed[0]?.budgetTotalRub).toBe(850);
     await expect(service.addPlace(owner, created.group.id, placeId)).rejects.toBeInstanceOf(ConflictException);
   });
+
+  it("lets a member add a photo after the group is archived", async () => {
+    const { service } = createService();
+    const created = await service.create(owner, { title: "Поездка в Казань", memberIds: [] });
+    await service.archive(owner, created.group.id, now);
+    const withPhoto = await service.addPhoto(owner, created.group.id, "https://example.com/trip.jpg");
+    expect(withPhoto.photos).toEqual([{ url: "https://example.com/trip.jpg" }]);
+    expect(withPhoto.photosTotal).toBe(1);
+  });
 });

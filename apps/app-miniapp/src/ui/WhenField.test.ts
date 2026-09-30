@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { whenMonthTitle, whenSummary, whenValue } from "./WhenField";
+import { whenMonthTitle, whenSummary, whenValue, wrapClock } from "./WhenField";
+
+describe("wrapClock", () => {
+  it("cycles hours and minutes past both ends", () => {
+    expect(wrapClock(24, 24)).toBe(0);
+    expect(wrapClock(-1, 24)).toBe(23);
+    expect(wrapClock(60, 60)).toBe(0);
+    expect(wrapClock(-1, 60)).toBe(59);
+    expect(wrapClock(7, 24)).toBe(7);
+  });
+});
 
 describe("whenMonthTitle", () => {
   it("capitalises the month and drops the trailing г.", () => {

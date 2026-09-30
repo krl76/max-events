@@ -445,6 +445,16 @@ export function bindMockWeGroupItem(id: string, kind: "event" | "place", itemId:
   return mockWeGroupScreen(row);
 }
 
+/** Mock POST /we-groups/:id/photos: any member, including after archive — the album is the trip's history. */
+export function addMockWeGroupPhoto(id: string, url: string): WeGroupCard | "unknown" | "forbidden" {
+  const row = findMockWeGroup(id);
+  if (!row) return "unknown";
+  if (!isMockWeGroupMember(row, mockDemoUser.id)) return "forbidden";
+  row.photoUrls.push(url);
+  row.photosTotal += 1;
+  return mockWeGroupScreen(row);
+}
+
 /** Mock POST /we-groups/:id/archive (backend archive parity): owner only, idempotent. */
 export function archiveMockWeGroup(id: string): WeGroupCard | "unknown" | "forbidden" {
   const row = findMockWeGroup(id);
