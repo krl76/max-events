@@ -14,7 +14,7 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, No
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
-import type { EventFriendsSummary, Friend, FriendActivityByFriend, FriendSuggestion, FriendsSyncStatus } from "@max-events/api-contracts";
+import { normalizeFriendQuery, type EventFriendsSummary, type Friend, type FriendActivityByFriend, type FriendSuggestion, type FriendsSyncStatus } from "@max-events/api-contracts";
 import { toEventDto } from "../events/event.mapper";
 import { EventEntity } from "../events/event.entity";
 import { MaxBotClient } from "../max-bot/max-bot.client";
@@ -276,13 +276,37 @@ export class FriendsService {
     return nonempty;
   }
 
-  /** A person who already opened the mini-app, looked up by MAX id or @username. */
-  async findByMaxId(query: string): Promise<Friend | null> {
-    const needle = query.trim().replace(/^@/, "");
+  /**
+   * People who already opened the mini-app. MAX has no public nick-as-id; the stable handle is
+   * numeric `user_id` (max.ru/id{n}). Username/first/last come from initData when the person has them.
+   */
+  async findByMaxId(query: string, viewerId?: string): Promise<Friend[]> {
+    const needle = normalizeFriendQuery(query);
     if (needle.length === 0 || needle.length > 64) throw new BadRequestException("Invalid MAX id");
     const rows = await this.users.find();
-    const match = rows.find((row) => row.maxUserId === needle || row.username?.toLowerCase() === needle.toLowerCase());
-    return match ? toFriendDto(match) : null;
+    const lowered = needle.toLowerCase();
+    const numeric = /^\d+$/.test(needle);
+    const hits = rows.filter((row) => {
+      if (viewerId && row.id === viewerId) return false;
+      if (numeric && row.maxUserId === needle) return true;
+      if (row.username?.toLowerCase() === lowered) return true;
+      if (lowered.length < 2) return false;
+      const first = row.firstName.toLowerCase();
+      const last = (row.lastName ?? "").toLowerCase();
+      const full = last ? `${first} ${last}` : first;
+      return first.includes(lowered) || last.includes(lowered) || full.includes(lowered);
+    });
+    hits.sort((a, b) => {
+      const rank = (row: UserEntity) => {
+        if (numeric && row.maxUserId === needle) return 0;
+        if (row.username?.toLowerCase() === lowered) return 1;
+        const full = `${row.firstName} ${row.lastName ?? ""}`.trim().toLowerCase();
+        if (full === lowered || row.firstName.toLowerCase() === lowered) return 2;
+        return 3;
+      };
+      return rank(a) - rank(b) || a.firstName.localeCompare(b.firstName);
+    });
+    return hits.slice(0, 10).map(toFriendDto);
   }
 
   async eventFriends(userId: string, eventId: string): Promise<EventFriendsSummary> {

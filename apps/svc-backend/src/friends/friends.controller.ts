@@ -11,7 +11,7 @@
 // - EventFriendsController - /events/:eventId/friends summary
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Delete, Get, Inject, NotFoundException, Param, ParseUUIDPipe, Post, Put, Query } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Post, Put, Query } from "@nestjs/common";
 import { AcceptFriendInviteWriteSchema, ReplaceFollowsWriteSchema, type EventFriendsSummary, type Friend, type FriendActivityByFriend, type FriendSuggestion, type FriendsSyncStatus } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
@@ -27,11 +27,10 @@ export class FriendsController {
   }
 
   @Get("find")
-  async find(@Query("maxUserId") maxUserId?: string): Promise<Friend> {
-    if (maxUserId === undefined || maxUserId.trim() === "") throw new BadRequestException("Invalid MAX id");
-    const found = await this.friends.findByMaxId(maxUserId);
-    if (!found) throw new NotFoundException("User not found");
-    return found;
+  async find(@CurrentUser() user: UserEntity, @Query("q") q?: string, @Query("maxUserId") maxUserId?: string): Promise<Friend[]> {
+    const query = (q ?? maxUserId ?? "").trim();
+    if (query === "") throw new BadRequestException("Invalid MAX id");
+    return this.friends.findByMaxId(query, user.id);
   }
 
   @Get("close")

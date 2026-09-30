@@ -41,10 +41,10 @@ import { apiClient, type ListSummary, type ProfileCounters, type ProfilePost, ty
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
 import { readFeedPhoto } from "../feed/photo";
-import { announceShare, getStartParam, getWebApp, openChatLink, shareResult } from "../max/bridge";
-import { maxUserChatUrl, sharePayload } from "../max/links";
+import { announceShare, getWebApp, openChatLink, shareResult } from "../max/bridge";
+import { maxIdCaption, maxUserChatUrl, sharePayload } from "../max/links";
 import { logError } from "../ui/log-error";
-import { useRoute } from "../routing/router";
+import { readLaunchStartParam, useRoute } from "../routing/router";
 import { ListsPage } from "../lists/ListsPage";
 import { ActionIcon } from "../ui/icons";
 import { pictured, showPhoto } from "../ui/photos";
@@ -418,6 +418,7 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
     return () => window.clearTimeout(id);
   }, [clickShield]);
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+  const maxId = maxIdCaption(user.maxUserId);
   const follows = followMetrics({ subscriptions, following, followers });
   const openList = { subscriptions: entries.onSubscriptions, followers: entries.onFollowers };
   const about = profileAbout(profile);
@@ -501,6 +502,7 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
         )}
         {clickShield && <div className="app-me-pop-shield" aria-hidden="true" />}
         <h1 className="app-me-name">{name}</h1>
+        {maxId !== null && <p className="app-me-maxid">{maxId}</p>}
         {follows.length > 0 && (
           <p className="app-me-follows">
             {follows.map((metric, index) => (
@@ -777,7 +779,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
       },
       () => {},
     );
-    if (getStartParam(getWebApp()) === `user-${subjectId}` && subjectId !== null) {
+    if (readLaunchStartParam() === `user-${subjectId}` && subjectId !== null) {
       apiClient.addFriend(subjectId).then(
         () => {
           if (!alive) return;

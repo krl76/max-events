@@ -250,7 +250,7 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
 
     /** «Добавить» on a profile: both people land in each other's friends lists. */
     addFriend(userId: string): Promise<Friend[]> {
-      return this.request(`/friends/${encodeURIComponent(userId)}`, FriendSchema.array(), { method: "POST" });
+      return this.request(`/friends/${encodeURIComponent(userId)}`, lenientArraySchema(FriendSchema, "friend"), { method: "POST" });
     }
 
     /** Undo «Добавить»: both directed edges go away, the viewer's follow of them goes away. */
@@ -258,9 +258,9 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
       return this.request(`/friends/${encodeURIComponent(userId)}`, FriendSchema.array(), { method: "DELETE" });
     }
 
-    /** A person who already opened the mini-app, by MAX id or @username. */
-    findFriendByMaxId(maxUserId: string): Promise<Friend> {
-      return this.request(`/friends/find?maxUserId=${encodeURIComponent(maxUserId)}`, FriendSchema);
+    /** People who already opened the mini-app, by numeric MAX user_id, name, or in-app nick. */
+    findFriendByMaxId(maxUserId: string): Promise<Friend[]> {
+      return this.request(`/friends/find?q=${encodeURIComponent(maxUserId)}`, lenientArraySchema(FriendSchema, "friend"));
     }
 
     /** People the viewer marked close. Adding someone is limited to followers; this list is whoever is marked now. */

@@ -9363,6 +9363,15 @@ button.app-me-avatar-ring {
   white-space: pre-line;
 }
 
+.app-me-maxid {
+  color: var(--app-text-tertiary);
+  font-size: var(--app-font-size-caption);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  margin: 4px 0 0;
+  text-align: center;
+}
+
 .app-me-metrics {
   display: flex;
   flex-direction: column;
@@ -13145,6 +13154,12 @@ button.app-poll-result {
 
 .app-friends-find-go:disabled {
   opacity: 0.45;
+}
+
+.app-friends-find-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-s);
 }
 
 .app-friends-find-hit {

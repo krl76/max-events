@@ -43,11 +43,14 @@ export function startParamFromSharedUrl(raw: string): string | null {
   }
 }
 
-/** Opens a MAX dialog with a person who already has a MAX id. */
+/** Opens a MAX dialog with a person. Public profiles are `max.ru/id{user_id}`; username is not a MAX id. */
 export function maxUserChatUrl(user: { maxUserId: string; username?: string | null }): string {
-  const nick = user.username?.trim().replace(/^@/, "");
-  if (nick) return `https://max.ru/${encodeURIComponent(nick)}`;
   return `https://max.ru/id${encodeURIComponent(user.maxUserId)}`;
+}
+
+/** Numeric MAX user_id as shown in the messenger. Other stored ids (demo, organizer) stay hidden. */
+export function maxIdCaption(maxUserId: string | null | undefined): string | null {
+  return maxUserId !== undefined && maxUserId !== null && /^\d+$/.test(maxUserId) ? `MAX id ${maxUserId}` : null;
 }
 
 export function sharePayload(sentence: string, startParam: string | null): { text: string; link?: string } {

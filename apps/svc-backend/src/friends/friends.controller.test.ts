@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { EventFriendsSummary, Friend, FriendActivityByFriend } from "@max-events/api-contracts";
 import { UserEntity } from "../users/user.entity";
@@ -47,7 +47,7 @@ function createService() {
       return [];
     },
     acceptInvite: async (_userId: string, otherId: string) => [otherId],
-    findByMaxId: async (query: string) => (query === "42" ? friends[0]! : null),
+    findByMaxId: async (query: string) => (query === "42" ? [friends[0]!] : []),
     eventFriends: async (userId: string, bookedEventId: string) => {
       calls.eventFriends = { userId, eventId: bookedEventId };
       return summary;
@@ -78,9 +78,9 @@ describe("FriendsController", () => {
     await expect(controller.remove(user, friends[0]!.id)).resolves.toEqual([]);
     await expect(controller.acceptInvite(user, { userId: friends[0]!.id })).resolves.toEqual([friends[0]!.id]);
     await expect(controller.acceptInvite(user, {})).rejects.toBeInstanceOf(BadRequestException);
-    await expect(controller.find("42")).resolves.toEqual(friends[0]);
-    await expect(controller.find("")).rejects.toBeInstanceOf(BadRequestException);
-    await expect(controller.find("missing")).rejects.toBeInstanceOf(NotFoundException);
+    await expect(controller.find(user, "42")).resolves.toEqual([friends[0]]);
+    await expect(controller.find(user, "")).rejects.toBeInstanceOf(BadRequestException);
+    await expect(controller.find(user, "missing")).resolves.toEqual([]);
     expect(calls).toEqual({
       list: user.id,
       sync: user.id,

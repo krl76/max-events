@@ -114,6 +114,18 @@ const START_PARAM_PREFIXES = [
   ["walk-", "walk-saved"],
 ] as const satisfies ReadonlyArray<readonly [string, Route["name"]]>;
 
+/** WebApp.initData first, then ?startapp=, then the MAX #WebAppData hash a chat link lands on. */
+export function resolveLaunchStartParam(fromWebApp: string | null, search: string, hash: string): string | null {
+  return fromWebApp ?? startParamFromSearch(search) ?? startParamFromHash(hash);
+}
+
+/** Same payload the router used to open this screen — needed so a `user-` invite can add both people. */
+export function readLaunchStartParam(): string | null {
+  const search = typeof window === "undefined" ? "" : window.location.search;
+  const hash = typeof window === "undefined" ? "" : window.location.hash;
+  return resolveLaunchStartParam(getStartParam(getWebApp()), search, hash);
+}
+
 /** Browser stand: ?startapp= or ?start= carries the same payload MAX puts in start_param. */
 export function startParamFromSearch(search: string): string | null {
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
@@ -356,10 +368,7 @@ interface NavState {
 
 export function RouteProvider({ children }: { children: ReactNode }) {
   const [nav, setNav] = useState<NavState>(() => {
-    const fromMax = getStartParam(getWebApp());
-    const fromUrl = typeof window === "undefined" ? null : startParamFromSearch(window.location.search);
-    const fromHash = typeof window === "undefined" ? null : startParamFromHash(window.location.hash);
-    const initial: RouteHistoryState = { route: routeFromStartParam(fromMax ?? fromUrl ?? fromHash), idx: 0 };
+    const initial: RouteHistoryState = { route: routeFromStartParam(readLaunchStartParam()), idx: 0 };
     writeHistory(initial, "replace");
     return { history: initial, transition: "none", seq: 0 };
   });

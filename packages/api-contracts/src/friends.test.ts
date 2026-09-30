@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AcceptFriendInviteWriteSchema, EventFriendsSummarySchema, FriendActivityByEventSchema, FriendActivityByFriendSchema, FriendActivitySchema, FriendSchema, FriendSuggestionSchema, FriendsSyncStatusSchema } from "./friends.js";
+import { AcceptFriendInviteWriteSchema, EventFriendsSummarySchema, FriendActivityByEventSchema, FriendActivityByFriendSchema, FriendActivitySchema, FriendSchema, FriendSuggestionSchema, FriendsSyncStatusSchema, normalizeFriendQuery } from "./friends.js";
 import type { Event } from "./event.js";
 
 const friend = {
@@ -28,6 +28,19 @@ const event: Event = {
   weather: null,
   coverUrl: null,
 };
+
+describe("normalizeFriendQuery", () => {
+  it("keeps a numeric MAX user_id and strips the public id prefix", () => {
+    expect(normalizeFriendQuery("  67890  ")).toBe("67890");
+    expect(normalizeFriendQuery("id67890")).toBe("67890");
+    expect(normalizeFriendQuery("ID 67890")).toBe("67890");
+  });
+
+  it("strips @ from an in-app nick without treating a name as an id", () => {
+    expect(normalizeFriendQuery("@anna_s")).toBe("anna_s");
+    expect(normalizeFriendQuery("Анна Соколова")).toBe("Анна Соколова");
+  });
+});
 
 describe("AcceptFriendInviteWriteSchema", () => {
   it("takes the inviter id", () => {

@@ -112,3 +112,21 @@ describe("in-app add friend", () => {
     await expect(new ApiClient("/api").addFriend(mockDemoUser.id)).rejects.toMatchObject({ status: 400 });
   });
 });
+
+describe("find a person who already opened the mini-app", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+  });
+
+  it("matches a numeric MAX user_id, a name and an in-app nick", async () => {
+    restore = installMockApi();
+    const api = new ApiClient("/api");
+    await expect(api.findFriendByMaxId("10001")).resolves.toMatchObject([{ name: "Анна Соколова", maxUserId: "10001" }]);
+    await expect(api.findFriendByMaxId("Соколова")).resolves.toMatchObject([{ name: "Анна Соколова" }]);
+    await expect(api.findFriendByMaxId("@anna_s")).resolves.toMatchObject([{ username: "anna_s" }]);
+    await expect(api.findFriendByMaxId("nobody")).resolves.toEqual([]);
+  });
+});
