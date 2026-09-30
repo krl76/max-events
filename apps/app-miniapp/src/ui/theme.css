@@ -27176,8 +27176,21 @@ button.app-fin-op--btn {
   height: 156px;
 }
 
-.app-me--user .app-me-backbar {
-  margin: 8px 0 4px;
+.app-me--user .app-me-back {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  left: 8px;
+  padding: 0;
+  position: absolute;
+  top: 18px;
+  width: 40px;
+  z-index: 2;
 }
 
 .app-me--user .app-me-hero-actions,

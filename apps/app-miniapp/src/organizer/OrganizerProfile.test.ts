@@ -70,8 +70,10 @@ describe("OrganizerProfileView", () => {
         onResetCover: noop,
       }),
     );
+    expect(reviews).toContain('class="app-me-back"');
     expect(reviews).toContain('aria-label="Назад"');
-    expect(reviews).toContain("Отзывы гостей");
+    expect(reviews).not.toContain("Отзывы гостей");
+    expect(reviews).not.toContain("app-pcodes-title");
     expect(reviews).toContain("Гости оставляют отзыв после события, на котором были.");
     expect(reviews).not.toContain("app-me-shortcut");
 
@@ -99,8 +101,9 @@ describe("OrganizerProfileView", () => {
         onResetCover: noop,
       }),
     );
+    expect(followers).toContain('class="app-me-back"');
     expect(followers).toContain('aria-label="Назад"');
-    expect(followers).toContain("Подписчики");
+    expect(followers).not.toContain("app-pcodes-title");
     expect(followers).toContain("Подписчиков пока нет.");
   });
 });
