@@ -12,5 +12,6 @@ describe("showPhoto", () => {
     expect(showPhoto("https://cdn.example/p.jpg")).toBe("https://cdn.example/p.jpg");
     expect(showPhoto("https://picsum.photos/seed/maxevents-abc/800/1066")).toBe("/api/media/seed/maxevents-abc?w=800&h=1066");
     expect(pictured("abc", null)).toBe("/api/media/seed/maxevents-abc?w=800&h=1066");
+    expect(showPhoto("https://media.kudago.com/images/place/a.jpg")).toBe(`/api/media/cover?src=${encodeURIComponent("https://media.kudago.com/images/place/a.jpg")}`);
   });
 });

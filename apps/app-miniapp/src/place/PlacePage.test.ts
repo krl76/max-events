@@ -155,6 +155,8 @@ describe("PlacePageView", () => {
 
     expect(html).toContain("Парк · открыт до 23:00");
     expect(html).toContain(park.title);
+    expect(html).toContain("app-place-hero-cover");
+    expect(html).toContain(park.logoUrl ?? "");
     expect(html).toContain("Я здесь");
     expect(html).toContain("4,8");
     expect(html).toContain("1 240 оценок");

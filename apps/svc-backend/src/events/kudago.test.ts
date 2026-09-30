@@ -98,6 +98,13 @@ describe("mapKudagoEvent", () => {
     expect(mapped?.place).toBeNull();
     expect(mapped?.city).toBe("Санкт-Петербург");
   });
+
+  it("maps social to volunteering and recreation to tourism, keeping concert as афиша", () => {
+    expect(categoryFromKudago(["social"])).toBe("volunteering");
+    expect(categoryFromKudago(["recreation"])).toBe("tourism");
+    expect(categoryFromKudago(["quest"])).toBe("tourism");
+    expect(categoryFromKudago(["concert"])).toBe("afisha");
+  });
 });
 
 describe("kudago covers", () => {

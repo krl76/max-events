@@ -9539,8 +9539,14 @@ button.app-me-avatar-ring {
 .app-me-cell-photo {
   display: block;
   height: 100%;
+  inset: 0;
+  left: 0;
+  max-height: none;
+  max-width: none;
   object-fit: cover;
+  object-position: center;
   position: absolute;
+  top: 0;
   width: 100%;
 }
 
@@ -15270,6 +15276,19 @@ button.app-cal-peer-chip {
   height: 300px;
   overflow: hidden;
   position: relative;
+}
+
+.app-place-hero-cover {
+  height: 100%;
+  inset: 0;
+  left: 0;
+  max-height: none;
+  max-width: none;
+  object-fit: cover;
+  object-position: center;
+  position: absolute;
+  top: 0;
+  width: 100%;
 }
 
 .app-place-blob {
@@ -27899,7 +27918,7 @@ button.app-fin-op--btn {
 
 .app-me--user .app-me-cell {
   border-radius: 16px;
-  height: 84px;
+  height: 128px;
 }
 
 .app-me--user .app-me-cell-blob {

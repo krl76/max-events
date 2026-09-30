@@ -48,6 +48,15 @@ describe("bookingErrorMessage", () => {
   it("asks to retry when the request times out", () => {
     expect(bookingErrorMessage(new ApiError(0, "timeout while fetching /bookings"), false)).toBe("Сервер не ответил. Попробуйте ещё раз.");
   });
+
+  it("names a gone event, an expired MAX session and a server fault", () => {
+    expect(bookingErrorMessage(new ApiError(404, "Event not found"), false)).toBe("Это событие больше не доступно.");
+    expect(bookingErrorMessage(new ApiError(401, "unauthorized"), false)).toContain("Сессия MAX");
+    expect(bookingErrorMessage(new ApiError(500, "internal"), false)).toContain("Сервер не принял запись");
+    expect(bookingErrorMessage(new ApiError(201, "API /bookings returned invalid payload"), false)).toBeNull();
+    expect(bookingErrorMessage(new ApiError(0, "network error while fetching /bookings"), false)).toBe("Сервер не ответил. Попробуйте ещё раз.");
+    expect(bookingErrorMessage(new ApiError(403, "Cannot book for another user"), false)).toContain("Закройте экран");
+  });
 });
 
 describe("eventShareText", () => {

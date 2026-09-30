@@ -83,10 +83,17 @@ export interface PromoCodeState {
 /** Booking failure -> inline message: the backend maps promo code rejection and the early-access window to 403, sold out to 409 (PromoService.redeemInTransaction / BookingsService parity). Duplicate 409 is not an error — refetch will show the existing booking. */
 export function bookingErrorMessage(error: unknown, hadCode: boolean): string | null {
   if (error instanceof ApiError) {
-    if (error.status === 403) return hadCode ? "Промокод не подошёл — проверьте код и срок его действия." : "Запись пока открыта по промокоду раннего доступа — введите код.";
+    if (error.status === 403) {
+      if (/another user/i.test(error.message)) return "Не удалось записаться. Закройте экран и откройте событие снова.";
+      return hadCode ? "Промокод не подошёл — проверьте код и срок его действия." : "Запись пока открыта по промокоду раннего доступа — введите код.";
+    }
     if (error.status === 409) return /already exists/i.test(error.message) ? null : "К сожалению, места закончились.";
     if (error.status === 400) return "Проверьте данные записи и попробуйте снова.";
-    if (error.status === 0 && /timeout/i.test(error.message)) return "Сервер не ответил. Попробуйте ещё раз.";
+    if (error.status === 401) return "Сессия MAX истекла. Закройте мини-приложение и откройте снова.";
+    if (error.status === 404) return "Это событие больше не доступно.";
+    if (error.status === 200 || error.status === 201) return null;
+    if (error.status === 0) return "Сервер не ответил. Попробуйте ещё раз.";
+    if (error.status >= 500) return "Сервер не принял запись. Попробуйте ещё раз.";
   }
   return "Не удалось записаться. Попробуйте ещё раз.";
 }
@@ -280,9 +287,32 @@ export function EventPage({ id }: { id: string }) {
         refetch();
       },
       (error: unknown) => {
-        setBookingBusy(false);
-        setBookingError(bookingErrorMessage(error, code !== ""));
-        refetch();
+        const fail = () => {
+          const message = bookingErrorMessage(error, code !== "");
+          setBookingBusy(false);
+          if (message === null) {
+            setBookingError(null);
+            refetch();
+            return;
+          }
+          setBookingError(message);
+        };
+        apiClient.getEventDetails(id, userId).then(
+          (details) => {
+            if (details.activeBookingId !== null) {
+              setBookingBusy(false);
+              setBookingError(null);
+              setPromoCode("");
+              setReferralCode("");
+              setPayment({ bookingId: details.activeBookingId, value: null });
+              if (paymentUrl !== null) openExternalLink(paymentUrl);
+              refetch();
+              return;
+            }
+            fail();
+          },
+          fail,
+        );
       },
     );
   }, [userId, id, state, promoCode, referralCode, refetch, bookingBusy]);

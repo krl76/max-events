@@ -99,8 +99,9 @@ interface KudagoPage {
 
 export function categoryFromKudago(slugs: readonly string[]): EventCategory {
   if (slugs.some((slug) => slug.includes("sport") || slug === "fitness" || slug === "yoga")) return "sport";
-  if (slugs.some((slug) => slug.includes("volunte") || slug.includes("charit"))) return "volunteering";
-  if (slugs.some((slug) => slug === "excursion" || slug === "excursions" || slug === "travel" || slug === "tourism")) return "tourism";
+  if (slugs.some((slug) => slug.includes("volunte") || slug.includes("charit") || slug === "social")) return "volunteering";
+  if (slugs.some((slug) => slug === "concert" || slug === "exhibition" || slug === "theater" || slug === "theatre" || slug === "cinema" || slug === "festival")) return "afisha";
+  if (slugs.some((slug) => slug === "excursion" || slug === "excursions" || slug === "travel" || slug === "tourism" || slug === "tour" || slug === "recreation" || slug === "quest" || slug.includes("walk"))) return "tourism";
   return "afisha";
 }
 

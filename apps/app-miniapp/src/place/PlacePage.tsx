@@ -206,6 +206,13 @@ export function placeRatingLabel(rating: { reviewsCount: number } | null): strin
   return `${rating.reviewsCount.toLocaleString("ru-RU")} ${pluralRu(rating.reviewsCount, "оценка", "оценки", "оценок")}`;
 }
 
+function PlaceHeroCover({ place }: { place: Place }) {
+  const src = pictured(place.id, place.logoUrl);
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return <img className="app-place-hero-cover" alt="" src={src} onError={() => setFailed(true)} />;
+}
+
 export function PlacePageView({ place, page, board, checkedIn, onCheckIn, onOpenEvent, onOpenSlots, onOpenSubscriptions, onCreateHere, onSave }: PlacePageViewProps) {
   const alreadyHere = checkedIn || (board?.checkedInToday ?? false);
   const rating = page.rating?.summary ?? null;
@@ -216,6 +223,7 @@ export function PlacePageView({ place, page, board, checkedIn, onCheckIn, onOpen
       <div className="app-place-hero">
         <span className="app-place-blob" aria-hidden="true" />
         <span className="app-place-blob app-place-blob--cyan" aria-hidden="true" />
+        <PlaceHeroCover place={place} />
 
         <div className="app-place-hero-veil">
           <span className="app-place-kind">{placeKindLabel(place, board?.openUntil ?? null)}</span>

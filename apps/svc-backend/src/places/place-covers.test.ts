@@ -16,4 +16,13 @@ describe("placePhotoUrl", () => {
     expect(placePhotoUrl({ title: "Сквер на углу", category: "park" })).toBe("/onboarding/gorky.jpg");
     expect(placePhotoUrl({ title: "Новый зал", category: "museum" })).toBe("/covers/visits/museum.jpg");
   });
+
+  it("prefers a known local cover over a KudaGo CDN logo", () => {
+    expect(placePhotoUrl({ title: "Парк Горького", logoUrl: "https://media.kudago.com/images/place/gorky.jpg" })).toBe("/onboarding/gorky.jpg");
+  });
+
+  it("proxies an unknown KudaGo logo through the media cover endpoint", () => {
+    const remote = "https://media.kudago.com/images/place/unknown.jpg";
+    expect(placePhotoUrl({ title: "Новый сквер у реки", logoUrl: remote })).toBe(`/api/media/cover?src=${encodeURIComponent(remote)}`);
+  });
 });
