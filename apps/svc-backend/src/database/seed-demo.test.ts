@@ -187,19 +187,24 @@ describe("buildDemoData", () => {
     }
     for (const post of data.feedPosts) {
       expect(userIds.has(post.authorUserId)).toBe(true);
-      expect(post.eventId !== null && eventIds.has(post.eventId)).toBe(true);
-      const event = data.events.find((item) => item.id === post.eventId);
-      const place = data.places.find((item) => item.id === event?.placeId);
-      expect(place).toBeDefined();
+      expect(post.eventId !== null || post.placeId != null).toBe(true);
+      if (post.eventId !== null) expect(eventIds.has(post.eventId)).toBe(true);
+      if (post.placeId != null) expect(placeIds.has(post.placeId)).toBe(true);
       expect(post.text.length).toBeGreaterThan(0);
       expect(post.photoUrl?.startsWith("/covers/") || post.photoUrl?.startsWith("/onboarding/")).toBe(true);
-      expect(event?.coverUrl?.startsWith("/covers/") || event?.coverUrl?.startsWith("/onboarding/")).toBe(true);
     }
     const tsaritsyno = data.events.find((event) => event.title === "Экскурсия по Царицыну");
     const tsaritsynoPost = data.feedPosts.find((post) => post.eventId === tsaritsyno?.id);
+    const marina = data.users.find((user) => user.firstName === "Марина");
     expect(tsaritsynoPost?.text).toContain("Царицын");
     expect(tsaritsynoPost?.photoUrl).toBe("/covers/visits/tsaritsyno-me.jpg");
+    expect(tsaritsynoPost?.authorUserId).toBe(marina?.id);
     expect(tsaritsyno?.coverUrl).toBe("/covers/visits/tsaritsyno.jpg");
+    expect(data.users.every((user) => user.avatarUrl?.startsWith("/covers/people/"))).toBe(true);
+    expect(data.places.every((place) => typeof place.logoUrl === "string" && place.logoUrl.length > 0)).toBe(true);
+    expect(data.cityWalks.length).toBeGreaterThanOrEqual(2);
+    expect(data.cityWalks.every((walk) => walk.userId === devUserId && walk.payload.stops.length >= 2)).toBe(true);
+    expect(data.weGroupPhotos.length).toBeGreaterThan(0);
     for (const review of data.reviews) {
       expect(userIds.has(review.userId)).toBe(true);
       expect(pastEventIds.has(review.eventId)).toBe(true);

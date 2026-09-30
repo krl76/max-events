@@ -62,7 +62,7 @@ export class ProfileSurfaceService {
     const ids = [...counts.keys()];
     const places = ids.length === 0 ? [] : await this.places.find({ where: { id: In(ids) } });
     return places
-      .map((place) => ({ placeId: place.id, title: place.title, visits: counts.get(place.id) ?? 0 }))
+      .map((place) => ({ placeId: place.id, title: place.title, visits: counts.get(place.id) ?? 0, photoUrl: place.logoUrl ?? null }))
       .filter((row) => row.visits > 0)
       .sort((a, b) => b.visits - a.visits || a.title.localeCompare(b.title) || a.placeId.localeCompare(b.placeId));
   }

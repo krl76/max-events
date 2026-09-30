@@ -572,8 +572,8 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
           {tab === "places" && visitedPlaces.length > 0 && (
             <div className="app-me-grid">
               {visitedPlaces.map((place, index) => (
-                <button key={place.placeId} type="button" className={`app-me-cell app-me-cell--${(index % 4) + 1}`} onClick={() => entries.onOpenPlace(place.placeId)}>
-                  <span className="app-me-cell-blob" aria-hidden="true" />
+                <button key={place.placeId} type="button" className={`app-me-cell app-me-cell--${(index % 4) + 1}${place.photoUrl ? " app-me-cell--photo" : ""}`} onClick={() => entries.onOpenPlace(place.placeId)}>
+                  {place.photoUrl ? <QuietImage className="app-me-cell-photo" src={showPhoto(place.photoUrl) ?? place.photoUrl} /> : <span className="app-me-cell-blob" aria-hidden="true" />}
                   <span className="app-me-cell-veil">
                     <span className="app-me-cell-title">{place.title}</span>
                     <span className="app-me-cell-visits">{visitsLabel(place.visits)}</span>

@@ -16,7 +16,7 @@ describe("profile counters and the impressions grid", () => {
   it("opens on the visit history the demo account already has, most visited first", () => {
     const places = visitedPlacesFor(DEMO_USER_ID);
 
-    expect(places[0]).toEqual({ placeId: mockPlaces[0].id, title: "Парк Горького", visits: 12 });
+    expect(places[0]).toEqual({ placeId: mockPlaces[0].id, title: "Парк Горького", visits: 12, photoUrl: mockPlaces[0].logoUrl ?? null });
     expect(places.map((place) => place.visits)).toEqual([12, 9, 7, 5]);
   });
 

@@ -9515,6 +9515,24 @@ button.app-me-avatar-ring {
   width: 110px;
 }
 
+.app-me-cell-photo {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  width: 100%;
+}
+
+.app-me-cell--photo .app-me-cell-veil {
+  background: linear-gradient(180deg, rgba(6, 7, 8, 0), rgba(6, 7, 8, 0.72));
+  color: var(--brand-white);
+}
+
+.app-me-cell--photo .app-me-cell-visits {
+  color: var(--brand-white);
+  opacity: 0.9;
+}
+
 .app-me-cell-veil {
   background: linear-gradient(180deg, rgba(6, 7, 8, 0), rgba(6, 7, 8, 0.75));
   bottom: 0;

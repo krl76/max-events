@@ -68,7 +68,7 @@ describe("ProfileSurfaceService", () => {
 
   it("lists visited places by visit count and author posts newest first", async () => {
     const { service } = createService();
-    expect(await service.visitedPlaces(userId)).toEqual([{ placeId, title: "Парк Горького", visits: 2 }]);
+    expect(await service.visitedPlaces(userId)).toEqual([{ placeId, title: "Парк Горького", visits: 2, photoUrl: null }]);
     const [post] = await service.listPosts(userId);
     expect(post).toMatchObject({ eventTitle: "Джаз", category: "afisha", likesCount: 1, commentsCount: 0, photoUrl: null });
   });

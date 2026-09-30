@@ -26,7 +26,7 @@
 
 import "reflect-metadata";
 import { fakerRU } from "@faker-js/faker";
-import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, type AchievementCode, type BookingStatus, type EventCategory, type GatheringStatus, type InviteeResponse, type ListPreset, type MicroEventStatus, type ParticipationStatus, type PaymentStatus, type PlaceCategory, type PlanParticipantStatus, type PromoCampaignStatus, type PromoCampaignType, type PromotionStatus, type PromotionType, type ReportReason, type ReportSource, type ReportStatus, type ReportTargetType, type WaitlistStatus, type WeGroupStatus } from "@max-events/api-contracts";
+import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, type AchievementCode, type BookingStatus, type CityWalk, type EventCategory, type GatheringStatus, type InviteeResponse, type ListPreset, type MicroEventStatus, type ParticipationStatus, type PaymentStatus, type PlaceCategory, type PlanParticipantStatus, type PromoCampaignStatus, type PromoCampaignType, type PromotionStatus, type PromotionType, type ReportReason, type ReportSource, type ReportStatus, type ReportTargetType, type WaitlistStatus, type WeGroupStatus } from "@max-events/api-contracts";
 import type { DataSource, ObjectLiteral, Repository } from "typeorm";
 import { ACHIEVEMENT_CATALOG } from "../achievements/achievements.service";
 import { UserAchievementEntity } from "../achievements/user-achievement.entity";
@@ -42,6 +42,7 @@ import { ListEntity } from "../lists/list.entity";
 import { LIST_PRESET_TITLES, SHELF_PRESETS } from "../lists/lists.service";
 import { MicroEventEntity, MicroEventParticipantEntity } from "../microevents/micro-event.entity";
 import { districtKey } from "../mycity/my-city.service";
+import { OrganizationEntity } from "../organizations/organization.entity";
 import { DEFAULT_COMMISSION_BPS, splitTicketSale } from "../payments/commission";
 import { PaymentEntity } from "../payments/payment.entity";
 import { PlaceEntity } from "../places/place.entity";
@@ -62,7 +63,9 @@ import { ProfileEntity } from "../users/profile.entity";
 import { UserEntity } from "../users/user.entity";
 import { VoteBallotEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity } from "../votes/vote.entity";
 import { WaitlistEntryEntity } from "../waitlist/waitlist-entry.entity";
-import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity } from "../wegroups/we-group.entity";
+import { CityWalkEntity } from "../walks/city-walk.entity";
+import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity, WeGroupPhotoEntity } from "../wegroups/we-group.entity";
+import { AUTHORED_COMMENTS, AUTHORED_POSTS, AUTHORED_REVIEWS, AUTHORED_STORIES, DEMO_CAST, ORGANIZER_REVIEW_TEXTS, ORGANIZER_SHOWCASE, PLACE_LOGOS, VIEWER_WALKS, WE_GROUP_TITLES } from "./seed-demo-cast";
 
 // --- Demo scales and guards -------------------------------------------------
 
@@ -93,8 +96,8 @@ export type DemoCounts = {
 
 export const DEMO_COUNTS: Record<DemoScale, DemoCounts> = {
   small: { users: 10, places: 26, events: 12, stories: 8, feedPosts: 8, reviews: 8, checkIns: 18, bookings: 10, participations: 20, plans: 3, votes: 2, weGroups: 1, gatherings: 1, microEvents: 4, subscriptions: 5, pageViews: 60, feedLikes: 20, feedComments: 8, waitlistEntries: 4, reports: 3 },
-  normal: { users: 48, places: 26, events: 12, stories: 8, feedPosts: 8, reviews: 8, checkIns: 100, bookings: 50, participations: 100, plans: 18, votes: 8, weGroups: 5, gatherings: 6, microEvents: 18, subscriptions: 24, pageViews: 320, feedLikes: 120, feedComments: 48, waitlistEntries: 16, reports: 10 },
-  big: { users: 75, places: 26, events: 12, stories: 8, feedPosts: 8, reviews: 8, checkIns: 150, bookings: 75, participations: 150, plans: 25, votes: 12, weGroups: 7, gatherings: 7, microEvents: 25, subscriptions: 40, pageViews: 500, feedLikes: 180, feedComments: 60, waitlistEntries: 25, reports: 20 },
+  normal: { users: 20, places: 26, events: 12, stories: 12, feedPosts: 12, reviews: 8, checkIns: 100, bookings: 50, participations: 100, plans: 18, votes: 8, weGroups: 5, gatherings: 6, microEvents: 18, subscriptions: 24, pageViews: 320, feedLikes: 120, feedComments: 36, waitlistEntries: 16, reports: 10 },
+  big: { users: 20, places: 26, events: 12, stories: 12, feedPosts: 12, reviews: 8, checkIns: 150, bookings: 75, participations: 150, plans: 25, votes: 12, weGroups: 7, gatherings: 7, microEvents: 25, subscriptions: 40, pageViews: 500, feedLikes: 180, feedComments: 36, waitlistEntries: 25, reports: 20 },
 };
 
 export function parseDemoScale(raw: string | undefined): DemoScale {
@@ -199,7 +202,7 @@ const INTEREST_POOL = ["Спорт", "Музыка", "Искусство", "Га
 
 const VOTE_TITLES = ["Куда идём в субботу?", "Выбираем событие на выходные", "Голосуем за план на вечер", "Что делаем в пятницу?", "Куда сходить большой компанией?"];
 
-const WE_GROUP_TITLES = ["Мы: уикенды в парках", "Мы: велопрогулки", "Мы: любители искусства"];
+
 
 const EXPENSE_TITLES = ["Билеты", "Ужин после события", "Транспорт", "Аренда инвентаря"];
 
@@ -261,6 +264,8 @@ export type DemoData = {
   reports: ReportEntity[];
   payments: PaymentEntity[];
   promoFulfillments: PromoFulfillmentEntity[];
+  cityWalks: CityWalkEntity[];
+  weGroupPhotos: WeGroupPhotoEntity[];
 };
 
 function uuid(): string {
@@ -285,10 +290,6 @@ function shiftDays(base: Date, days: number, hourUtc: number): Date {
 
 function isoDay(date: Date): string {
   return date.toISOString().slice(0, 10);
-}
-
-function pickInterests(): string[] {
-  return fakerRU.helpers.arrayElements(INTEREST_POOL, int(2, 4));
 }
 
 /** Возвращает элементы пула по кругу: соседние вызовы дают разные строки, пока пул не кончится. */
@@ -617,7 +618,7 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
   [groupPastEvent, ...afishaVisits.slice(0, 2)].forEach((event) => {
     if (reviews.some((row) => row.eventId === event.id)) return;
     const scene = sceneByTitle(event.title);
-    reviews.push({ id: uuid(), userId: viewerId, eventId: event.id, stars: int(4, 5), categoryScores: { atmosphere: int(4, 5), organization: int(3, 5), price: int(3, 5), place: int(4, 5) }, wouldGoAgain: true, photoUrls: [scene.visit], factTags: [], text: scene.review, createdAt: new Date(event.startsAt.getTime() + int(2, 30) * HOUR_MS) });
+    reviews.push({ id: uuid(), userId: viewerId, eventId: event.id, stars: int(4, 5), categoryScores: { atmosphere: int(4, 5), organization: int(3, 5), price: int(3, 5), place: int(4, 5) }, wouldGoAgain: true, photoUrls: [scene.cover], factTags: [], text: scene.review, createdAt: new Date(event.startsAt.getTime() + int(2, 30) * HOUR_MS) });
   });
 
   const participations: ParticipationEntity[] = [];
@@ -637,7 +638,7 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
   const feedPosts: FeedPostEntity[] = [groupPastEvent, hostedPlanEvent].map((event) => {
     const scene = sceneByTitle(event.title);
     const happened = event.startsAt.getTime() < now.getTime();
-    return { id: uuid(), authorUserId: viewerId, eventId: event.id, text: happened ? scene.post : `Собираемся: ${scene.title}. ${scene.description}`, photoUrl: happened ? scene.visit : scene.cover, published: true, createdAt: new Date(now.getTime() - int(2, 90) * HOUR_MS) };
+    return { id: uuid(), authorUserId: viewerId, eventId: event.id, text: happened ? scene.post : `Собираемся: ${scene.title}. ${scene.description}`, photoUrl: scene.cover, published: true, createdAt: new Date(now.getTime() - int(2, 90) * HOUR_MS) };
   });
 
   return { lists, listItems, plans, planParticipants, planExpenses, votes, voteOptions, voteParticipants, voteBallots, weGroups, weGroupMembers, weGroupItems, gatherings, gatheringInvitees, microEvents, microEventParticipants, subscriptions, bookings, checkIns, reviews, participations, feedPosts };
@@ -681,34 +682,35 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   const { now, ownerUserId, devUserId } = config;
   const c = DEMO_COUNTS[config.scale];
 
-  // users + profiles (users[0] and users[1] double as organizers)
-  const users: UserEntity[] = [];
-  for (let i = 0; i < c.users; i += 1) {
+  // users + profiles: named people with matching sex, voice and avatar.
+  const cast = DEMO_CAST.slice(0, c.users);
+  const users: UserEntity[] = cast.map((person, i) => {
     const createdAt = shiftDays(now, -int(30, 120), int(9, 22));
-    users.push({
+    return {
       id: uuid(),
       maxUserId: String(DEMO_USER_ID_BASE + i),
-      firstName: fakerRU.person.firstName(),
-      lastName: fakerRU.person.lastName(),
-      username: i % 3 === 0 ? fakerRU.internet.username() : null,
-      avatarUrl: null,
+      firstName: person.firstName,
+      lastName: person.lastName,
+      username: person.username,
+      avatarUrl: person.avatarUrl,
       avatarCustom: false,
       bannedFromPublishing: false,
       friendsSyncedAt: null,
       createdAt,
       updatedAt: createdAt,
-    });
-  }
+    };
+  });
+  const userBySlug = new Map(cast.map((person, i) => [person.slug, users[i]!]));
   const organizers = [users[0]!, users[1]!];
 
   const profiles: ProfileEntity[] = users.map((user, i) => ({
     userId: user.id,
-    city: i % 8 === 6 ? "Санкт-Петербург" : DEMO_CITY,
-    interests: pickInterests(),
+    city: cast[i]!.city,
+    interests: [...cast[i]!.interests],
     smartAlerts: DEFAULT_SMART_ALERTS,
     privacy: DEFAULT_PRIVACY,
     recommendationsEnabled: chance(0.9),
-    bio: i % 4 === 0 ? "Ищу компанию на концерты и прогулки по городу." : "",
+    bio: cast[i]!.bio,
     coverUrl: null,
     updatedAt: user.createdAt,
   }));
@@ -731,7 +733,13 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   users.forEach((user, i) => {
     if (i % 2 === 1) addFriendship(ownerUserId, user.id);
     if (i % 3 === 0) addFriendship(devUserId, user.id);
+    addFriendship(user.id, users[(i + 1) % users.length]!.id);
+    addFriendship(user.id, users[(i + 4) % users.length]!.id);
   });
+  for (const spec of [...AUTHORED_STORIES, ...AUTHORED_POSTS]) {
+    const author = userBySlug.get(spec.authorSlug);
+    if (author) addFriendship(devUserId, author.id);
+  }
 
   // places: each real venue once, at its own coordinates. No «№2» copies.
   const places: PlaceEntity[] = PLACE_POOL.map((base, i) => {
@@ -746,6 +754,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       longitude: base.longitude,
       organizerUserId: i < 6 ? organizers[i % 2].id : null,
       published: true,
+      logoUrl: PLACE_LOGOS[base.title] ?? null,
       createdAt,
       updatedAt: shiftDays(now, -int(1, 30), 12),
     };
@@ -915,36 +924,101 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     }
   }
 
-  // stories + feed posts. Authors are friends of the owner/dev so the rail of a seeded login is not empty.
-  const storyAuthorIds = [...new Set(friendships.filter((row) => row.userId === ownerUserId || row.userId === devUserId).map((row) => row.friendUserId))];
-  const stories: StoryEntity[] = Array.from({ length: c.stories }, (_, i) => ({
-    id: uuid(),
-    userId: (storyAuthorIds.length > 0 ? storyAuthorIds[i % storyAuthorIds.length] : pick(users).id)!,
-    imageUrl: SCENES[i % SCENES.length]!.visit,
-    createdAt: new Date(now.getTime() - ((i % 8) + 1) * HOUR_MS),
-  }));
-  const feedPosts: FeedPostEntity[] = pastEvents.slice(0, c.feedPosts).map((event) => {
-    const scene = sceneByTitle(event.title);
-    return {
+  // stories + feed posts. Authors, captions and photos stay the same person.
+  const stories: StoryEntity[] = [];
+  for (const spec of AUTHORED_STORIES) {
+    if (stories.length >= c.stories) break;
+    const author = userBySlug.get(spec.authorSlug);
+    if (!author) continue;
+    const stickerEvent = spec.stickerEventTitle ? events.find((event) => event.title === spec.stickerEventTitle) : undefined;
+    stories.push({
       id: uuid(),
-      authorUserId: pick(users).id,
-      eventId: event.id,
-      text: scene.post,
-      photoUrl: scene.visit,
-      published: true,
-      createdAt: new Date(event.startsAt.getTime() + 3 * HOUR_MS),
-    };
-  });
+      userId: author.id,
+      imageUrl: spec.imageUrl,
+      text: spec.text ?? "",
+      sticker: stickerEvent ? { eventId: stickerEvent.id, title: stickerEvent.title, subtitle: stickerEvent.city, seatsLeft: stickerEvent.capacity === null ? null : Math.max(0, stickerEvent.capacity - stickerEvent.bookedCount) } : null,
+      poll: spec.poll ? { question: spec.poll.question, options: [...spec.poll.options] } : null,
+      audience: "friends",
+      objects: [],
+      createdAt: new Date(now.getTime() - spec.hoursAgo * HOUR_MS),
+    });
+  }
+  const storyAuthorIds = [...new Set(friendships.filter((row) => row.userId === ownerUserId || row.userId === devUserId).map((row) => row.friendUserId))];
+  for (let i = 0; stories.length < c.stories; i += 1) {
+    const place = places[i % places.length]!;
+    stories.push({
+      id: uuid(),
+      userId: (storyAuthorIds.length > 0 ? storyAuthorIds[i % storyAuthorIds.length] : pick(users).id)!,
+      imageUrl: place.logoUrl ?? "/onboarding/gorky.jpg",
+      text: "",
+      sticker: null,
+      poll: null,
+      audience: "friends",
+      objects: [],
+      createdAt: new Date(now.getTime() - ((i % 8) + 1) * HOUR_MS),
+    });
+  }
 
-  // reviews on past events, unique user+event pairs
+  const feedPosts: FeedPostEntity[] = [];
+  for (const spec of AUTHORED_POSTS) {
+    const author = userBySlug.get(spec.authorSlug);
+    if (!author) continue;
+    const event = spec.eventTitle === null ? undefined : events.find((item) => item.title === spec.eventTitle);
+    const place = spec.placeTitle === null ? undefined : places.find((item) => item.title === spec.placeTitle);
+    if (spec.eventTitle !== null && !event) continue;
+    const rawCreated = event !== undefined && spec.hoursAfterStart !== undefined ? new Date(event.startsAt.getTime() + spec.hoursAfterStart * HOUR_MS) : shiftDays(now, -int(1, 5), int(12, 20));
+    const createdAt = rawCreated.getTime() > now.getTime() ? new Date(now.getTime() - int(2, 40) * HOUR_MS) : rawCreated;
+    feedPosts.push({
+      id: uuid(),
+      authorUserId: author.id,
+      eventId: event?.id ?? null,
+      text: spec.text,
+      photoUrl: spec.photoUrl,
+      photoUrls: [spec.photoUrl],
+      placeId: place?.id ?? event?.placeId ?? null,
+      locationLabel: spec.locationLabel ?? null,
+      taggedFriendIds: (spec.taggedFriendSlugs ?? []).flatMap((slug) => {
+        const friend = userBySlug.get(slug);
+        return friend ? [friend.id] : [];
+      }),
+      audience: "friends",
+      allowJoin: event !== undefined && event.startsAt.getTime() > now.getTime(),
+      published: true,
+      createdAt,
+    });
+  }
+
+  // reviews on past events, unique user+event pairs, voice matches the author
   const reviews: ReviewEntity[] = [];
   const reviewPairs = new Set<string>();
+  for (const spec of AUTHORED_REVIEWS) {
+    if (reviews.length >= c.reviews) break;
+    const author = userBySlug.get(spec.authorSlug);
+    const event = events.find((item) => item.title === spec.eventTitle);
+    if (!author || !event || event.startsAt.getTime() >= now.getTime()) continue;
+    const key = `${author.id}:${event.id}`;
+    if (reviewPairs.has(key)) continue;
+    reviewPairs.add(key);
+    reviews.push({
+      id: uuid(),
+      userId: author.id,
+      eventId: event.id,
+      stars: spec.stars,
+      categoryScores: { atmosphere: spec.stars, organization: Math.max(3, spec.stars - 1), price: spec.stars, place: spec.stars },
+      wouldGoAgain: spec.wouldGoAgain,
+      photoUrls: [spec.photoUrl],
+      factTags: [],
+      text: spec.text,
+      createdAt: new Date(event.startsAt.getTime() + int(1, 48) * HOUR_MS),
+    });
+  }
   for (let attempt = 0; reviews.length < c.reviews && attempt < c.reviews * 50 && pastEvents.length > 0; attempt += 1) {
     const user = pick(users);
     const event = pick(pastEvents);
     const key = `${user.id}:${event.id}`;
     if (reviewPairs.has(key)) continue;
     reviewPairs.add(key);
+    const scene = sceneByTitle(event.title);
     reviews.push({
       id: uuid(),
       userId: user.id,
@@ -952,9 +1026,9 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       stars: int(3, 5),
       categoryScores: { atmosphere: int(3, 5), organization: int(3, 5), price: int(3, 5), place: int(3, 5) },
       wouldGoAgain: chance(0.8),
-      photoUrls: [sceneByTitle(event.title).visit],
+      photoUrls: [scene.cover],
       factTags: [],
-      text: sceneByTitle(event.title).review,
+      text: scene.review,
       createdAt: new Date(event.startsAt.getTime() + int(1, 48) * HOUR_MS),
     });
   }
@@ -1210,6 +1284,49 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   participations.push(...viewer.participations);
   feedPosts.push(...viewer.feedPosts);
 
+  const cityWalks: CityWalkEntity[] = VIEWER_WALKS.map((draft) => {
+    const id = uuid();
+    const createdAt = shiftDays(now, -int(2, 14), 12);
+    const stops = draft.stops.map((stop, index) => {
+      const place = places.find((item) => item.title === stop.placeTitle);
+      return {
+        order: index + 1,
+        title: stop.title,
+        address: stop.address,
+        latitude: stop.latitude,
+        longitude: stop.longitude,
+        description: stop.description,
+        sourceUrl: place ? `app://places/${place.id}` : "https://yandex.ru/maps",
+        placeId: place?.id ?? null,
+        done: index === 0,
+      };
+    });
+    const payload: CityWalk = {
+      id,
+      city: draft.city,
+      durationMinutes: draft.durationMinutes,
+      budgetMode: draft.budgetMode,
+      budgetRub: draft.budgetRub,
+      interests: [...draft.interests],
+      sourceLabel: draft.sourceLabel,
+      fitted: draft.fitted,
+      stops,
+      legs: draft.legs.map((leg) => ({ ...leg })),
+      createdAt: createdAt.toISOString(),
+    };
+    return { id, userId: devUserId, city: draft.city, payload, createdAt };
+  });
+
+  const weGroupPhotos: WeGroupPhotoEntity[] = [];
+  for (const group of weGroups) {
+    const memberIds = new Set(weGroupMembers.filter((row) => row.groupId === group.id).map((row) => row.userId));
+    const fromMembers = feedPosts.filter((post) => memberIds.has(post.authorUserId) && post.photoUrl);
+    const picked = fromMembers.slice(0, 4);
+    for (const post of picked) {
+      weGroupPhotos.push({ id: uuid(), groupId: group.id, userId: post.authorUserId, url: post.photoUrl!, createdAt: post.createdAt });
+    }
+  }
+
   // Постоянные посетители: у пары людей на каждый десяток должна набираться история визитов, иначе
   // достижения остаются личной особенностью зрителя, а не свойством населения стенда.
   for (const row of checkIns) visitTuples.add(row.placeId === null ? `event:${row.userId}:${row.eventId}` : `place:${row.userId}:${row.placeId}:${row.visitDate}`);
@@ -1235,10 +1352,31 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     likePairs.add(key);
     feedLikes.push({ id: uuid(), postId: post.id, userId });
   }
-  const feedComments: FeedCommentEntity[] = Array.from({ length: c.feedComments }, (_, i) => {
-    const post = pick(feedPosts);
-    return { id: uuid(), postId: post.id, authorUserId: i % 5 === 0 ? devUserId : pick(users).id, text: pick(COMMENT_TEXTS), createdAt: new Date(Math.min(now.getTime() - 60_000, post.createdAt.getTime() + int(1, 40) * HOUR_MS)) };
-  });
+  const feedComments: FeedCommentEntity[] = [];
+  const commentOn = (post: FeedPostEntity, authorUserId: string, text: string): void => {
+    if (feedComments.length >= c.feedComments) return;
+    if (authorUserId === post.authorUserId) return;
+    feedComments.push({ id: uuid(), postId: post.id, authorUserId, text, createdAt: new Date(Math.min(now.getTime() - 60_000, post.createdAt.getTime() + int(1, 40) * HOUR_MS)) });
+  };
+  for (const spec of AUTHORED_COMMENTS) {
+    const author = userBySlug.get(spec.authorSlug);
+    if (!author) continue;
+    const post = feedPosts.find((row) => {
+      if (spec.eventTitle) {
+        const event = events.find((item) => item.title === spec.eventTitle);
+        return event !== undefined && row.eventId === event.id;
+      }
+      if (spec.placeTitle) {
+        const place = places.find((item) => item.title === spec.placeTitle);
+        return place !== undefined && row.placeId === place.id && row.eventId === null;
+      }
+      return false;
+    });
+    if (post) commentOn(post, author.id, spec.text);
+  }
+  for (let i = 0; feedComments.length < c.feedComments && feedPosts.length > 0 && i < c.feedComments * 40; i += 1) {
+    commentOn(feedPosts[i % feedPosts.length]!, i % 5 === 0 ? devUserId : pick(users).id, pick(COMMENT_TEXTS));
+  }
 
   // Лист ожидания (21): несколько будущих событий добираются до потолка, очередь за ними — FIFO по
   // createdAt. Зритель стоит и в общей очереди, и держит одно приглашение с дедлайном.
@@ -1374,6 +1512,8 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     reports,
     payments,
     promoFulfillments,
+    cityWalks,
+    weGroupPhotos,
   };
 }
 
@@ -1389,7 +1529,7 @@ export type DemoSeedOptions = {
 };
 
 /** Content tables a reset may empty. Accounts, profiles and organizations stay so a login still works. */
-const RESET_CONTENT_TABLES = ["feed_comments", "feed_likes", "feed_post_going", "feed_posts", "feed_drafts", "stories", "reviews", "check_ins", "waitlist_entries", "participations", "payments", "promo_fulfillments", "bookings", "plan_expenses", "plan_participants", "plans", "gathering_invitees", "gatherings", "vote_ballots", "vote_participants", "vote_options", "votes", "we_group_photos", "we_group_items", "we_group_members", "we_groups", "micro_event_expenses", "micro_event_participants", "micro_events", "list_items", "list_members", "lists", "subscriptions", "page_views", "reports", "user_achievements", "promotion_campaigns", "promo_campaigns", "promo_codes", "event_options", "events", "place_participations", "slot_chat_messages", "slot_waitlist", "slot_bookings", "place_extras", "place_slots", "places", "notifications", "list_digest_sends", "swipe_decisions", "calendar_goings", "calendar_shares", "calendar_invites", "friendships"] as const;
+const RESET_CONTENT_TABLES = ["feed_comments", "feed_likes", "feed_post_going", "feed_posts", "feed_drafts", "stories", "reviews", "check_ins", "waitlist_entries", "participations", "payments", "promo_fulfillments", "bookings", "plan_expenses", "plan_participants", "plans", "gathering_invitees", "gatherings", "vote_ballots", "vote_participants", "vote_options", "votes", "we_group_photos", "we_group_items", "we_group_members", "we_groups", "micro_event_expenses", "micro_event_participants", "micro_events", "list_items", "list_members", "lists", "subscriptions", "page_views", "reports", "user_achievements", "promotion_campaigns", "promo_campaigns", "promo_codes", "event_options", "events", "place_participations", "slot_chat_messages", "slot_waitlist", "slot_bookings", "place_extras", "place_slots", "places", "city_walks", "notifications", "list_digest_sends", "swipe_decisions", "calendar_goings", "calendar_shares", "calendar_invites", "friendships"] as const;
 
 /** Empties stale generated and user-made rows. Missing tables are skipped so an older schema still resets. */
 export async function resetGeneratedContent(dataSource: DataSource): Promise<string[]> {
@@ -1478,11 +1618,205 @@ function remapPlaceIds(data: DemoData, idMap: Map<string, string>): void {
   for (const item of data.weGroupItems) item.placeId = real(item.placeId);
   for (const subscription of data.subscriptions) subscription.placeId = real(subscription.placeId);
   for (const microEvent of data.microEvents) microEvent.placeId = real(microEvent.placeId);
+  for (const post of data.feedPosts) post.placeId = real(post.placeId ?? null);
+  for (const walk of data.cityWalks) {
+    walk.payload.stops = walk.payload.stops.map((stop) => {
+      const placeId = real(stop.placeId);
+      const sourceUrl = stop.sourceUrl.startsWith("app://places/") ? `app://places/${placeId ?? stop.placeId}` : stop.sourceUrl;
+      return { ...stop, placeId, sourceUrl };
+    });
+  }
   // У жалобы нет внешнего ключа на площадку, но очередь модерации всё равно должна открывать живую
   // карточку, а не идентификатор, которого в базе нет.
   for (const report of data.reports) {
     if (report.targetType === "place") report.targetId = real(report.targetId) ?? report.targetId;
   }
+}
+
+async function fillOrganizerCabinet(dataSource: DataSource, now: Date): Promise<number> {
+  const orgs = await dataSource.getRepository(OrganizationEntity).find();
+  if (orgs.length === 0) return 0;
+  const places = await dataSource.getRepository(PlaceEntity).find();
+  const guests = (await dataSource.getRepository(UserEntity).find()).filter((user) => user.maxUserId.startsWith(String(DEMO_USER_ID_BASE).slice(0, 6)) || user.username === "seaG7");
+  const eventsRepo = dataSource.getRepository(EventEntity);
+  const bookingsRepo = dataSource.getRepository(BookingEntity);
+  const reviewsRepo = dataSource.getRepository(ReviewEntity);
+  const checkInsRepo = dataSource.getRepository(CheckInEntity);
+  const participationsRepo = dataSource.getRepository(ParticipationEntity);
+  const promoRepo = dataSource.getRepository(PromoCampaignEntity);
+  const paymentsRepo = dataSource.getRepository(PaymentEntity);
+  let inserted = 0;
+  const placeByTitle = new Map(places.map((place) => [place.title, place]));
+
+  for (const org of orgs) {
+    if (org.organizerUserId === null) continue;
+    for (const [index, spec] of ORGANIZER_SHOWCASE.entries()) {
+      const place = placeByTitle.get(spec.place) ?? null;
+      let event = await eventsRepo.findOneBy({ title: spec.title, organizerOrganizationId: org.id });
+      const startsAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + spec.dayOffset, spec.hourUtc, 0));
+      const endsAt = new Date(startsAt.getTime() + spec.durationHours * HOUR_MS);
+      const createdAt = new Date(startsAt.getTime() - 5 * 24 * HOUR_MS);
+      if (!event) {
+        event = eventsRepo.create({
+          title: spec.title,
+          description: spec.description,
+          category: spec.category,
+          city: DEMO_CITY,
+          placeId: place?.id ?? null,
+          organizerUserId: org.organizerUserId,
+          organizerOrganizationId: org.id,
+          startsAt,
+          endsAt,
+          isPaid: spec.paid,
+          priceRub: spec.price,
+          paymentUrl: spec.paymentUrl,
+          capacity: spec.capacity,
+          bookedCount: 0,
+          published: true,
+          bookingOpensAt: null,
+          chatLink: null,
+          chatSyncPending: true,
+          coverUrl: spec.cover,
+          createdAt,
+          updatedAt: createdAt,
+        });
+        await eventsRepo.save(event);
+        inserted += 1;
+      } else {
+        event.placeId = event.placeId ?? place?.id ?? null;
+        event.coverUrl = event.coverUrl ?? spec.cover;
+        event.organizerUserId = org.organizerUserId;
+        await eventsRepo.save(event);
+      }
+      const past = startsAt.getTime() < now.getTime();
+      const guestSlice = guests.slice(0, past ? 8 : 6);
+      for (const [guestIndex, guest] of guestSlice.entries()) {
+        if (spec.capacity !== null || spec.paid) {
+          const bookingId = fakerRU.string.uuid();
+          const bookingCreated = new Date(startsAt.getTime() - (guestIndex + 1) * 24 * HOUR_MS);
+          const bookingStatus = guestIndex === guestSlice.length - 1 && !past ? "cancelled" : "active";
+          try {
+            await bookingsRepo.insert({
+              id: bookingId,
+              userId: guest.id,
+              eventId: event.id,
+              status: bookingStatus,
+              promoCode: null,
+              source: (["chats", "feed", "search"] as const)[guestIndex % 3],
+              createdAt: bookingCreated,
+              updatedAt: bookingCreated,
+              reminderSentAt: null,
+            });
+            inserted += 1;
+            if (spec.paid && spec.price !== null) {
+              const status = bookingStatus === "cancelled" ? "refunded" : "succeeded";
+              const split = splitTicketSale(spec.price, DEFAULT_COMMISSION_BPS);
+              const frozen = status === "succeeded";
+              await paymentsRepo.insert({
+                id: fakerRU.string.uuid(),
+                bookingId,
+                providerPaymentId: `org-${bookingId.slice(0, 8)}`,
+                status,
+                amountRub: spec.price,
+                currency: "RUB",
+                description: `Билет: ${spec.title}`.slice(0, 300),
+                commissionRub: frozen ? split.commissionRub : null,
+                netRub: frozen ? split.netRub : null,
+                commissionBps: frozen ? DEFAULT_COMMISSION_BPS : null,
+                commissionFixedAt: frozen ? new Date(bookingCreated.getTime() + 5 * 60_000) : null,
+                createdAt: bookingCreated,
+                updatedAt: bookingCreated,
+              });
+              inserted += 1;
+            }
+          } catch (error) {
+            if (!isUniqueViolation(error)) throw error;
+          }
+        }
+        if (past) {
+          try {
+            await checkInsRepo.insert({
+              id: fakerRU.string.uuid(),
+              userId: guest.id,
+              eventId: event.id,
+              placeId: null,
+              visitDate: null,
+              checkedInAt: new Date(startsAt.getTime() + 30 * 60_000),
+            });
+            inserted += 1;
+          } catch (error) {
+            if (!isUniqueViolation(error)) throw error;
+          }
+        }
+        try {
+          await participationsRepo.insert({
+            id: fakerRU.string.uuid(),
+            userId: guest.id,
+            eventId: event.id,
+            status: guestIndex % 2 === 0 ? "going" : "wants_to_go",
+            createdAt,
+            updatedAt: createdAt,
+          });
+          inserted += 1;
+        } catch (error) {
+          if (!isUniqueViolation(error)) throw error;
+        }
+      }
+      if (past) {
+        const reviewText = ORGANIZER_REVIEW_TEXTS[spec.title] ?? spec.description;
+        for (const [guestIndex, guest] of guests.slice(0, 5).entries()) {
+          try {
+            await reviewsRepo.insert({
+              id: fakerRU.string.uuid(),
+              userId: guest.id,
+              eventId: event.id,
+              stars: (4 + (guestIndex % 2)) as 4 | 5,
+              categoryScores: { atmosphere: 5, organization: 4, price: spec.paid ? 4 : 5, place: 5 },
+              wouldGoAgain: true,
+              photoUrls: [spec.cover],
+              factTags: [],
+              text: reviewText,
+              createdAt: new Date(startsAt.getTime() + (guestIndex + 2) * HOUR_MS),
+            });
+            inserted += 1;
+          } catch (error) {
+            if (!isUniqueViolation(error)) throw error;
+          }
+        }
+      }
+      const activeBookings = await bookingsRepo.count({ where: { eventId: event.id, status: "active" } });
+      event.bookedCount = spec.capacity === null ? activeBookings : Math.min(spec.capacity, Math.max(activeBookings, Math.round((spec.capacity ?? 0) * (0.35 + (index % 5) * 0.1))));
+      if (spec.capacity !== null && event.bookedCount > spec.capacity) event.bookedCount = spec.capacity;
+      await eventsRepo.save(event);
+      if (spec.paid && !past && org.organizerUserId) {
+        const existingPromo = await promoRepo.findOneBy({ eventId: event.id, organizerUserId: org.organizerUserId });
+        if (!existingPromo) {
+          await promoRepo.insert({
+            id: fakerRU.string.uuid(),
+            eventId: event.id,
+            organizerUserId: org.organizerUserId,
+            type: "special_offer",
+            status: "active",
+            code: `ORG${index}`,
+            title: "Скидка 10% новым гостям",
+            maxFulfillments: 30,
+            fulfillmentCount: 3,
+            createdAt,
+            completedAt: null,
+          });
+          inserted += 1;
+        }
+      }
+    }
+    for (const place of places.slice(0, 8)) {
+      if (place.organizerOrganizationId) continue;
+      place.organizerOrganizationId = org.id;
+      place.organizerUserId = place.organizerUserId ?? org.organizerUserId;
+      if (!place.logoUrl) place.logoUrl = PLACE_LOGOS[place.title] ?? place.logoUrl;
+      await dataSource.getRepository(PlaceEntity).save(place);
+    }
+  }
+  return inserted;
 }
 
 export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeedOptions): Promise<DemoSeedResult> {
@@ -1503,6 +1837,13 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
 
   const places = await resolveRows(dataSource.getRepository(PlaceEntity), data.places, (place) => ({ title: place.title, address: place.address, city: place.city }));
   remapPlaceIds(data, places.idMap);
+  const placesRepo = dataSource.getRepository(PlaceEntity);
+  for (const place of await placesRepo.find()) {
+    const logoUrl = PLACE_LOGOS[place.title];
+    if (!logoUrl || place.logoUrl === logoUrl) continue;
+    place.logoUrl = logoUrl;
+    await placesRepo.save(place);
+  }
   // Пресет узнаётся по (userId, preset), собственный список пресета не имеет — его различает заголовок.
   const lists = await resolveRows(dataSource.getRepository(ListEntity), data.lists, (list) => (list.preset === null ? { userId: list.userId, title: list.title } : { userId: list.userId, preset: list.preset }));
   for (const item of data.listItems) item.listId = lists.idMap.get(item.listId) ?? item.listId;
@@ -1537,6 +1878,7 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
   inserted.weGroups = await insertRows(dataSource.getRepository(WeGroupEntity), data.weGroups);
   inserted.weGroupMembers = await insertRows(dataSource.getRepository(WeGroupMemberEntity), data.weGroupMembers);
   inserted.weGroupItems = await insertRows(dataSource.getRepository(WeGroupItemEntity), data.weGroupItems);
+  inserted.weGroupPhotos = await insertRows(dataSource.getRepository(WeGroupPhotoEntity), data.weGroupPhotos);
   inserted.gatherings = await insertRows(dataSource.getRepository(GatheringEntity), data.gatherings);
   inserted.gatheringInvitees = await insertRows(dataSource.getRepository(GatheringInviteeEntity), data.gatheringInvitees);
   inserted.microEvents = await insertRows(dataSource.getRepository(MicroEventEntity), data.microEvents);
@@ -1544,6 +1886,8 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
   inserted.plans = await insertRows(dataSource.getRepository(PlanEntity), data.plans);
   inserted.planParticipants = await insertRows(dataSource.getRepository(PlanParticipantEntity), data.planParticipants);
   inserted.planExpenses = await insertRows(dataSource.getRepository(PlanExpenseEntity), data.planExpenses);
+  inserted.cityWalks = await insertRows(dataSource.getRepository(CityWalkEntity), data.cityWalks);
+  inserted.organizerCabinet = await fillOrganizerCabinet(dataSource, now);
 
   const totalRows = Object.values(data).reduce((sum, rows) => sum + rows.length, 0);
   const totalInserted = Object.values(inserted).reduce((sum, count) => sum + count, 0);

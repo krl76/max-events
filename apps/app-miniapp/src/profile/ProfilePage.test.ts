@@ -30,8 +30,8 @@ const profile: Profile = {
 const counters: ProfileCounters = { userId: user.id, eventsCount: 112, placesCount: 47, companiesCount: 38 };
 
 const visitedPlaces: VisitedPlace[] = [
-  { placeId: "b0000001-0000-4000-8000-000000000001", title: "Парк Горького", visits: 12 },
-  { placeId: "b0000003-0000-4000-8000-000000000003", title: "«Лужники»", visits: 9 },
+  { placeId: "b0000001-0000-4000-8000-000000000001", title: "Парк Горького", visits: 12, photoUrl: "/onboarding/gorky.jpg" },
+  { placeId: "b0000003-0000-4000-8000-000000000003", title: "«Лужники»", visits: 9, photoUrl: null },
 ];
 
 function list(id: string, preset: string | null): ListSummary {
@@ -411,6 +411,8 @@ describe("ProfileView", () => {
     expect(html).toContain("12 визитов");
     expect(html).toContain("app-me-cell--1");
     expect(html).toContain("app-me-cell--2");
+    expect(html).toContain("app-me-cell--photo");
+    expect(html).toContain("/onboarding/gorky.jpg");
   });
 
   it("explains the impressions tab instead of leaving it blank when the viewer has been nowhere", () => {

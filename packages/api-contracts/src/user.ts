@@ -155,6 +155,7 @@ export const VisitedPlaceSchema = z.object({
   placeId: IdSchema,
   title: z.string().min(1),
   visits: z.number().int().min(1),
+  photoUrl: z.string().nullable().default(null),
 });
 export type VisitedPlace = z.infer<typeof VisitedPlaceSchema>;
 

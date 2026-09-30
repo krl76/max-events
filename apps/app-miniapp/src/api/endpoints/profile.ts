@@ -58,6 +58,7 @@ export interface VisitedPlace {
   placeId: string;
   title: string;
   visits: number;
+  photoUrl: string | null;
 }
 
 /**
@@ -122,7 +123,7 @@ const VisitedPlaceListSchema: ZodSchema<VisitedPlace[]> = {
       if (typeof item !== "object" || item === null) return { success: false as const, error: "invalid visited place" };
       const raw = item as Record<string, unknown>;
       if (typeof raw.placeId !== "string" || typeof raw.title !== "string" || typeof raw.visits !== "number") return { success: false as const, error: "invalid visited place" };
-      places.push({ placeId: raw.placeId, title: raw.title, visits: raw.visits });
+      places.push({ placeId: raw.placeId, title: raw.title, visits: raw.visits, photoUrl: typeof raw.photoUrl === "string" ? raw.photoUrl : null });
     }
     return { success: true as const, data: places };
   },
