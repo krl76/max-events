@@ -191,12 +191,10 @@ describe("followMetrics", () => {
 });
 
 describe("profileTabLabel", () => {
-  it("carries the count of the grid behind the tab, and drops it while the count is unknown", () => {
-    expect(profileTabLabel("posts", 8)).toBe("Посты · 8");
-    expect(profileTabLabel("places", 4)).toBe("Места · 4");
-    expect(profileTabLabel("posts", null)).toBe("Посты");
-    expect(profileTabLabel("posts", 0)).toBe("Посты");
-    expect(profileTabLabel("places", 0)).toBe("Места");
+  it("stays a name so the title fits one line", () => {
+    expect(profileTabLabel("posts")).toBe("Посты");
+    expect(profileTabLabel("places")).toBe("Места");
+    expect(profileTabLabel("saved")).toBe("Сохранённое");
   });
 });
 
@@ -238,7 +236,8 @@ describe("ProfileView", () => {
     expect(html).not.toContain("Москва · джаз, падел");
     expect(html).not.toContain(">112</span>");
     expect(html).not.toContain("компаний");
-    expect(html).toContain("Посты · 2");
+    expect(html).toContain("Посты");
+    expect(html).not.toContain("Посты ·");
     expect(html).not.toContain("Подписаться");
     expect(html).not.toContain("Написать");
     expect(html).not.toContain("Позвать");
@@ -283,11 +282,11 @@ describe("ProfileView", () => {
   it("carries the profile sections and leaves a row without its counter until the count arrives", () => {
     const html = renderProfileView();
 
-    expect(html).toContain("Календарь планов");
+    expect(html).toContain("Календарь");
     expect(html).toContain("Создать план");
     expect(html).toContain("Все планы");
-    expect(html).toContain("Будущие бронирования");
     expect(html).toContain("Все брони");
+    expect(html).not.toContain("Будущие бронирования");
     expect(html).not.toContain("Маршрут на день");
     expect(html).not.toContain("Микрособытия");
     expect(html).toContain("Достижения");
@@ -299,10 +298,11 @@ describe("ProfileView", () => {
     expect(html).not.toContain("app-me-avatar-plus");
   });
 
-  it("puts posts and the two follow counters in the header as the clickable numbers", () => {
+  it("puts the two follow counters in the header as the clickable numbers", () => {
     const html = renderProfileView({ subscriptions: [subscription("1", "organizer")], following: [person("p1", "Анна")], followers: [person("p2", "Дима"), person("p3", "Катя")] });
 
-    expect(html).toContain("Посты · 2");
+    expect(html).toContain("Посты");
+    expect(html).not.toContain("Посты ·");
     expect(html).not.toContain(">поста<");
     expect(html).toContain("подписки");
     expect(html).toContain("подписчика");
@@ -368,13 +368,15 @@ describe("ProfileView", () => {
 
   it("treats an in-app data-URL avatar as custom and an https MAX photo as original", () => {
     expect(isCustomProfileAvatar("data:image/jpeg;base64,abc")).toBe(true);
+    expect(isCustomProfileAvatar("https://afisha.example/api/uploads/abc")).toBe(true);
     expect(isCustomProfileAvatar("https://platform-lookaside.fbsbx.com/a.png")).toBe(false);
     expect(isCustomProfileAvatar(null)).toBe(false);
   });
 
-  it("keeps the posts count on the tab and does not repeat it as a metric while follows are unknown", () => {
+  it("keeps posts off the follow line while follows are unknown", () => {
     const html = renderProfileView();
-    expect(html).toContain("Посты · 2");
+    expect(html).toContain("Посты");
+    expect(html).not.toContain("Посты ·");
     expect(html).not.toContain(">поста<");
     expect(html).not.toContain("подписк");
   });
@@ -382,7 +384,8 @@ describe("ProfileView", () => {
   it("prints the counter hints once the counts are in", () => {
     const html = renderProfileView({ lists: [list("1", "want_to_go")], friendsCount: 24, achievements: [achievement("volunteer", true)] });
 
-    expect(html).toContain("Сохранённое · 1");
+    expect(html).toContain("Сохранённое");
+    expect(html).not.toContain("Сохранённое ·");
     expect(html).not.toContain("Списки");
     expect(html).toContain("24 друга");
     expect(html).toContain("1 из 1 собрано");
@@ -391,8 +394,9 @@ describe("ProfileView", () => {
   it("opens on the posts and keeps the impressions behind the second tab", () => {
     const html = renderProfileView();
 
-    expect(html).toContain("Посты · 2");
-    expect(html).toContain("Места · 2");
+    expect(html).toContain("Посты");
+    expect(html).toContain("Места");
+    expect(html).not.toContain("Места ·");
     expect(html).toContain("app-me-posts");
     expect(html).not.toContain("app-me-grid");
   });
@@ -450,7 +454,7 @@ describe("the post grid", () => {
   it("holds the height of the grid with placeholders while the posts are on their way", () => {
     const html = renderProfileView({ posts: null });
 
-    expect(html.match(/app-me-post-skeleton/g)).toHaveLength(2);
+    expect(html.match(/app-me-post-skeleton/g)).toHaveLength(6);
     expect(html).toContain('aria-label="Загружаем посты"');
     // Счётчик в ярлыке вкладки не выдумывает ноль, пока считать нечего
     expect(html).toContain(">Посты</button>");

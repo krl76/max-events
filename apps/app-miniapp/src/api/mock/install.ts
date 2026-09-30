@@ -25,11 +25,12 @@ import { promoRoutes } from "./promo.routes";
 import { reviewsRoutes } from "./reviews.routes";
 import { socialRoutes } from "./social.routes";
 import { slotsRoutes } from "./slots.routes";
+import { uploadsRoutes } from "./uploads.routes";
 import { walksRoutes } from "./walks.routes";
 
 type MockRouteTable = (url: URL, init: RequestInit | undefined) => Response | null;
 
-const ROUTE_TABLES: readonly MockRouteTable[] = [feedRoutes, authRoutes, socialRoutes, profileRoutes, discoverRoutes, promoRoutes, organizerRoutes, catalogRoutes, reviewsRoutes, bookingsRoutes, plansRoutes, groupsRoutes, listsRoutes, moderationRoutes, slotsRoutes, notificationsRoutes, walksRoutes];
+const ROUTE_TABLES: readonly MockRouteTable[] = [feedRoutes, authRoutes, socialRoutes, profileRoutes, discoverRoutes, promoRoutes, organizerRoutes, catalogRoutes, reviewsRoutes, bookingsRoutes, plansRoutes, groupsRoutes, listsRoutes, moderationRoutes, slotsRoutes, notificationsRoutes, walksRoutes, uploadsRoutes];
 
 export function installMockApi(): () => void {
   const real = globalThis.fetch;

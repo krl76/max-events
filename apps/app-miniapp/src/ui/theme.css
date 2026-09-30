@@ -545,6 +545,7 @@ html[data-theme="dark"] #root {
   padding-bottom: env(safe-area-inset-bottom, 0px);
   position: fixed;
   right: 0;
+  z-index: 20;
 }
 
 .app-tabbar button {
@@ -10438,8 +10439,9 @@ button.app-set-row {
 }
 
 .app-lists-grid {
+  align-items: start;
   display: grid;
-  gap: 10px;
+  gap: 8px;
   grid-template-columns: 1fr 1fr;
   margin-top: 10px;
 }
@@ -10447,14 +10449,15 @@ button.app-set-row {
 .app-lists-tile {
   background: none;
   border: 1px solid var(--app-divider);
-  border-radius: var(--app-radius-card);
+  border-radius: 16px;
   box-sizing: border-box;
   color: var(--app-text);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   font: inherit;
-  padding: 14px;
+  min-height: 96px;
+  padding: 10px;
   text-align: left;
   transition: transform 0.16s ease-out;
 }
@@ -10467,33 +10470,26 @@ button.app-set-row {
   align-items: center;
   display: flex;
   justify-content: space-between;
-  min-height: 36px;
+  min-height: 28px;
 }
 
-/* Готовую полку от своего списка отличает марка, а не другая карточка: полка — нейтральная
- * поверхность, свой список — фирменный градиент. Всё остальное в плитке одинаковое. */
 .app-lists-tile-mark {
   align-items: center;
   background: rgba(var(--app-scheme-neutral), 0.06);
-  border-radius: 10px;
+  border-radius: 8px;
   color: var(--app-text);
   display: flex;
   flex: none;
-  height: 36px;
+  height: 28px;
   justify-content: center;
-  width: 36px;
-}
-
-.app-lists-tile-mark--own {
-  background: linear-gradient(135deg, var(--brand-blue-pressed), var(--brand-blue-hover));
-  color: var(--brand-white);
+  width: 28px;
 }
 
 .app-lists-tile-title {
-  font-size: var(--app-type-card-size);
+  font-size: 13px;
   font-weight: 800;
   line-height: 1.2;
-  margin-top: var(--app-space-m);
+  margin-top: 8px;
 }
 
 .app-lists-tile-count {
@@ -10566,7 +10562,7 @@ button.app-set-row {
   align-items: center;
   background: none;
   border: 1px dashed rgba(var(--app-scheme-neutral), 0.2);
-  border-radius: var(--app-radius-card);
+  border-radius: 16px;
   box-sizing: border-box;
   color: var(--app-accent-text);
   cursor: pointer;
@@ -10577,8 +10573,8 @@ button.app-set-row {
   font-weight: 800;
   gap: var(--app-space-s);
   justify-content: center;
-  min-height: 118px;
-  padding: 14px;
+  min-height: 96px;
+  padding: 10px;
 }
 
 .app-lists-new:disabled {
@@ -27009,7 +27005,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-me--user .app-me-follow:active,
-.app-me--user .app-me-text-btn:active,
+.app-me--user .app-me-shortcut:active,
 .app-me--user .app-me-community-act:active {
   opacity: 0.65;
 }
@@ -27042,12 +27038,8 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-me--user button.app-me-card,
-.app-me--user .app-me-plan-open,
-.app-me--user .app-me-cta,
-.app-me--user .app-me-text-btn,
-.app-me--user .app-me-community-act,
-.app-me--user .app-me-book-all,
-.app-me--user .app-me-book-hit {
+.app-me--user .app-me-shortcut,
+.app-me--user .app-me-community-act {
   font: inherit;
 }
 
@@ -27078,189 +27070,51 @@ html:not([data-theme="dark"]) .app-when-sheet {
   flex: none;
 }
 
-.app-me--user .app-me-plan {
-  height: 100%;
+.app-me--user .app-me-shortcuts {
+  gap: 0;
+  padding: 4px 6px;
 }
 
-.app-me--user .app-me-plan-open {
-  align-items: stretch;
+.app-me--user .app-me-shortcut {
+  align-items: center;
   background: none;
   border: none;
+  border-radius: 14px;
   color: inherit;
   cursor: pointer;
   display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 8px;
   text-align: left;
   width: 100%;
 }
 
-.app-me--user .app-me-mini {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.app-me--user .app-me-shortcut + .app-me-shortcut {
+  border-top: var(--app-hairline);
 }
 
-.app-me--user .app-me-mini-week,
-.app-me--user .app-me-mini-grid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-}
-
-.app-me--user .app-me-mini-week {
-  color: var(--app-text-tertiary);
-  font-size: 10px;
-  font-weight: 800;
-  text-align: center;
-}
-
-.app-me--user .app-me-mini-day {
+.app-me--user .app-me-shortcut-icon {
   align-items: center;
-  aspect-ratio: 1;
-  border-radius: 50%;
+  background: rgba(var(--app-scheme-neutral), 0.06);
+  border-radius: 12px;
   color: var(--app-text);
   display: flex;
-  font-size: 10px;
-  font-weight: 700;
+  flex: none;
+  height: 32px;
   justify-content: center;
-  margin: 1px auto;
-  width: min(18px, 100%);
+  width: 32px;
 }
 
-.app-me--user .app-me-mini-day--out {
-  color: var(--app-text-tertiary);
-}
-
-.app-me--user .app-me-mini-day--today {
-  box-shadow: inset 0 0 0 1.5px var(--app-accent);
-  color: var(--app-accent-text);
-}
-
-.app-me--user .app-me-mini-day--busy {
-  background: var(--app-accent);
-  box-shadow: none;
-  color: var(--brand-white);
-}
-
-.app-me--user .app-me-cta {
-  background: var(--app-accent);
-  border: none;
-  border-radius: var(--app-radius-pill);
-  color: var(--brand-white);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 800;
-  min-height: 36px;
-  padding: 0 8px;
-  width: 100%;
-}
-
-.app-me--user .app-me-cta:active {
-  background: var(--app-accent-press);
-}
-
-.app-me--user .app-me-text-btn {
-  background: none;
-  border: none;
-  border-radius: var(--app-radius-pill);
-  color: var(--app-accent-text);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 800;
-  min-height: 32px;
-  padding: 0 8px;
-  width: 100%;
-}
-
-.app-me--user .app-me-book {
-  background: var(--app-gradient-dark);
-  border: none;
-  color: var(--brand-white);
-  justify-content: flex-end;
-  min-height: 100%;
-  overflow: hidden;
-  position: relative;
-}
-
-.app-me--user .app-me-book-hit {
-  background: none;
-  border: none;
-  cursor: pointer;
-  inset: 0;
-  padding: 0;
-  position: absolute;
-  z-index: 0;
-}
-
-.app-me--user .app-me-book-photo {
-  display: block;
-  height: 100%;
-  object-fit: cover;
-  width: 100%;
-}
-
-.app-me--user .app-me-book-shade {
-  background: linear-gradient(180deg, rgba(13, 0, 26, 0.62), rgba(13, 0, 26, 0.12) 42%, rgba(13, 0, 26, 0.78));
-  inset: 0;
-  pointer-events: none;
-  position: absolute;
-  z-index: 1;
-}
-
-.app-me--user .app-me-book-kicker,
-.app-me--user .app-me-book-copy {
-  pointer-events: none;
-  position: relative;
-  z-index: 1;
-}
-
-.app-me--user .app-me-book-kicker {
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.25;
-}
-
-.app-me--user .app-me-book-copy {
-  margin-bottom: 8px;
-  margin-top: auto;
-}
-
-.app-me--user .app-me-book-name {
-  -webkit-box-orient: vertical;
-  display: -webkit-box;
+.app-me--user .app-me-shortcut-label {
+  flex: 1;
   font-size: 14px;
   font-weight: 800;
-  -webkit-line-clamp: 2;
-  line-height: 1.25;
-  overflow: hidden;
 }
 
-.app-me--user .app-me-book-when {
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  margin-top: 2px;
-  opacity: 0.92;
-}
-
-.app-me--user .app-me-book-all {
-  background: var(--brand-white);
-  border: none;
-  border-radius: var(--app-radius-pill);
-  color: var(--brand-ink);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 800;
-  min-height: 36px;
-  position: relative;
-  width: 100%;
-  z-index: 2;
-}
-
-.app-me--user .app-me-book-all:active {
-  background: #e7e8ea;
+.app-me--user .app-me-shortcut > svg:last-child {
+  color: var(--app-text-tertiary);
+  flex: none;
 }
 
 .app-me--user .app-me-ach {
@@ -27427,73 +27281,37 @@ html:not([data-theme="dark"]) .app-when-sheet {
   text-align: center;
 }
 
-.app-me--user .app-me-tabs {
-  background: transparent;
-  gap: 8px;
-  margin-top: 16px;
-  padding: 0;
-}
-
 .app-me--user .app-me-tab {
-  background: rgba(var(--app-scheme-neutral), 0.06);
-  border: 1px solid transparent;
-  border-radius: 16px;
-  flex-direction: column;
-  font-size: 11px;
-  gap: 2px;
-  line-height: 1.15;
-  min-height: 52px;
-  padding: 8px 4px;
+  gap: 4px;
+  white-space: nowrap;
 }
 
-.app-me--user .app-me-tab--active {
-  background: var(--app-card);
-  border: var(--app-hairline);
-  box-shadow: 0 6px 16px rgba(6, 7, 8, 0.08);
-  color: var(--app-text);
-}
-
-.app-me--user .app-me-posts {
-  display: flex;
-  gap: 10px;
-  grid-template-columns: none;
-  overflow-x: auto;
-  padding: 14px 0 8px;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-
-.app-me--user .app-me-post,
-.app-me--user .app-me-post-skeleton {
-  aspect-ratio: 4 / 3;
-  background: var(--app-gradient-dark);
-  border-radius: 20px;
-  flex: 0 0 86%;
-  scroll-snap-align: start;
-  width: auto;
-}
-
-.app-me--user .app-me-dots {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-  padding-bottom: 8px;
-}
-
-.app-me--user .app-me-dot {
-  background: rgba(var(--app-scheme-neutral), 0.22);
-  border-radius: var(--app-radius-pill);
-  height: 6px;
-  width: 6px;
-}
-
-.app-me--user .app-me-dot--on {
-  background: var(--app-accent);
-  width: 16px;
+.app-me--user .app-me-grid {
+  gap: 8px;
+  padding-top: 12px;
 }
 
 .app-me--user .app-me-cell {
-  border-radius: 20px;
+  border-radius: 16px;
+  height: 84px;
+}
+
+.app-me--user .app-me-cell-blob {
+  height: 52px;
+  width: 52px;
+}
+
+.app-me--user .app-me-cell-veil {
+  padding: 10px;
+}
+
+.app-me--user .app-me-cell-title {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.app-me--user .app-lists-grid {
+  margin-top: 12px;
 }
 
 .app-me--user button:focus-visible {
@@ -27506,22 +27324,9 @@ html:not([data-theme="dark"]) .app-when-sheet {
   box-shadow: none;
 }
 
-[data-theme="dark"] .app-me--user .app-me-tab--active,
-.app-root[data-theme="dark"] .app-me--user .app-me-tab--active {
-  box-shadow: none;
-}
-
 @media (prefers-color-scheme: dark) {
-  html:not([data-theme]) .app-me--user .app-me-card,
-  html:not([data-theme]) .app-me--user .app-me-tab--active {
+  html:not([data-theme]) .app-me--user .app-me-card {
     box-shadow: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .app-me--user .app-me-dot,
-  .app-me--user .app-me-tab {
-    transition: none;
   }
 }
 

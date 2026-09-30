@@ -522,10 +522,16 @@ function AuthenticatedSettings({ user }: { user: User }) {
           const file = change.target.files?.[0];
           change.target.value = "";
           if (!file) return;
-          void readFeedPhoto(file).then((url) => {
-            if (url === null) return;
-            setProfile((current) => (current === null ? current : { ...current, coverUrl: url }));
-            apiClient.updateProfile({ coverUrl: url }).then(setProfile, () => setSaveFailed(true));
+          void readFeedPhoto(file).then(async (dataUrl) => {
+            if (dataUrl === null) return;
+            setProfile((current) => (current === null ? current : { ...current, coverUrl: dataUrl }));
+            try {
+              const url = await apiClient.storeImage(dataUrl, "cover");
+              const saved = await apiClient.updateProfile({ coverUrl: url });
+              setProfile(saved);
+            } catch {
+              setSaveFailed(true);
+            }
           });
         }}
       />

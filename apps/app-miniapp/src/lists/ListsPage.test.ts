@@ -80,21 +80,22 @@ describe("list labels", () => {
 describe("ListsView", () => {
   const ready: ListsState = { status: "ready", summaries: [summary(), own] };
 
-  it("splits the preset shelves from the lists of one's own and counts the latter", () => {
+  it("puts every shelf and list in one grid", () => {
     const html = renderToStaticMarkup(createElement(ListsView, { state: ready, onOpen: () => {} }));
 
-    expect(html).toContain("ГОТОВЫЕ ПОЛКИ");
-    expect(html).toContain("МОИ СПИСКИ");
+    expect(html).not.toContain("ГОТОВЫЕ ПОЛКИ");
+    expect(html).not.toContain("МОИ СПИСКИ");
     expect(html).not.toContain("из 20");
     expect(html).toContain("Хочу сходить");
     expect(html).toContain("Джаз по четвергам");
     expect(html).toContain("2 события");
+    expect((html.match(/class="app-lists-grid"/g) ?? []).length).toBe(1);
   });
 
-  it("marks a list of one's own apart from a preset shelf without making it another card", () => {
+  it("paints every list with the same mark, without a blue own-list glyph", () => {
     const html = renderToStaticMarkup(createElement(ListsView, { state: ready, onOpen: () => {} }));
 
-    expect((html.match(/app-lists-tile-mark--own/g) ?? []).length).toBe(1);
+    expect(html).not.toContain("app-lists-tile-mark--own");
     expect((html.match(/class="app-lists-tile"/g) ?? []).length).toBe(2);
   });
 

@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 37 «Списки» and экран 39 «Один список»: the six preset shelves, the lists of one's own up to twenty, and one list with its saved events, the author of every addition and its participants.
+// PURPOSE: Экран 37 «Списки» and экран 39 «Один список»: the two preset shelves, the lists of one's own up to six (eight lists in total), and one list with its saved events, the author of every addition and its participants.
 // SCOPE: Data via apiClient.listLists/getList/createList/renameList/deleteList/addListItem/removeListItem (mock or live); presentational rendering; create from экран 37, rename and delete from экран 39 (only a preset refuses both, the backend recreates it); sharing via bridge.shareResult.
 // DEPENDS: ../api/client.js (apiClient, ListItemCard, ListScreen, ListSummary), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../max/bridge.js (webApp, shareResult, ShareChannel), ../routing/router.js, ../ui/primitives.js, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, DF-MAX-IDENTITY
@@ -15,7 +15,7 @@
 // - listAuthorLabel - «добавила: Ты» / «добавил: Анна»; null when the item carries no author
 // - ListFaces - overlapping participant avatars (initials); labelled for assistive tech
 // - ListsState - union of the lists fetch states (loading / error / ready)
-// - ListsView - экран 37 presentational: «Создать» topbar, the preset shelves, and the own-list tiles with one dashed «Новый список»
+// - ListsView - экран 37 presentational: «Создать» topbar and one two-column grid of shelves, own lists and «Новый список»
 // - ListsPage - экран 37 container (also the «Сохранённое» tab, which embeds the grid without the topbar)
 // - ListState - union of the list items fetch states (loading / error / ready)
 // - ListView - экран 39 presentational: saved event and place cards with their meta, author line and the «убрать» control
@@ -35,8 +35,9 @@ import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { useRoute } from "../routing/router";
 
-/** Mirrors MAX_CUSTOM_LISTS. The screen never prints the number. */
+/** Mirrors MAX_CUSTOM_LISTS. Two preset shelves plus six of one's own is the ceiling of eight. */
 const MAX_OWN_LISTS = 6;
+const MAX_SAVED_LISTS = 8;
 
 const SHELF_PRESETS = new Set(["want_to_go", "favorites"]);
 
@@ -105,12 +106,11 @@ export type ListsState = { status: "loading" } | { status: "error" } | { status:
 
 function ListTile({ summary, onOpen, onToggleVisibility }: { summary: ListSummary; onOpen: (listId: string) => void; onToggleVisibility?: (listId: string, visibility: ListVisibility) => void }) {
   const { list, itemsCount, participants } = summary;
-  const markClass = list.preset === null ? "app-lists-tile-mark app-lists-tile-mark--own" : "app-lists-tile-mark";
   const open = (
     <button type="button" className="app-lists-tile" onClick={() => onOpen(list.id)}>
       <span className="app-lists-tile-top">
-        <span className={markClass} aria-hidden="true">
-          <ActionIcon name="bookmark" size={18} strokeWidth={2.2} />
+        <span className="app-lists-tile-mark" aria-hidden="true">
+          <ActionIcon name="bookmark" size={16} strokeWidth={2.2} />
         </span>
         {participants.length > 0 && <ListFaces participants={participants} />}
       </span>
@@ -150,7 +150,7 @@ interface ListsViewProps {
 export function ListsView({ state, onOpen, topbar = false, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, onCreateCancel = () => {}, busy = false, error = null, onToggleVisibility }: ListsViewProps) {
   const presets = state.status === "ready" ? state.summaries.filter((summary) => summary.list.preset !== null && SHELF_PRESETS.has(summary.list.preset)) : [];
   const own = state.status === "ready" ? state.summaries.filter((summary) => summary.list.preset === null) : [];
-  const canCreate = own.length < MAX_OWN_LISTS;
+  const canCreate = own.length < MAX_OWN_LISTS && presets.length + own.length < MAX_SAVED_LISTS;
   return (
     <section className="app-lists-screen" aria-label="Списки">
       {topbar && (
@@ -183,24 +183,16 @@ export function ListsView({ state, onOpen, topbar = false, creating = false, new
             </div>
           )}
           {error !== null && <AppState error>{error}</AppState>}
-          <div className="app-lists-head">
-            <span className="app-lists-head-label">ГОТОВЫЕ ПОЛКИ</span>
-          </div>
           <div className="app-lists-grid">
             {presets.map((summary) => (
               <ListTile key={summary.list.id} summary={summary} onOpen={onOpen} />
             ))}
-          </div>
-          <div className="app-lists-head">
-            <span className="app-lists-head-label">МОИ СПИСКИ</span>
-          </div>
-          <div className="app-lists-grid">
             {own.map((summary) => (
               <ListTile key={summary.list.id} summary={summary} onOpen={onOpen} onToggleVisibility={onToggleVisibility} />
             ))}
             {canCreate && (
               <button type="button" className="app-lists-new" onClick={onCreateStart} disabled={busy}>
-                <ActionIcon name="plus" size={20} strokeWidth={2.8} />
+                <ActionIcon name="plus" size={18} strokeWidth={2.8} />
                 <span>Новый список</span>
               </button>
             )}
