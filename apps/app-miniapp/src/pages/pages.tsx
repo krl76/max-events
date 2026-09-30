@@ -23,6 +23,7 @@ import { useRoute } from "../routing/router";
 import { PromotionSections } from "../promo/PromoSections";
 import { FeedScreen } from "../feed/FeedScreen";
 import { MicroEventCreatePage } from "../micro/MicroEvents";
+import { loadLazyModule } from "../ui/chunk-load";
 import { ScreenErrorBoundary } from "../ui/ErrorBoundary";
 import { AppSkeleton } from "../ui/primitives";
 
@@ -31,7 +32,7 @@ type AnyComponent = Exclude<ElementType, string>;
 
 /** Lazy-load a page module and expose one of its named exports as the default (single factory instead of one per page). */
 function lazyNamed<T extends Record<string, unknown>>(load: () => Promise<T>, key: keyof T): LazyExoticComponent<AnyComponent> {
-  return lazy(() => load().then((m) => ({ default: m[key] as AnyComponent })));
+  return lazy(() => loadLazyModule(load, key) as Promise<{ default: AnyComponent }>);
 }
 
 // ponytail: MicroEventCreatePage shares its module with an eager home section, so it stays eager too.
@@ -102,11 +103,11 @@ export function HomePage() {
 export function RoutedPages() {
   const { route } = useRoute();
   return (
-    <Suspense fallback={<PageFallback />}>
-      <ScreenErrorBoundary key={route.name} label={`${route.name} crashed`}>
+    <ScreenErrorBoundary key={route.name} label={`${route.name} crashed`}>
+      <Suspense fallback={<PageFallback />}>
         <Routed />
-      </ScreenErrorBoundary>
-    </Suspense>
+      </Suspense>
+    </ScreenErrorBoundary>
   );
 }
 
@@ -148,11 +149,12 @@ function Routed() {
       <>
         {/* Экран 36 несёт свои входы карточками, отдельные плитки над ним больше не нужны */}
         <ProfilePage />
-        {/* Its own boundary: the tile is lazy and renders nothing for most viewers, so it must not
-            hold the profile behind the page skeleton while its chunk loads. */}
-        <Suspense fallback={null}>
-          <ModerationEntry />
-        </Suspense>
+        {/* Own quiet boundary: a missing moderation chunk must not take the profile down. */}
+        <ScreenErrorBoundary label="moderation entry crashed" quiet>
+          <Suspense fallback={null}>
+            <ModerationEntry />
+          </Suspense>
+        </ScreenErrorBoundary>
       </>
     );
   if (route.name === "subscriptions") return <SubscriptionsPage />;

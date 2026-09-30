@@ -1,5 +1,4 @@
 import type { CatalogCard } from "../api/client";
-import { eventAcceptsPushkinCard } from "../catalog/benefits";
 import { pictured } from "../ui/photos";
 
 function posterWhen(startsAt: string): string {
@@ -31,7 +30,6 @@ export function EventPoster({ card, reason, onOpen }: { card: CatalogCard; reaso
           {card.placeTitle ? ` · ${card.placeTitle}` : ""}
         </span>
         {reason !== null && reason !== undefined && reason !== "" && <span className="app-poster-reason">{reason}</span>}
-        {eventAcceptsPushkinCard(event) && <span className="app-pushkin-badge">Пушкинская карта</span>}
         {highlight !== null && <span className="app-poster-highlight">{highlight}</span>}
       </span>
     </button>

@@ -148,6 +148,7 @@ describe("SearchNearby", () => {
     expect(html).toContain("app-rail-strip");
     expect(html).toContain(CARDS[0].event.title);
     expect(html).not.toContain("app-pick-likes");
+    expect(html).not.toContain("app-pushkin-badge");
   });
 
   it("says the rail is empty without turning that into a search miss", () => {

@@ -45,6 +45,20 @@ if [ "${SEED_DEMO:-}" = "1" ]; then
 fi
 
 echo "==> Nginx"
+# Live vhosts keep certbot TLS, so they are not overwritten. Missing hashed
+# chunks must 404: try_files /index.html turns a deleted Vite file into HTML
+# and every lazy screen shows «Не удалось открыть экран».
+snippet="/etc/nginx/snippets/max-events-assets.conf"
+install -D -m 644 "$DEPLOY_ROOT/deploy/nginx/assets.conf" "$snippet"
+for conf in /etc/nginx/sites-enabled/events.versacegus.cc /etc/nginx/sites-enabled/dev.events.versacegus.cc; do
+  [ -f "$conf" ] || continue
+  grep -q "location /assets/" "$conf" && continue
+  grep -q "max-events-assets.conf" "$conf" && continue
+  awk -v inc="    include ${snippet};" '
+    !done && $0 ~ /location \/ \{/ { print inc; done=1 }
+    { print }
+  ' "$conf" > "${conf}.tmp" && mv "${conf}.tmp" "$conf"
+done
 nginx -t && systemctl reload nginx
 
 echo "==> Health"

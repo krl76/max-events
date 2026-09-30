@@ -24,12 +24,14 @@ import { OrganizerSpace } from "./organizer/OrganizerSpace";
 import { readStoredSession } from "./organizer/OrganizerAuthContext";
 import { RoutedPages } from "./pages/pages";
 import { RouteProvider } from "./routing/router";
+import { loadLazyModule } from "./ui/chunk-load";
+import { ScreenErrorBoundary } from "./ui/ErrorBoundary";
 import { Layout } from "./ui/Layout";
 import { AppButton, AppState } from "./ui/primitives";
 
 const BROWSER_AUTH = import.meta.env.VITE_BROWSER_AUTH === "1";
 
-const OnboardingFlow = lazy(() => import("./onboarding/OnboardingFlow").then((module) => ({ default: module.OnboardingFlow })));
+const OnboardingFlow = lazy(() => loadLazyModule(() => import("./onboarding/OnboardingFlow"), "OnboardingFlow") as Promise<{ default: typeof import("./onboarding/OnboardingFlow").OnboardingFlow }>);
 
 export function readInitialEntryMode(input: { browserAuth: boolean; hasInitData: boolean; hasOrganizerSession: boolean }): EntryMode | null {
   if (input.browserAuth || input.hasInitData) return "user";
@@ -127,8 +129,10 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   if (done) return children;
   if (checking) return <AppState>Загрузка…</AppState>;
   return (
-    <Suspense fallback={<AppState>Загрузка…</AppState>}>
-      <OnboardingFlow onDone={() => setDone(true)} />
-    </Suspense>
+    <ScreenErrorBoundary label="onboarding crashed">
+      <Suspense fallback={<AppState>Загрузка…</AppState>}>
+        <OnboardingFlow onDone={() => setDone(true)} />
+      </Suspense>
+    </ScreenErrorBoundary>
   );
 }

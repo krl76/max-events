@@ -38,6 +38,13 @@ describe("EventHero", () => {
 
     expect(html).not.toContain("app-ev-hero-seats");
   });
+
+  it("names the Pushkin Card on the event page", () => {
+    const paidAfisha = mockEvents.find((item) => item.category === "afisha" && item.isPaid)!;
+    const html = renderToStaticMarkup(createElement(EventHero, { details: detailsOf({ event: { ...paidAfisha, title: "Вечер Рахманинова" } }), saveOpen: false, onBack: noop, onShare: noop, onSave: noop }));
+
+    expect(html).toContain("Пушкинская карта");
+  });
 });
 
 describe("EventWhenRow", () => {

@@ -382,7 +382,6 @@ function RailCard({ card, inCity, onOpen }: { card: CatalogCard; inCity: boolean
       <img className="app-rail-photo" alt="" src={pictured(card.event.id, card.event.coverUrl)} />
       <button type="button" className="app-pick-open" aria-label={card.event.title} onClick={onOpen}>
         <span className="app-rail-kind">{CATEGORY_LABELS[card.event.category]}</span>
-        {eventAcceptsPushkinCard(card.event) && <span className="app-pushkin-badge app-pushkin-badge--rail">Пушкинская</span>}
         <span className="app-rail-veil">
           <span className="app-rail-title">{card.event.title}</span>
           <span className="app-rail-meta">{railMeta(card, inCity ? "you" : "center")}</span>

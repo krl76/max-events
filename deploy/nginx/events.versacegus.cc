@@ -25,6 +25,11 @@ server {
         proxy_read_timeout 60s;
     }
 
+    location /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }
