@@ -24,10 +24,11 @@
 import { useEffect, useState } from "react";
 import type { DayRoute, EventCategory, OptimizeRoute, PlaceCategory, RouteLeg, RouteStopWrite } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
+import { hasMapPoint } from "../catalog/mapMarkers";
 import { CATEGORY_LABELS, PLACE_CATEGORY_LABELS, formatStartsAt, pluralRu } from "../catalog/format";
 import { prepositionalCity } from "../geo/city-case";
 import { useProfileCityPoint } from "../geo/profile-city";
-import { useRoute } from "../routing/router";
+import { useRoute, type MapTrail } from "../routing/router";
 import { BackToTop } from "../ui/BackToTop";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured } from "../ui/photos";
@@ -190,7 +191,23 @@ interface DayRouteViewProps {
   onOpenSaved?: (id: string) => void;
   preview?: DayRoute | null;
   city?: string;
-  onClose?: () => void;
+  onOpenMap?: () => void;
+}
+
+export function dayRouteMapTrail(route: DayRoute, city: string): MapTrail | null {
+  const stops = route.points.flatMap((point) => {
+    if (!hasMapPoint(point.latitude, point.longitude)) return [];
+    return [
+      {
+        title: point.title,
+        lat: point.latitude,
+        lng: point.longitude,
+        ...(point.placeId ? { placeId: point.placeId } : {}),
+      },
+    ];
+  });
+  if (stops.length < 2) return null;
+  return { title: city, minutes: route.totalMinutes, stops };
 }
 
 function StopPhoto({ option }: { option: RouteStopOption }) {
@@ -226,7 +243,7 @@ function StopRow({ option, selected, disabled, onToggle }: { option: RouteStopOp
   );
 }
 
-export function DayRouteView({ options, selected, query, onQuery, onToggle, onBuild, built, optimize, onOptimize, onReset, saved = [], onSave, onOpenSaved, preview = null, city = "Москва", onClose }: DayRouteViewProps) {
+export function DayRouteView({ options, selected, query, onQuery, onToggle, onBuild, built, optimize, onOptimize, onReset, saved = [], onSave, onOpenSaved, preview = null, city = "Москва", onOpenMap }: DayRouteViewProps) {
   const selectedSet = new Set(selected);
   const limitReached = selected.length >= MAX_ROUTE_STOPS;
   const liveRoute = built.status === "ready" ? (optimize.status === "ready" ? optimize.result.optimized : built.route) : null;
@@ -247,16 +264,9 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
   return (
     <section className="app-dayroute" aria-label="Маршрут на день">
       <header className="app-dayroute-top">
-        {onClose !== undefined ? (
-          <button type="button" className="app-dayroute-close" aria-label="Закрыть" onClick={onClose}>
-            <ActionIcon name="close" size={18} strokeWidth={2.2} />
-          </button>
-        ) : null}
         <div className="app-dayroute-heading">
           <h1 className="app-dayroute-title">Маршрут на день</h1>
-          <p className="app-dayroute-sub">
-            {city} · 3 часа · ₽₽
-          </p>
+          <p className="app-dayroute-sub">{city}</p>
         </div>
       </header>
 
@@ -307,10 +317,10 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
                       ))}
                     </div>
                   </div>
-                  <button type="button" className="app-dayroute-all" onClick={() => setShowAll((open) => !open)}>
+                  <button type="button" className="app-dayroute-all" aria-expanded={showAll} onClick={() => setShowAll((open) => !open)}>
                     <span>
                       <strong>Все места в {prepositionalCity(city)}</strong>
-                      <span>Показать полный список</span>
+                      <span>{showAll ? "Скрыть полный список" : "Показать полный список"}</span>
                     </span>
                     <ActionIcon name="chevron" size={18} />
                   </button>
@@ -374,8 +384,13 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
       <div className="app-dayroute-cta">
         {displayRoute !== null ? (
           <>
+            {onOpenMap !== undefined ? (
+              <AppButton className="app-key-cta" stretched onClick={onOpenMap}>
+                Открыть на карте
+              </AppButton>
+            ) : null}
             {onSave !== undefined && preview === null ? (
-              <AppButton className="app-key-cta" stretched disabled={savedAlready} onClick={onSave}>
+              <AppButton className="app-key-cta" tone="secondary" stretched disabled={savedAlready} onClick={onSave}>
                 {savedAlready ? "Сохранено в мои маршруты" : "Сохранить в мои маршруты"}
               </AppButton>
             ) : null}
@@ -409,7 +424,7 @@ export function DayRouteView({ options, selected, query, onQuery, onToggle, onBu
 }
 
 export function DayRoutePage() {
-  const { back } = useRoute();
+  const { navigate } = useRoute();
   const point = useProfileCityPoint();
   const [options, setOptions] = useState<RouteOptionsState>({ status: "loading" });
   const [selected, setSelected] = useState<string[]>([]);
@@ -521,7 +536,14 @@ export function DayRoutePage() {
         setPreview(item.route);
       }}
       city={point.city ?? "Москва"}
-      onClose={back}
+      onOpenMap={() => {
+        const live = built.status === "ready" ? (optimize.status === "ready" ? optimize.result.optimized : built.route) : null;
+        const route = preview ?? live;
+        if (route === null) return;
+        const trail = dayRouteMapTrail(route, point.city ?? "Москва");
+        if (trail === null) return;
+        navigate({ name: "map", trail });
+      }}
     />
   );
 }

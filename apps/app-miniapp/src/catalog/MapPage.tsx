@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CityWalk, Event } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
-import { useRoute } from "../routing/router";
+import { useRoute, type MapTrail } from "../routing/router";
 import { walkRouteLine, walkStopMarkers, walkTravelMinutes, type MapMarker } from "./mapMarkers";
 import { MapScreen } from "./MapScreen";
 
@@ -56,16 +56,32 @@ export type MapPageProps = {
   readonly loadEvents?: () => Promise<Event[]>;
   readonly loadWalk?: (id: string) => Promise<CityWalk>;
   readonly walkId?: string | null;
+  readonly trail?: MapTrail | null;
 };
 
+function trailStopMarkers(trail: MapTrail): MapMarker[] {
+  return walkStopMarkers(
+    trail.stops.map((stop, index) => ({
+      order: index + 1,
+      title: stop.title,
+      address: "",
+      latitude: stop.lat,
+      longitude: stop.lng,
+      placeId: stop.placeId ?? null,
+    })),
+  );
+}
+
 export function MapPage(props: MapPageProps = {}) {
-  const { loadEvents = defaultLoadEvents, loadWalk = defaultLoadWalk, walkId: forcedWalkId } = props;
+  const { loadEvents = defaultLoadEvents, loadWalk = defaultLoadWalk, walkId: forcedWalkId, trail: forcedTrail } = props;
   const { route, navigate } = useRoute();
   const pin = route.name === "map" ? (route.pin ?? null) : null;
   const focusPlaceId = route.name === "map" ? (route.placeId ?? null) : null;
   const drawRoute = route.name === "map" && route.drawRoute === true;
   const routeWalkId = route.name === "map" ? (route.walkId ?? null) : null;
   const walkId = forcedWalkId === undefined ? routeWalkId : forcedWalkId;
+  const routeTrail = route.name === "map" ? (route.trail ?? null) : null;
+  const trail = forcedTrail === undefined ? routeTrail : forcedTrail;
   const [state, setState] = useState<MapEventsState>({ status: "loading" });
   const [walkMarkers, setWalkMarkers] = useState<readonly MapMarker[]>(NO_WALK_MARKERS);
   const [walkTitle, setWalkTitle] = useState<string | null>(null);
@@ -88,6 +104,13 @@ export function MapPage(props: MapPageProps = {}) {
   }, [loadEvents]);
 
   useEffect(() => {
+    if (trail !== null) {
+      setWalkMarkers(trailStopMarkers(trail));
+      setWalkTitle(trail.title);
+      setWalkMinutes(trail.minutes);
+      setWalkFailed(false);
+      return;
+    }
     if (walkId === null) {
       setWalkMarkers(NO_WALK_MARKERS);
       setWalkTitle(null);
@@ -111,7 +134,7 @@ export function MapPage(props: MapPageProps = {}) {
     return () => {
       alive = false;
     };
-  }, [walkId, loadWalk]);
+  }, [walkId, trail, loadWalk]);
 
   const walkPath = useMemo(() => {
     const line = walkRouteLine(walkMarkers);

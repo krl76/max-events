@@ -34,6 +34,10 @@ import { getStartParam, getWebApp } from "../max/bridge";
 
 export type BrowseList = "nearby" | "suitable" | "friends" | "results";
 
+/** Day-route overlay on the map tab: 2–8 stops, small enough to keep in history. */
+export type MapTrailStop = { title: string; lat: number; lng: number; placeId?: string };
+export type MapTrail = { title: string; minutes: number; stops: readonly MapTrailStop[] };
+
 export type Route =
   | { name: "home" }
   | { name: "search"; focus?: boolean }
@@ -41,7 +45,7 @@ export type Route =
   | { name: "browse"; list: BrowseList; query?: string; city?: string; date?: string }
   | { name: "swipe" }
   | { name: "create" }
-  | { name: "map"; pin?: { lat: number; lng: number }; placeId?: string; drawRoute?: boolean; walkId?: string }
+  | { name: "map"; pin?: { lat: number; lng: number }; placeId?: string; drawRoute?: boolean; walkId?: string; trail?: MapTrail }
   | { name: "event"; id: string }
   | { name: "place"; id: string }
   | { name: "friends" }
@@ -188,6 +192,31 @@ export function nextHistory(current: RouteHistoryState, next: Route): { state: R
   return { state: { route: next, idx: current.idx + 1 }, method: "push" };
 }
 
+function parseMapTrailStop(value: unknown): MapTrailStop | null {
+  if (typeof value !== "object" || value === null) return null;
+  const raw = value as { title?: unknown; lat?: unknown; lng?: unknown; placeId?: unknown };
+  if (typeof raw.title !== "string" || raw.title === "") return null;
+  if (typeof raw.lat !== "number" || typeof raw.lng !== "number") return null;
+  if (!Number.isFinite(raw.lat) || !Number.isFinite(raw.lng)) return null;
+  if (Math.abs(raw.lat) > 90 || Math.abs(raw.lng) > 180) return null;
+  const placeId = typeof raw.placeId === "string" && raw.placeId !== "" ? raw.placeId : undefined;
+  return { title: raw.title, lat: raw.lat, lng: raw.lng, ...(placeId ? { placeId } : {}) };
+}
+
+function parseMapTrail(value: unknown): MapTrail | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const raw = value as { title?: unknown; minutes?: unknown; stops?: unknown };
+  if (typeof raw.title !== "string" || raw.title === "") return undefined;
+  if (typeof raw.minutes !== "number" || !Number.isFinite(raw.minutes) || raw.minutes < 0) return undefined;
+  if (!Array.isArray(raw.stops)) return undefined;
+  const stops = raw.stops.flatMap((item) => {
+    const stop = parseMapTrailStop(item);
+    return stop === null ? [] : [stop];
+  });
+  if (stops.length < 2) return undefined;
+  return { title: raw.title, minutes: Math.round(raw.minutes), stops };
+}
+
 function toRoute(value: unknown): Route | null {
   if (typeof value !== "object" || value === null) return null;
   const { name } = value as { name?: unknown };
@@ -203,7 +232,7 @@ function toRoute(value: unknown): Route | null {
     case "create":
       return { name };
     case "map": {
-      const raw = value as { pin?: unknown; placeId?: unknown; drawRoute?: unknown; walkId?: unknown };
+      const raw = value as { pin?: unknown; placeId?: unknown; drawRoute?: unknown; walkId?: unknown; trail?: unknown };
       const pin = raw.pin;
       const point = typeof pin === "object" && pin !== null ? (pin as { lat?: unknown; lng?: unknown }) : null;
       const lat = point?.lat;
@@ -211,9 +240,10 @@ function toRoute(value: unknown): Route | null {
       const placeId = typeof raw.placeId === "string" && raw.placeId !== "" ? raw.placeId : undefined;
       const walkId = typeof raw.walkId === "string" && raw.walkId !== "" ? raw.walkId : undefined;
       const drawRoute = raw.drawRoute === true;
+      const trail = parseMapTrail(raw.trail);
       const dropped = typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : undefined;
-      if (!dropped && placeId === undefined && walkId === undefined && !drawRoute) return { name };
-      return { name, ...(dropped ? { pin: dropped } : {}), ...(placeId ? { placeId } : {}), ...(walkId ? { walkId } : {}), ...(drawRoute ? { drawRoute: true } : {}) };
+      if (!dropped && placeId === undefined && walkId === undefined && !drawRoute && trail === undefined) return { name };
+      return { name, ...(dropped ? { pin: dropped } : {}), ...(placeId ? { placeId } : {}), ...(walkId ? { walkId } : {}), ...(drawRoute ? { drawRoute: true } : {}), ...(trail ? { trail } : {}) };
     }
     case "friends":
     case "profile":

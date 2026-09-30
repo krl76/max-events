@@ -144,6 +144,37 @@ describe("walk stops on the existing map", () => {
     host.remove();
   });
 
+  it("draws a day-route trail without fetching a walk", async () => {
+    const calls: string[] = [];
+    const trail = {
+      title: "Москва",
+      minutes: 13,
+      stops: [
+        { title: "Старт", lat: 55.75, lng: 37.62 },
+        { title: "Кофейня", lat: 55.76, lng: 37.63 },
+      ],
+    };
+    const { host, root } = await mount(
+      <MapPage
+        trail={trail}
+        loadEvents={() => Promise.resolve([])}
+        loadWalk={(id: string) => {
+          calls.push(id);
+          return Promise.reject(new Error("missing"));
+        }}
+      />,
+    );
+
+    expect(calls).toEqual([]);
+    expect(host.textContent).toContain("Маршрут по Москва");
+    expect(host.textContent).toContain("13 мин");
+    expect(host.textContent).toContain("Скрыть");
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
+  });
+
   it("hides the saved walk from the map", async () => {
     const markers = walkStopMarkers([STOP, { ...STOP, order: 2, title: "Набережная", latitude: 54.21, longitude: 37.61, placeId: null }]);
     const { host, root } = await mount(

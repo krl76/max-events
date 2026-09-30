@@ -1,8 +1,10 @@
+// @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { createElement } from "react";
+import { act, createElement, type ReactElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { DayRoute, OptimizeRoute, RouteStopWrite } from "@max-events/api-contracts";
-import { DAY_ROUTE_PICK, DayRoutePage, DayRouteView, formatLeg, MAX_ROUTE_STOPS, routeBuildLabel, routePickHint, routeTotalsLabel, savingsLabel, upcomingEventsForRoute, walkMinutesBetween, type DayRouteBuildState, type OptimizeState, type RouteStopOption } from "./DayRoutePage";
+import { DAY_ROUTE_PICK, DayRoutePage, DayRouteView, dayRouteMapTrail, formatLeg, MAX_ROUTE_STOPS, routeBuildLabel, routePickHint, routeTotalsLabel, savingsLabel, upcomingEventsForRoute, walkMinutesBetween, type DayRouteBuildState, type OptimizeState, type RouteStopOption } from "./DayRoutePage";
 import { buildMockDayRoute, mockEvents, mockPlaces, optimizeMockDayRoute } from "../api/mock";
 
 const MOSCOW: [number, number] = [55.7522, 37.6156];
@@ -19,7 +21,17 @@ if (typeof OPTIMIZED === "string") throw new Error("fixture optimize failed to b
 
 function viewHtml(over: { options?: RouteStopOption[] | "loading" | "error"; selected?: string[]; built?: DayRouteBuildState; optimize?: OptimizeState; query?: string } = {}): string {
   const options = over.options === "loading" ? { status: "loading" as const } : over.options === "error" ? { status: "error" as const } : { status: "ready" as const, options: over.options ?? OPTIONS };
-  return renderToStaticMarkup(createElement(DayRouteView, { options, selected: over.selected ?? [], query: over.query ?? "", onQuery: noop, onToggle: noop, onBuild: noop, built: over.built ?? { status: "idle" }, optimize: over.optimize ?? { status: "idle" }, onOptimize: noop, onReset: noop, onSave: noop }));
+  return renderToStaticMarkup(createElement(DayRouteView, { options, selected: over.selected ?? [], query: over.query ?? "", onQuery: noop, onToggle: noop, onBuild: noop, built: over.built ?? { status: "idle" }, optimize: over.optimize ?? { status: "idle" }, onOptimize: noop, onReset: noop, onSave: noop, onOpenMap: noop }));
+}
+
+async function mount(node: ReactElement): Promise<{ host: HTMLDivElement; root: Root }> {
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  await act(async () => {
+    root.render(node);
+  });
+  return { host, root };
 }
 
 describe("route labels", () => {
@@ -84,6 +96,47 @@ describe("DayRouteView stop picker", () => {
     expect(error).toContain("app-state--error");
     expect(error).toContain("Не удалось загрузить точки");
   });
+
+  it("keeps only the city under the title and has no close control", () => {
+    const html = viewHtml();
+    expect(html).toContain("Маршрут на день");
+    expect(html).toContain("Москва");
+    expect(html).not.toContain("3 часа");
+    expect(html).not.toContain("₽₽");
+    expect(html).not.toContain("app-dayroute-close");
+    expect(html).not.toContain('aria-label="Закрыть"');
+  });
+
+  it("expands the rest of the catalog from Все места", async () => {
+    const { host, root } = await mount(
+      createElement(DayRouteView, {
+        options: { status: "ready", options: OPTIONS },
+        selected: [],
+        query: "",
+        onQuery: noop,
+        onToggle: noop,
+        onBuild: noop,
+        built: { status: "idle" },
+        optimize: { status: "idle" },
+        onOptimize: noop,
+        onReset: noop,
+      }),
+    );
+    const button = [...host.querySelectorAll("button")].find((item) => item.textContent?.includes("Все места"));
+    expect(button).toBeDefined();
+    expect(host.querySelector(".app-dayroute-list[hidden]")).not.toBeNull();
+    expect(button?.getAttribute("aria-expanded")).toBe("false");
+    await act(async () => {
+      button?.click();
+    });
+    expect(host.querySelector(".app-dayroute-list[hidden]")).toBeNull();
+    expect(button?.getAttribute("aria-expanded")).toBe("true");
+    expect(button?.textContent).toContain("Скрыть полный список");
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
+  });
 });
 
 describe("DayRouteView route", () => {
@@ -94,6 +147,18 @@ describe("DayRouteView route", () => {
     for (const leg of ROUTE.legs) expect(html).toContain(formatLeg(leg));
     expect(html).toContain(routeTotalsLabel(ROUTE));
     expect(html).toContain("Оптимизировать порядок");
+    expect(html).toContain("Открыть на карте");
+    expect(html).not.toContain("app-dayroute-close");
+    expect(html).not.toContain('aria-label="Закрыть"');
+  });
+
+  it("packs the built route as a map trail", () => {
+    const trail = dayRouteMapTrail(ROUTE, "Москва");
+    expect(trail).not.toBeNull();
+    expect(trail?.title).toBe("Москва");
+    expect(trail?.minutes).toBe(ROUTE.totalMinutes);
+    expect(trail?.stops.length).toBe(ROUTE.points.length);
+    expect(trail?.stops[0]?.title).toBe(ROUTE.points[0]?.title);
   });
 
   it("redraws the optimized timeline and shows the savings after optimizing", () => {

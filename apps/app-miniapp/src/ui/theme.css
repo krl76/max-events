@@ -14092,21 +14092,6 @@ button.app-poll-result {
   padding-top: max(4px, env(safe-area-inset-top, 0px));
 }
 
-.app-dayroute-close {
-  align-items: center;
-  background: none;
-  border: none;
-  color: var(--app-text);
-  cursor: pointer;
-  display: flex;
-  flex: none;
-  height: 36px;
-  justify-content: center;
-  margin: 2px 0 0;
-  padding: 0;
-  width: 28px;
-}
-
 .app-dayroute-heading {
   display: flex;
   flex: 1;
@@ -14197,6 +14182,10 @@ button.app-poll-result {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.app-dayroute-list[hidden] {
+  display: none;
 }
 
 .app-dayroute-row {
