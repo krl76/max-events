@@ -101,8 +101,10 @@ describe("FeedPostCard", () => {
   });
 
   it("renders the event title as a link only with onOpenEvent", () => {
-    expect(card({}, true)).toContain("app-plan-event");
-    expect(card()).not.toContain("app-plan-event");
+    expect(card({}, true)).toContain("app-post-place-link");
+    expect(card({}, true)).toContain(mockEvents[0].title);
+    expect(card({}, true)).not.toContain("app-plan-event");
+    expect(card()).not.toContain("app-post-place-link");
   });
 
   it("keeps the composer in the comments sheet, disabled until there is text", () => {

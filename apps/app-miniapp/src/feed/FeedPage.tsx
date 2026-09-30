@@ -291,7 +291,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
   const photos = post.photoUrls && post.photoUrls.length > 0 ? post.photoUrls : post.photoUrl ? [post.photoUrl] : [];
   const eventLink =
     onOpenEvent && post.eventId !== null ? (
-      <button type="button" className="app-plan-event" onClick={() => onOpenEvent(post.eventId!)}>
+      <button type="button" className="app-post-place-link" onClick={() => onOpenEvent(post.eventId!)}>
         {eventTitle}
       </button>
     ) : (

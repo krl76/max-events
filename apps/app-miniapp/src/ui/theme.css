@@ -2122,14 +2122,18 @@ html[data-theme="dark"] #root {
   font-size: var(--app-font-size-caption);
 }
 
-.app-post-place-text {
-  color: var(--app-text-tertiary);
-  font-size: var(--app-font-size-caption);
-}
-
-.app-post-place .app-plan-event {
+.app-post-place-text,
+.app-post-place-link {
   color: inherit;
   font: inherit;
+}
+
+.app-post-place-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
 }
 
 /* Ряд иконок оптически выравнивается по гуттеру: своя внутренняя рамка кнопки — space-xs */
@@ -23399,7 +23403,7 @@ button.app-story-viewer-author {
   margin-bottom: 4px;
 }
 
-.app-plan-event {
+.app-plan-build .app-plan-event {
   background: var(--brand-void);
   border: none;
   border-radius: 22px;
@@ -23428,7 +23432,7 @@ button.app-story-viewer-author {
   min-width: 0;
 }
 
-.app-plan-event .app-plan-kicker {
+.app-plan-build .app-plan-event .app-plan-kicker {
   color: #ffffff;
 }
 
