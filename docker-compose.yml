@@ -1,0 +1,86 @@
+# One-command local stack: postgres, redis, API, mini-app.
+#   docker compose up --build
+# Mini-app: http://localhost:8080  API: http://localhost:3100/api/health/live
+name: max-events
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: max_events
+      POSTGRES_PASSWORD: max_events
+      POSTGRES_DB: max_events
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U max_events -d max_events"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://max_events:max_events@postgres:5432/max_events
+      REDIS_URL: redis://redis:6379
+      PORT: "3100"
+      NODE_ENV: development
+      STORAGE_DIR: /data/uploads
+      MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:-local-dev-token}
+      AUTH_ALLOW_BROWSER: "true"
+      PAYMENT_PROVIDER: sandbox
+      ORGANIZER_LOGIN: ${ORGANIZER_LOGIN:-max-events}
+      ORGANIZER_PASSWORD: ${ORGANIZER_PASSWORD:-demo-password-12}
+      FRIENDS_DEMO_ALL_USERS: "true"
+    volumes:
+      - ./deploy/docker-start.sh:/docker-start.sh:ro
+      - uploads:/data/uploads
+    command: ["bash", "/docker-start.sh"]
+    ports:
+      - "3100:3100"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3100/api/health/live').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  miniapp:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.miniapp
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:
