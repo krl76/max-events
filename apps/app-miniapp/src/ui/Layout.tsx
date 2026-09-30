@@ -12,7 +12,7 @@
 // - ROUTE_TITLES - header title per route name (tab routes keep their tab labels)
 // - routeTitle - header title for the current route
 // - routeHasBack - back button shown on every non-tab route; fullscreen screens declare onBack/onClose props they never render, so the native button stays the only way out
-// - routeShowsShellBack - in-app close fallback when MAX BackButton is missing; the walk wizard hides it so the city chip is the only top control
+// - routeShowsShellBack - in-app close fallback when MAX BackButton is missing; the walk wizard hides it so the screen has no leftover close control
 // - routeHasHeader - header hidden wherever the screen draws its own chrome: the search/plans/profile tabs (profile renders its own gradient hero), the map and the swipe deck, which draw over the content, «После события», whose hero carries a close button instead of a back arrow, the two list screens (экраны 37 и 39), the we-groups and the votes (экраны 30-33), the micro-event feed and card (экраны 24 и 25), the friends list with its counter (экран 26) and the friend route (экран 28), the plan with its date, party size and «MAX СОБРАЛ» badge (экран 15), the assistant with its gradient hero (экран 10), and the fullscreen composers
 // - routeIsFullscreen - composers/place/calendar/assist/day-route own the viewport: no shell header, no tabbar
 // - routeIsFlush - map canvas and screens that already set their own 20px fields (story, post, place, slots, notifications)

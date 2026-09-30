@@ -140,7 +140,7 @@ function WalkProgress({ step, choice, onSelectStep }: { readonly step: "time" | 
   );
 }
 
-function WalkCityChip({ city, onCity }: { readonly city: string; readonly onCity?: (city: string) => void }) {
+export function WalkCityChip({ city, onCity }: { readonly city: string; readonly onCity?: (city: string) => void }) {
   const [menu, setMenu] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const cities = walkCityList(city);
@@ -190,7 +190,7 @@ function WalkCityChip({ city, onCity }: { readonly city: string; readonly onCity
   );
 }
 
-export function WalkWizard({ city, choice, onChange, onCompose, onCity, notice }: { readonly city: string; readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void; readonly onCompose?: () => void; readonly onCity?: (city: string) => void; readonly notice?: string | null }) {
+export function WalkWizard({ city: _city, choice, onChange, onCompose, onCity: _onCity, notice }: { readonly city: string; readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void; readonly onCompose?: () => void; readonly onCity?: (city: string) => void; readonly notice?: string | null }) {
   const defaultStep = walkStep(choice);
   const [userStep, setUserStep] = useState<"time" | "budget" | "interests" | null>(null);
 
@@ -224,12 +224,8 @@ export function WalkWizard({ city, choice, onChange, onCompose, onCity, notice }
 
   return (
     <section className="app-walk">
-      <div className="app-walk-top">
-        <WalkCityChip city={city} onCity={onCity} />
-      </div>
-
       <header className="app-walk-head">
-        <h1 className="app-walk-title">Прогулка: {city}</h1>
+        <h1 className="app-walk-title">Прогулка</h1>
       </header>
 
       <WalkProgress step={step} choice={choice} onSelectStep={(next) => setUserStep(next)} />

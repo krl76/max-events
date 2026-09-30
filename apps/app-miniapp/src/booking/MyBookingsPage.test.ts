@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { CalendarEntry, MySlotsBoard, PlaceSlot } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
 import { ApiError } from "../api/client";
-import { bookingCards, filterBookingCards, MyBookingsView, rescheduleErrorMessage, type BookingsBoard } from "./MyBookingsPage";
+import { bookingCards, bookingSoonLabel, filterBookingCards, MyBookingsView, rescheduleErrorMessage, ticketFareLine, type BookingsBoard } from "./MyBookingsPage";
 
 const park = mockPlaces[0];
 const luzhniki = mockPlaces[2];
@@ -85,6 +85,19 @@ function viewHtml(overrides: Partial<Parameters<typeof MyBookingsView>[0]> = {})
   );
 }
 
+describe("bookingSoonLabel and ticketFareLine", () => {
+  it("names today, tomorrow and a later Moscow calendar day", () => {
+    expect(bookingSoonLabel("2026-09-18T21:00:00+03:00", NOW)).toBe("Сегодня");
+    expect(bookingSoonLabel("2026-09-19T17:30:00+03:00", NOW)).toBe("Завтра");
+    expect(bookingSoonLabel("2026-09-21T12:00:00+03:00", NOW)).toBe("Через 3 дня");
+  });
+
+  it("prints the ticket count and the amount, including zero", () => {
+    expect(plain(ticketFareLine(1, 0))).toBe("1 билет · 0 ₽");
+    expect(plain(ticketFareLine(3, 3000))).toBe("3 билета · 3 000 ₽");
+  });
+});
+
 describe("bookingCards", () => {
   it("folds the three sources into cards of one shape, soonest first", () => {
     const result = board();
@@ -101,6 +114,10 @@ describe("bookingCards", () => {
     // Заголовок карточки — то, ради чего бронировали, а не сам объект: объект стоит строкой выше
     expect(card.title).toBe("Мангал у залива");
     expect(plain(card.meta)).toBe("Сб, 19 сентября · 17:30 – 20:30 · 3 000 ₽");
+    expect(card.dateLine).toBe("Сб, 19 сентября");
+    expect(card.timeLine).toBe("17:30 – 20:30");
+    expect(plain(card.fareLine)).toBe("3 билета · 3 000 ₽");
+    expect(card.soonLabel).toBe("Завтра");
     expect(card.badge).toBe("Слот забронирован");
     expect(card.faces).toEqual(["Я", "А", "Д"]);
     expect(card.company).toBe("Ты, Анна и Дима");
@@ -121,7 +138,7 @@ describe("bookingCards", () => {
   });
 
   it("moves a booking whose event has started into the past list", () => {
-    expect(board().past).toEqual([{ eventId: pastEvent.id, title: pastEvent.title, meta: "Сб, 5 сентября", category: pastEvent.category }]);
+    expect(board().past).toEqual([{ eventId: pastEvent.id, title: pastEvent.title, meta: "Сб, 5 сентября", category: pastEvent.category, cover: board().past[0].cover }]);
   });
 });
 
@@ -144,7 +161,7 @@ describe("filterBookingCards", () => {
 });
 
 describe("MyBookingsView", () => {
-  it("renders the topbar counters, the filters and a group per booking", () => {
+  it("renders the topbar counters, the nearest card and the compact rest", () => {
     const html = viewHtml();
 
     expect(html).toContain("Мои брони");
@@ -154,21 +171,28 @@ describe("MyBookingsView", () => {
     expect(html).toContain("Билеты");
     expect(html).toContain("Слоты");
     expect(html).toContain("Прошедшие");
+    expect(html).toContain("Ближайшая бронь");
+    expect(html).toContain("Завтра");
+    expect(html).toContain("Показать билет");
+    expect(html).toContain("Изменить");
+    expect(html).toContain("Ещё");
+    expect(html).toContain("Другие активные брони");
+    expect(html).toContain("По дате");
     expect(html).toContain("Парк Горького, беседка №4");
-    expect(html).toContain("Слот забронирован");
-    expect(html).toContain("Ты, Анна и Дима");
-    expect(html).toContain("Билет");
     expect(html).toContain("Код входа");
     expect(html).toContain("MAX-4821-19SB");
     expect(html).toContain("Лист ожидания · 2-й");
     expect(html).toContain("Выйти");
-    expect(html).toContain("Перенести");
-    expect(html).toContain("Оценить");
+    expect(html).toContain("Билет");
+    expect(html).not.toContain("Оценить");
+    expect(html).not.toContain("Перенести");
   });
 
   it("keeps the past list out of the slot and ticket tabs", () => {
     expect(viewHtml({ tab: "slots" })).not.toContain("Оценить");
-    expect(viewHtml({ tab: "past" })).not.toContain("Слот забронирован");
+    expect(viewHtml({ tab: "active" })).not.toContain("Оценить");
+    expect(viewHtml({ tab: "past" })).not.toContain("Ближайшая бронь");
+    expect(viewHtml({ tab: "past" })).toContain("Оценить");
   });
 
   it("explains an empty search instead of showing a blank screen", () => {
