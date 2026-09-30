@@ -27379,7 +27379,7 @@ button.app-fin-op--btn {
 /* Экран 36. Лист наезжает на обложку, разделы — карточками, каждая ведёт в одно место.
  * Чужой профиль эти карточки не рисует. Организатор остаётся на прежних .app-me-* . */
 .app-me--user .app-me-hero {
-  height: 108px;
+  height: 156px;
 }
 
 .app-me--user .app-me-back {
@@ -27415,7 +27415,7 @@ button.app-fin-op--btn {
 
 .app-me--user .app-me-hero-edits {
   align-items: flex-start;
-  bottom: 32px;
+  bottom: 46px;
   left: var(--app-space-l);
   right: auto;
 }
@@ -27437,14 +27437,14 @@ button.app-fin-op--btn {
 
 .app-me--user .app-me-avatar-ring {
   box-shadow: 0 0 0 4px var(--app-canvas);
-  height: 68px;
-  margin: -34px auto 0;
-  width: 68px;
+  height: 92px;
+  margin: -50px auto 0;
+  width: 92px;
 }
 
 .app-me--user .app-me-name {
-  font-size: 1.2rem;
-  margin-top: 2px;
+  font-size: 1.375rem;
+  margin-top: 8px;
 }
 
 .app-me--user .app-me-follows {
@@ -27454,7 +27454,7 @@ button.app-fin-op--btn {
   font-size: var(--app-font-size-description);
   font-weight: 700;
   justify-content: center;
-  margin: 0;
+  margin: 4px 0 0;
 }
 
 .app-me--user .app-me-follows-item {
@@ -27469,8 +27469,8 @@ button.app-fin-op--btn {
   cursor: pointer;
   font: inherit;
   font-weight: 700;
-  min-height: 24px;
-  padding: 2px 0;
+  min-height: 32px;
+  padding: 4px 0;
 }
 
 .app-me--user .app-me-follow-value {
@@ -27492,17 +27492,8 @@ button.app-fin-op--btn {
 .app-me--user .app-me-dashboard {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding-top: 2px;
-}
-
-.app-me--user .app-me-about {
-  margin-top: 2px;
-}
-
-.app-me--user .app-me-tabs {
-  margin-top: 8px;
-  padding: 4px;
+  gap: 10px;
+  padding-top: 8px;
 }
 
 .app-me--user .app-org-reviews {
@@ -27657,7 +27648,7 @@ button.app-fin-op--btn {
   flex-direction: column;
   gap: 8px;
   min-width: 0;
-  padding: 8px;
+  padding: 12px;
   width: 100%;
 }
 
@@ -27708,8 +27699,8 @@ button.app-fin-op--btn {
   cursor: pointer;
   display: flex;
   gap: 10px;
-  min-height: 36px;
-  padding: 2px 8px;
+  min-height: 44px;
+  padding: 6px 8px;
   text-align: left;
   width: 100%;
 }
