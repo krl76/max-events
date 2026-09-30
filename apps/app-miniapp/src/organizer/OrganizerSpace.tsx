@@ -23,7 +23,6 @@ import { LeaveEntryProvider } from "../auth/leave-entry";
 import { OnboardingFlow } from "../onboarding/OnboardingFlow";
 import { SettingsPage } from "../profile/SettingsPage";
 import { ActionIcon } from "../ui/icons";
-import { THEME_STORAGE_KEY, applyScheme, type ThemePreference } from "../ui/theme";
 import { AppButton, AppState } from "../ui/primitives";
 import { OrganizerAuthProvider, useOrganizerAuth } from "./OrganizerAuthContext";
 import { OrganizerDashboard, type OrganizerPromoIntent } from "./OrganizerDashboard";
@@ -221,25 +220,14 @@ function OrganizerUserSettings({ onLeave, onOrganizer, onReplay }: { onLeave: ()
           onLeave();
         }}
       >
-        {replay ? <OnboardingFlow onDone={() => setReplay(false)} onLeave={() => setReplay(false)} /> : <SettingsPage onOrganizer={onOrganizer} onShowOnboarding={() => setReplay(true)} />}
+        {replay ? <OnboardingFlow onDone={() => setReplay(false)} onLeave={() => setReplay(false)} /> : <SettingsPage organizerCabinet onOrganizer={onOrganizer} onShowOnboarding={() => setReplay(true)} />}
       </LeaveEntryProvider>
     </AuthProvider>
   );
 }
 
-function storedScheme(): "light" | "dark" {
-  const stored = typeof localStorage === "undefined" ? null : localStorage.getItem(THEME_STORAGE_KEY);
-  const preference: ThemePreference = stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
-  if (preference === "light" || preference === "dark") return preference;
-  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
 function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const { state, logout } = useOrganizerAuth();
-  useEffect(() => {
-    applyScheme("light");
-    return () => applyScheme(storedScheme());
-  }, []);
   const [section, setSection] = useState<OrganizerSection>("dashboard");
   const [manage, setManage] = useState<OrganizerEvent | null>(null);
   const [manageScreen, setManageScreen] = useState<ManageScreen>("hub");

@@ -315,9 +315,11 @@ export interface SettingsViewProps {
   followers?: readonly Friend[];
   onToggleClose?: (userId: string, close: boolean) => void;
   onShowOnboarding?: () => void;
+  /** Cabinet settings keep the app controls and drop the visitor-only groups. */
+  organizerCabinet?: boolean;
 }
 
-export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onLeave, onPickCover, onResetCover, onResetAvatar, closeFriends, followers, onToggleClose, onShowOnboarding }: SettingsViewProps) {
+export function SettingsView({ user, profile, settings, theme, cacheBytes, failed, onProfile, onSettings, onClearCache, onOrganizer, onDisable, onLeave, onPickCover, onResetCover, onResetAvatar, closeFriends, followers, onToggleClose, onShowOnboarding, organizerCabinet = false }: SettingsViewProps) {
   const [picker, setPicker] = useState<PickerName>(null);
   const [closeOpen, setCloseOpen] = useState(false);
   const [locateNote, setLocateNote] = useState<string | null>(null);
@@ -389,36 +391,40 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
         {picker === "radius" && settings !== null && <SettingsPicker options={SEARCH_RADIUS_OPTIONS.map((km) => ({ value: String(km), label: radiusLabel(km) }))} selected={[String(settings.searchRadiusKm)]} onPick={(km) => onSettings({ searchRadiusKm: Number(km) })} />}
       </SettingsGroup>
 
-      <SettingsGroup title="Приватность">
-        <SettingsValueRow title="Кто видит мои планы" hint="По умолчанию для новых записей" value={planVisibilityLabel(profile.privacy.routes)} expanded={picker === "plans"} onOpen={() => open("plans")} />
-        {picker === "plans" && <SettingsPicker options={PLAN_VISIBILITY_OPTIONS} selected={[profile.privacy.routes]} onPick={(value) => onProfile({ privacy: { routes: value as Profile["privacy"]["routes"] } })} />}
-        <SettingsSwitchRow title="Показывать меня на карте" hint="Только когда я на событии" checked={settings?.showOnMap ?? false} onChange={(showOnMap) => onSettings({ showOnMap })} />
-        <SettingsSwitchRow title="Статус «ищу компанию»" hint="Виден участникам события" checked={settings?.lookingForCompany ?? false} onChange={(lookingForCompany) => onSettings({ lookingForCompany })} />
-        <SettingsSwitchRow title="История посещений" hint="Используется для подборок" checked={profile.privacy.visitHistory === "friends"} onChange={(on) => onProfile({ privacy: { visitHistory: on ? "friends" : "hidden" } })} />
-      </SettingsGroup>
+      {!organizerCabinet && (
+        <>
+          <SettingsGroup title="Приватность">
+            <SettingsValueRow title="Кто видит мои планы" hint="По умолчанию для новых записей" value={planVisibilityLabel(profile.privacy.routes)} expanded={picker === "plans"} onOpen={() => open("plans")} />
+            {picker === "plans" && <SettingsPicker options={PLAN_VISIBILITY_OPTIONS} selected={[profile.privacy.routes]} onPick={(value) => onProfile({ privacy: { routes: value as Profile["privacy"]["routes"] } })} />}
+            <SettingsSwitchRow title="Показывать меня на карте" hint="Только когда я на событии" checked={settings?.showOnMap ?? false} onChange={(showOnMap) => onSettings({ showOnMap })} />
+            <SettingsSwitchRow title="Статус «ищу компанию»" hint="Виден участникам события" checked={settings?.lookingForCompany ?? false} onChange={(lookingForCompany) => onSettings({ lookingForCompany })} />
+            <SettingsSwitchRow title="История посещений" hint="Используется для подборок" checked={profile.privacy.visitHistory === "friends"} onChange={(on) => onProfile({ privacy: { visitHistory: on ? "friends" : "hidden" } })} />
+          </SettingsGroup>
 
-      <SettingsGroup title="Близкие">
-        <SettingsValueRow title="Близкие друзья" hint="Только из тех, кто добавил вас" value={closeFriends === undefined ? undefined : closeFriends.length === 0 ? "Нет" : String(closeFriends.length)} expanded={closeOpen} onOpen={() => setCloseOpen(true)} />
-      </SettingsGroup>
-      {closeOpen && <CloseFriendsDialog closeFriends={closeFriends ?? []} followers={followers ?? []} loading={closeFriends === undefined || followers === undefined} onToggle={onToggleClose ?? (() => {})} onClose={() => setCloseOpen(false)} />}
+          <SettingsGroup title="Близкие">
+            <SettingsValueRow title="Близкие друзья" hint="Только из тех, кто добавил вас" value={closeFriends === undefined ? undefined : closeFriends.length === 0 ? "Нет" : String(closeFriends.length)} expanded={closeOpen} onOpen={() => setCloseOpen(true)} />
+          </SettingsGroup>
+          {closeOpen && <CloseFriendsDialog closeFriends={closeFriends ?? []} followers={followers ?? []} loading={closeFriends === undefined || followers === undefined} onToggle={onToggleClose ?? (() => {})} onClose={() => setCloseOpen(false)} />}
 
-      <SettingsGroup title="Уведомления">
-        {/* Один переключатель на два поля контракта: маршрут и погода — это ровно то, из чего складывается «когда выходить». */}
-        <SettingsSwitchRow title="Когда выходить" hint="С учётом маршрута и погоды" checked={profile.smartAlerts.leaveNow} onChange={(on) => onProfile({ smartAlerts: { leaveNow: on, weather: on } })} />
-        <SettingsSwitchRow title="Освободилось место" hint="По листу ожидания" checked={settings?.seatFreed ?? false} onChange={(seatFreed) => onSettings({ seatFreed })} />
-        <SettingsSwitchRow title="Планы друзей" hint="Когда друг записался рядом" checked={profile.smartAlerts.friendLeft} onChange={(on) => onProfile({ smartAlerts: { friendLeft: on } })} />
-        <SettingsValueRow title="Тихие часы" hint={quietHoursHint(profile.smartAlerts.quietHoursFrom, profile.smartAlerts.quietHoursTo)} value={quietHoursLabel(profile.smartAlerts.quietHoursEnabled)} expanded={picker === "quiet"} onOpen={() => open("quiet")} />
-        {picker === "quiet" && (
-          <SettingsPicker
-            options={[
-              { value: "on", label: "Вкл" },
-              { value: "off", label: "Выкл" },
-            ]}
-            selected={[profile.smartAlerts.quietHoursEnabled ? "on" : "off"]}
-            onPick={(value) => onProfile({ smartAlerts: { quietHoursEnabled: value === "on" } })}
-          />
-        )}
-      </SettingsGroup>
+          <SettingsGroup title="Уведомления">
+            {/* Один переключатель на два поля контракта: маршрут и погода — это ровно то, из чего складывается «когда выходить». */}
+            <SettingsSwitchRow title="Когда выходить" hint="С учётом маршрута и погоды" checked={profile.smartAlerts.leaveNow} onChange={(on) => onProfile({ smartAlerts: { leaveNow: on, weather: on } })} />
+            <SettingsSwitchRow title="Освободилось место" hint="По листу ожидания" checked={settings?.seatFreed ?? false} onChange={(seatFreed) => onSettings({ seatFreed })} />
+            <SettingsSwitchRow title="Планы друзей" hint="Когда друг записался рядом" checked={profile.smartAlerts.friendLeft} onChange={(on) => onProfile({ smartAlerts: { friendLeft: on } })} />
+            <SettingsValueRow title="Тихие часы" hint={quietHoursHint(profile.smartAlerts.quietHoursFrom, profile.smartAlerts.quietHoursTo)} value={quietHoursLabel(profile.smartAlerts.quietHoursEnabled)} expanded={picker === "quiet"} onOpen={() => open("quiet")} />
+            {picker === "quiet" && (
+              <SettingsPicker
+                options={[
+                  { value: "on", label: "Вкл" },
+                  { value: "off", label: "Выкл" },
+                ]}
+                selected={[profile.smartAlerts.quietHoursEnabled ? "on" : "off"]}
+                onPick={(value) => onProfile({ smartAlerts: { quietHoursEnabled: value === "on" } })}
+              />
+            )}
+          </SettingsGroup>
+        </>
+      )}
 
       {settings?.organizerMode === true && (
         <SettingsGroup title="Организаторам">
@@ -448,7 +454,7 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
   );
 }
 
-function AuthenticatedSettings({ user, onOrganizer, onShowOnboarding }: { user: User; onOrganizer?: () => void; onShowOnboarding?: () => void }) {
+function AuthenticatedSettings({ user, onOrganizer, onShowOnboarding, organizerCabinet = false }: { user: User; onOrganizer?: () => void; onShowOnboarding?: () => void; organizerCabinet?: boolean }) {
   const { navigate } = useRoute();
   const leaveEntry = useLeaveEntry();
   const { updateUser } = useAuth();
@@ -628,6 +634,7 @@ function AuthenticatedSettings({ user, onOrganizer, onShowOnboarding }: { user: 
         onLeave={leaveEntry ?? undefined}
         closeFriends={closeFriends ?? undefined}
         followers={followers ?? undefined}
+        organizerCabinet={organizerCabinet}
         onToggleClose={(userId, close) => {
           if (closeFriends === null || followers === null) return;
           setSaveFailed(false);
@@ -651,10 +658,10 @@ function AuthenticatedSettings({ user, onOrganizer, onShowOnboarding }: { user: 
   );
 }
 
-export function SettingsPage({ onOrganizer, onShowOnboarding }: { onOrganizer?: () => void; onShowOnboarding?: () => void } = {}) {
+export function SettingsPage({ onOrganizer, onShowOnboarding, organizerCabinet = false }: { onOrganizer?: () => void; onShowOnboarding?: () => void; organizerCabinet?: boolean } = {}) {
   const auth = useAuth();
 
-  if (auth.status === "authenticated") return <AuthenticatedSettings user={auth.user} onOrganizer={onOrganizer} onShowOnboarding={onShowOnboarding} />;
+  if (auth.status === "authenticated") return <AuthenticatedSettings user={auth.user} onOrganizer={onOrganizer} onShowOnboarding={onShowOnboarding} organizerCabinet={organizerCabinet} />;
   if (auth.status === "error") {
     return <AppState error>Не удалось войти: {auth.message}</AppState>;
   }

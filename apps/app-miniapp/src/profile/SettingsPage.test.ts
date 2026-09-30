@@ -254,6 +254,19 @@ describe("SettingsView", () => {
     expect(renderSettings({ settings: { ...settings, organizerMode: true } })).toContain("Организаторам");
   });
 
+  it("drops visitor privacy, close friends and notifications in the organizer cabinet", () => {
+    const html = renderSettings({ organizerCabinet: true, onShowOnboarding: () => {} });
+    const groups = [...html.matchAll(/class="app-set-group-title">([^<]+)</g)].map((match) => match[1]);
+
+    expect(groups).toEqual(["Приложение", "Мини-приложение"]);
+    expect(html).toContain("Тема");
+    expect(html).toContain("Онбординг");
+    expect(html).not.toContain("Кто видит мои планы");
+    expect(html).not.toContain("Близкие друзья");
+    expect(html).not.toContain("Когда выходить");
+    expect(html).not.toContain("Тихие часы");
+  });
+
   it("does not compare the bio to Instagram", () => {
     expect(renderSettings()).not.toContain("Инстаграм");
     expect(renderSettings()).toContain("Коротко, по желанию");

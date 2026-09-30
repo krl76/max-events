@@ -29605,41 +29605,7 @@ button.app-pcodes-iconbtn {
   min-height: 52px;
 }
 
-.app-tabbar--org {
-  background: #ffffff;
-  border-top: none;
-  box-shadow: 0 -1px 0 #eef2f8;
-}
 
-.app-tabbar--org button {
-  color: #8392b3;
-}
-
-.app-tabbar--org button span {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.app-tabbar--org button[aria-current="page"] {
-  color: #4c25f9;
-}
-
-.app-tabbar--org button[aria-current="page"] span {
-  background: none;
-  color: #4c25f9;
-  font-weight: 600;
-  -webkit-text-fill-color: #4c25f9;
-}
-
-.app-tabbar--org button[aria-current="page"] svg,
-.app-tabbar--org button[aria-current="page"] svg * {
-  fill: none;
-  stroke: #4c25f9;
-}
-
-.app-tabbar--org button[aria-current="page"]::after {
-  content: none;
-}
 
 .app-make {
   background: var(--app-page);
@@ -29825,10 +29791,10 @@ button.app-pcodes-iconbtn {
 }
 
 .app-make-next {
-  background: linear-gradient(90deg, #4d7cff, #7a5cff);
+  background: var(--app-accent);
   border: none;
   border-radius: 16px;
-  color: #fff;
+  color: var(--app-accent-contrast);
   cursor: pointer;
   font: inherit;
   font-size: 16px;
@@ -29948,10 +29914,10 @@ button.app-pcodes-iconbtn {
 }
 
 .app-evt-filter {
-  background: #fff;
+  background: var(--app-surface);
   border: none;
   border-radius: 999px;
-  color: #5c6578;
+  color: var(--app-text-secondary);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
@@ -29961,8 +29927,8 @@ button.app-pcodes-iconbtn {
 }
 
 .app-evt-filter--on {
-  background: var(--brand-blue);
-  color: #fff;
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
 }
 
 .app-evt-list {
@@ -31183,4 +31149,255 @@ button.app-mail-card {
   font-size: 14px;
   font-weight: 600;
   margin: 0;
+}
+
+/* Кабинет следует схеме и палитре пользовательского приложения: холст, карточки,
+ * кнопки и подписи берутся из тех же токенов, что лента и настройки. */
+.app-root .app-cab,
+.app-root .app-cab.app-promo,
+.app-root .app-cab.app-fin {
+  background: var(--app-page);
+  color: var(--app-text);
+}
+
+.app-root .app-cab :is(
+  .app-promo-row,
+  .app-promo-camp,
+  .app-pcodes-card,
+  .app-pcodes-input,
+  .app-pcodes-control,
+  .app-pcodes-select-btn,
+  .app-pcodes-menu,
+  .app-fin-field-input,
+  .app-fin-tile,
+  .app-fin-card,
+  .app-fin-pay,
+  .app-mail-editor,
+  .app-mail-result-card
+) {
+  background: var(--app-card);
+  border-color: var(--app-divider);
+  box-shadow: none;
+  color: var(--app-text-secondary);
+}
+
+.app-root .app-cab :is(
+  .app-promo-title,
+  .app-promo-section,
+  .app-promo-row-title,
+  .app-pcodes-title,
+  .app-pcodes-iconbtn,
+  .app-pcodes-code,
+  .app-pcodes-toggle-row,
+  .app-mail-name,
+  .app-mail-people h2,
+  .app-mail-body,
+  .app-mail-result-copy strong,
+  .app-mail-result-stats b,
+  .app-mail-result-card h2,
+  .app-mail-breakdown li span,
+  .app-mail-breakdown li b,
+  .app-fin-title,
+  .app-fin-tile-amount,
+  .app-fin-card-title,
+  .app-fin-pay-title,
+  .app-fin-pay-amount,
+  .app-fin-donut-mid b,
+  .app-fin-exp-name
+) {
+  color: var(--app-text);
+}
+
+.app-root .app-cab :is(
+  .app-promo-lead,
+  .app-promo-row-text,
+  .app-promo-note,
+  .app-promo-meta,
+  .app-promo-empty,
+  .app-promo-back,
+  .app-pcodes-list-title,
+  .app-pcodes-detail,
+  .app-pcodes-uses,
+  .app-pcodes-field > span:first-child,
+  .app-mail-detail,
+  .app-mail-tools,
+  .app-mail-tools button,
+  .app-mail-count,
+  .app-mail-result-copy em,
+  .app-mail-result-stats small,
+  .app-mail-breakdown li em,
+  .app-mail-x,
+  .app-mail-y,
+  .app-mail-legend span,
+  .app-fin-lead,
+  .app-fin-field-label,
+  .app-fin-tile-label,
+  .app-fin-tile-share,
+  .app-fin-legend-item,
+  .app-fin-axis,
+  .app-fin-dates,
+  .app-fin-donut-mid span,
+  .app-fin-exp-meta,
+  .app-fin-exp-mark,
+  .app-fin-pay-when,
+  .app-fin-empty,
+  .app-fin-switch-btn
+) {
+  color: var(--app-text-secondary);
+}
+
+.app-root .app-cab .app-pcodes-hero-btn {
+  background: var(--brand-white);
+  color: var(--brand-blue);
+}
+
+.app-root .app-cab :is(.app-fin-chip, .app-promo-switch button, .app-fin-switch) {
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+}
+
+.app-root .app-cab .app-fin-switch-btn {
+  background: transparent;
+}
+
+.app-root .app-cab :is(.app-fin-hero, .app-pcodes-hero, .app-promo-submit, .app-pcodes-submit, .app-fin-chip--on, .app-fin-switch-btn--on, .app-promo-switch button[aria-selected="true"]) {
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+}
+
+.app-root .app-cab .app-pcodes-tabs button {
+  color: var(--app-text-secondary);
+}
+
+.app-root .app-cab .app-pcodes-tabs button[aria-selected="true"] {
+  border-bottom-color: var(--app-accent);
+  color: var(--app-accent);
+}
+
+.app-root .app-cab :is(.app-pcodes-input, .app-pcodes-select-btn, .app-pcodes-control select, .app-pcodes-control input, .app-fin-field-input, .app-mail-body) {
+  color: var(--app-text);
+}
+
+.app-root .app-cab :is(.app-pcodes-control--placeholder select, .app-pcodes-select-btn--placeholder, .app-pcodes-input::placeholder, .app-pcodes-control input::placeholder, .app-mail-placeholder) {
+  color: var(--app-text-tertiary);
+}
+
+.app-root .app-cab .app-pcodes-option {
+  color: var(--app-text);
+}
+
+.app-root .app-cab .app-pcodes-option:hover {
+  background: var(--app-surface);
+}
+
+.app-root .app-cab .app-pcodes-option--on,
+.app-root .app-cab .app-pcodes-option--on:hover {
+  background: color-mix(in srgb, var(--app-accent) 14%, var(--app-card));
+  color: var(--app-accent);
+}
+
+.app-root .app-cab .app-pcodes-switch {
+  background: rgba(var(--app-scheme-neutral), 0.15);
+}
+
+.app-root .app-cab .app-pcodes-switch--on {
+  background: var(--app-accent);
+}
+
+.app-root .app-cab :is(.app-promo-row-icon--blue, .app-promo-row-icon--violet, .app-promo-camp-mark, .app-pcodes-mark, .app-mail-mark, .app-fin-pay-icon--blue, .app-fin-pay-icon--violet) {
+  background: color-mix(in srgb, var(--app-accent) 14%, var(--app-card));
+  color: var(--app-accent);
+}
+
+.app-root .app-cab :is(.app-fin-tile-icon--blue, .app-fin-tile-icon--violet, .app-mail-open, .app-mail-body a) {
+  color: var(--app-accent);
+}
+
+.app-root .app-cab .app-mail-radio {
+  color: var(--app-text-secondary);
+}
+
+.app-root .app-cab .app-mail-radio[aria-checked="true"] {
+  color: var(--app-text);
+}
+
+.app-root .app-cab .app-mail-radio i {
+  border-color: var(--app-divider);
+}
+
+.app-root .app-cab .app-mail-radio[aria-checked="true"] i {
+  border-color: var(--app-accent);
+}
+
+.app-root .app-cab .app-mail-radio[aria-checked="true"] i::after {
+  background: var(--app-accent);
+}
+
+.app-root .app-cab .app-fin-grid,
+.app-root .app-cab .app-mail-plot line {
+  stroke: var(--app-divider);
+}
+
+.app-root .app-cab .app-fin-line--income {
+  stroke: var(--app-accent);
+}
+
+.app-root .app-cab .app-fin-dot-mark--income {
+  fill: var(--app-accent);
+}
+
+.app-root .app-cab .app-fin-dot--income,
+.app-root .app-cab .app-mail-dot--open {
+  background: var(--app-accent);
+}
+
+.app-root .app-cab .app-mail-line--open {
+  stroke: var(--app-accent);
+}
+
+.app-root .app-cab .app-fin-line--payout {
+  stroke: var(--brand-purple);
+}
+
+.app-root .app-cab .app-fin-dot-mark--payout {
+  fill: var(--brand-purple);
+}
+
+.app-root .app-cab .app-fin-dot--payout {
+  background: var(--brand-purple);
+}
+
+.app-root .app-cab .app-mail-line--click {
+  stroke: var(--brand-purple);
+}
+
+.app-root .app-cab .app-mail-dot--click {
+  background: var(--brand-purple);
+}
+
+.app-root .app-cab .app-promo-badge,
+.app-root .app-cab .app-fin-badge--paid,
+.app-root .app-cab .app-mail-detail-icon--ok {
+  background: color-mix(in srgb, var(--brand-green) 18%, var(--app-card));
+  color: var(--brand-green);
+}
+
+.app-root .app-cab .app-promo-badge i {
+  background: var(--brand-green);
+  color: var(--brand-white);
+}
+
+.app-root .app-cab .app-mail-detail-icon--bad {
+  background: color-mix(in srgb, var(--brand-red) 18%, var(--app-card));
+  color: var(--brand-red);
+}
+
+.app-root .app-cab :is(.app-mail-detail-icon--mute, .app-fin-badge--charged) {
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+}
+
+.app-root .app-cab .app-fin-notice {
+  background: color-mix(in srgb, var(--brand-green) 16%, var(--app-card));
+  color: var(--brand-green);
 }
