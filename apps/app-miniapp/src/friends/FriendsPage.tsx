@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 26 «Друзья»: the MAX contact list, the short «сейчас что-то делают» group and every friend below it.
-// SCOPE: Data via apiClient.listFriends + getFriendsActivity; entries to экран 27 and экран 29; a row opens the friend's route (экран 28), which answers with the closed-access state when the friend hid it. Resync is not offered here: the graph syncs on every authenticated request server-side, so a manual button would promise an action that changes nothing.
-// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (Friend, FriendActivityByFriend), ./avatar.js, ./friends-empty.js, ../auth/AuthContext.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// SCOPE: Data via apiClient.listFriends + getFriendsActivity; entries to экран 27 and экран 29; a row opens the friend's route (экран 28), which answers with the closed-access state when the friend hid it. «Пригласить в MAX» shares the viewer's profile into a chat (`user-` startapp). Resync is not offered here: the graph syncs on every authenticated request server-side, so a manual button would promise an action that changes nothing.
+// DEPENDS: ../api/client.js (apiClient), @max-events/api-contracts (Friend, FriendActivityByFriend), ./avatar.js, ./friends-empty.js, ../auth/AuthContext.js, ../max/bridge.js, ../max/links.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -9,9 +9,10 @@
 // - initials - "Анна Соколова" -> "АС" for the two-letter initials avatar
 // - friendNowLine - what a friend is up to, from the participation status and the start of their soonest event
 // - activeFriends - friends with something on today or tomorrow, soonest first — the «сейчас что-то делают» group
+// - friendsInvitePayload - sentence plus user- startapp for the MAX chat invite
 // - FriendsState - union of the screen fetch states (loading / error / ready)
-// - FriendsView - presentational экран 26: counter topbar, contacts row, the active group and the full list
-// - FriendsPage - route container: loads friends and their activity, wires navigation
+// - FriendsView - presentational экран 26: counter topbar, invite button, the active group and the full list
+// - FriendsPage - route container: loads friends and their activity, wires navigation and the invite share
 // END_MODULE_MAP
 
 import { useEffect, useState } from "react";
@@ -19,11 +20,18 @@ import type { Friend, FriendActivityByFriend } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { useProfileCityPoint } from "../geo/profile-city";
+import { announceShare, getWebApp, shareResult } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppSkeletonList, AppState } from "../ui/primitives";
 import { PersonAvatar } from "./avatar";
 import { FRIENDS_GRAPH_EMPTY_TEXT } from "./friends-empty";
+
+/** What the MAX share sheet puts in the chat, with a link that opens this person's profile. */
+export function friendsInvitePayload(userId: string): { text: string; link?: string } {
+  return sharePayload("Добавь меня в друзья в Афише MAX", `user-${userId}`);
+}
 
 /** The people screen is «рядом» only when the viewer is in the city the list is measured from. */
 export function friendsPeopleLabel(inCity: boolean): string {
@@ -102,12 +110,13 @@ interface FriendsViewProps {
   onOpenFriend: (userId: string) => void;
   onOpenDiscovery: () => void;
   onOpenPeople: () => void;
+  onInvite: () => void;
   onRetry: () => void;
   /** False when «Люди» opens a list measured from the city center. */
   peopleInCity?: boolean;
 }
 
-export function FriendsView({ state, now = new Date(), onOpenFriend, onOpenDiscovery, onOpenPeople, onRetry, peopleInCity = true }: FriendsViewProps) {
+export function FriendsView({ state, now = new Date(), onOpenFriend, onOpenDiscovery, onOpenPeople, onInvite, onRetry, peopleInCity = true }: FriendsViewProps) {
   const active = state.status === "ready" ? activeFriends(state.groups, now) : [];
   const activeIds = new Set(active.map((group) => group.friend.id));
   // Кто уже стоит в верхней группе, второй раз ниже не повторяется: макет показывает каждого один раз.
@@ -141,14 +150,17 @@ export function FriendsView({ state, now = new Date(), onOpenFriend, onOpenDisco
           <ActionIcon name="chevron" size={18} />
         </button>
       </div>
+      <button type="button" className="app-friends-invite" onClick={onInvite}>
+        <ActionIcon name="share" size={18} />
+        Пригласить в MAX
+      </button>
       {state.status === "loading" && <AppSkeletonList rows={4} />}
       {state.status === "error" && (
         <AppState error action={{ label: "Повторить", onClick: onRetry }}>
           Не удалось загрузить друзей.
         </AppState>
       )}
-      <p className="app-friends-rule">Друзья — кто добавил вас в ответ, и люди по ссылке в MAX.</p>
-      {state.status === "ready" && state.friends.length === 0 && <AppState hint="Позовите ссылкой в MAX или добавьте человека в профиле.">{FRIENDS_GRAPH_EMPTY_TEXT}</AppState>}
+      {state.status === "ready" && state.friends.length === 0 && <AppState>{FRIENDS_GRAPH_EMPTY_TEXT}</AppState>}
       {active.length > 0 && (
         <section className="app-friends-sec" aria-label="Сейчас что-то делают">
           <h2 className="app-friends-sec-label">Сейчас что-то делают · {active.length}</h2>
@@ -195,5 +207,19 @@ export function FriendsPage() {
     };
   }, [userId, reloads]);
 
-  return <FriendsView state={state} peopleInCity={point.settled && point.fromViewer} onOpenFriend={(id) => navigate({ name: "user", id })} onOpenDiscovery={() => navigate({ name: "discovery" })} onOpenPeople={() => navigate({ name: "people" })} onRetry={() => setReloads((value) => value + 1)} />;
+  return (
+    <FriendsView
+      state={state}
+      peopleInCity={point.settled && point.fromViewer}
+      onOpenFriend={(id) => navigate({ name: "user", id })}
+      onOpenDiscovery={() => navigate({ name: "discovery" })}
+      onOpenPeople={() => navigate({ name: "people" })}
+      onInvite={() => {
+        if (userId === null) return;
+        const payload = friendsInvitePayload(userId);
+        void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
+      }}
+      onRetry={() => setReloads((value) => value + 1)}
+    />
+  );
 }

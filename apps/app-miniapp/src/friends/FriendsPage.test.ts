@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { FriendActivityByFriend } from "@max-events/api-contracts";
-import { activeFriends, friendNowLine, friendsPeopleLabel, initials, FriendsView, type FriendsState } from "./FriendsPage";
+import { activeFriends, friendNowLine, friendsInvitePayload, friendsPeopleLabel, initials, FriendsView, type FriendsState } from "./FriendsPage";
 import { personGradient, personLetter } from "./avatar";
 import { friendActivityByFriend, mockEvents, mockFriends } from "../api/mock";
 
@@ -63,7 +63,7 @@ describe("activeFriends", () => {
 });
 
 describe("FriendsView", () => {
-  const view = (value: FriendsState) => renderToStaticMarkup(createElement(FriendsView, { state: value, now: NOW, onOpenFriend: noop, onOpenDiscovery: noop, onOpenPeople: noop, onRetry: noop }));
+  const view = (value: FriendsState) => renderToStaticMarkup(createElement(FriendsView, { state: value, now: NOW, onOpenFriend: noop, onOpenDiscovery: noop, onOpenPeople: noop, onInvite: noop, onRetry: noop }));
 
   it("renders the counter topbar without a contacts sync row", () => {
     const html = view(state());
@@ -72,6 +72,16 @@ describe("FriendsView", () => {
     expect(html).toContain(`>${mockFriends.length}<`);
     expect(html).not.toContain("Контакты MAX");
     expect(html).toContain("Места, где друзья уже были");
+  });
+
+  it("invites a friend through a MAX chat link instead of explaining the graph in gray", () => {
+    const html = view(state());
+
+    expect(html).toContain("Пригласить в MAX");
+    expect(html).toContain("app-friends-invite");
+    expect(html).not.toContain("app-friends-rule");
+    expect(html).not.toContain("кто добавил вас в ответ");
+    expect(friendsInvitePayload("u1")).toEqual({ text: "Добавь меня в друзья в Афише MAX", link: "https://max.ru/t691_hakaton_max_bot?startapp=user-u1" });
   });
 
   it("carries the entries to «Друзья открыли» and «Люди рядом» itself", () => {
@@ -110,6 +120,7 @@ describe("FriendsView", () => {
 
     expect(html).toContain("Друзей пока нет");
     expect(html).toContain("Друзья открыли");
+    expect(html).toContain("Пригласить в MAX");
     expect(html).not.toContain("Обновить");
     expect(html).not.toContain("Контакты MAX");
     expect(html).not.toContain("Все друзья");

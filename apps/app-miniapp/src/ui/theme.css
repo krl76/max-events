@@ -26075,7 +26075,7 @@ html:not([data-theme="dark"]) .app-plan-meet {
   --color: #ffffff;
 }
 
-:is(.app-feed-whereto-start, .app-feed-going:not(.app-feed-going--on), .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-plus, .app-post-compose-publish:not(:disabled), .app-map16-route, .app-map16-routebar-hide, .app-swipe-action--like, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-dayroute-chip, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act) {
+:is(.app-feed-whereto-start, .app-feed-going:not(.app-feed-going--on), .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-plus, .app-post-compose-publish:not(:disabled), .app-map16-route, .app-map16-routebar-hide, .app-swipe-action--like, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-dayroute-chip, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act, .app-friends-invite) {
   background: var(--app-accent);
   color: #ffffff;
 }
@@ -27078,12 +27078,28 @@ button.app-fin-op--btn {
   line-height: 1.3;
 }
 
-.app-friends-rule {
-  color: var(--app-text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.35;
-  margin: 8px 0 0;
+.app-friends-invite {
+  align-items: center;
+  background: var(--app-accent);
+  border: none;
+  border-radius: var(--app-radius-pill);
+  box-sizing: border-box;
+  color: var(--app-accent-contrast);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  gap: 8px;
+  height: 48px;
+  justify-content: center;
+  margin: 12px 0 4px;
+  width: 100%;
+}
+
+.app-friends-invite:hover,
+.app-friends-invite:active {
+  background: var(--app-accent-press);
 }
 
 .app-brand-defs {
