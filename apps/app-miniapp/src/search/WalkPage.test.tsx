@@ -2,7 +2,7 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { act, createElement, type ReactElement } from "react";
+import { act, createElement, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { CityWalk, ComposeCityWalkWrite } from "@max-events/api-contracts";
@@ -10,7 +10,7 @@ import { ApiError } from "../api/endpoints/transport";
 import { mockEvents } from "../api/mock";
 import { cityWalkAsk, nextWalkAsk, walkBudgetLabel, walkBudgetRub, walkClock, walkSpanLabel, walkSpanMinutes, walkWaitTitle, WalkPage, WalkView } from "./WalkPage";
 import { WalkResult, walkArrivalOffsetMinutes, walkErrorText, walkStopBlurb, walkStopKeys } from "./WalkResult";
-import { EMPTY_WALK_CHOICE, selectWalkBudget, selectWalkTime, toggleWalkInterest, walkComposeReady, WalkWizard } from "./WalkWizard";
+import { CUSTOM_WALK_MINUTES, EMPTY_WALK_CHOICE, selectWalkBudget, selectWalkTime, stepWalkCustomTime, toggleWalkInterest, walkComposeReady, WalkWizard } from "./WalkWizard";
 
 describe("city walk query", () => {
   it("asks for sights in the selected city, and a later ask asks for a different route", () => {
@@ -77,6 +77,15 @@ describe("walk wizard", () => {
     expect(html).toContain("disabled");
     expect(html).not.toContain("Собираем прогулку");
     expect(html).not.toContain("Бесплатно");
+    expect(html).not.toContain("Мои прогулки");
+    expect(html).toContain('aria-label="Город"');
+    expect(html).not.toContain("app-walk-back");
+  });
+
+  it("steps custom duration by 30 minutes", () => {
+    expect(stepWalkCustomTime(EMPTY_WALK_CHOICE, 1).durationMinutes).toBe(CUSTOM_WALK_MINUTES + 30);
+    expect(stepWalkCustomTime(selectWalkTime(EMPTY_WALK_CHOICE, 30), -1).durationMinutes).toBe(30);
+    expect(stepWalkCustomTime(selectWalkTime(EMPTY_WALK_CHOICE, 480), 1).durationMinutes).toBe(480);
   });
 
   it("enables compose only after time, budget, and one interest", () => {
@@ -227,7 +236,7 @@ describe("composed walk", () => {
     expect(host.textContent).toContain("Старая крепость.");
     expect(host.textContent).toContain("Река рядом.");
     expect(host.textContent).not.toContain("★");
-    expect(readFileSync("apps/app-miniapp/src/search/WalkPage.tsx", "utf8")).not.toContain("assistDay");
+    expect(readFileSync("src/search/WalkPage.tsx", "utf8")).not.toContain("assistDay");
     root.unmount();
     host.remove();
   });
@@ -262,8 +271,18 @@ describe("composed walk", () => {
     await act(async () => {
       clickText(host, "2 часа");
     });
+    expect(host.textContent).toContain("Сколько времени");
+    expect(host.textContent).not.toContain("Бюджет маршрута");
+    await act(async () => {
+      clickText(host, "Далее");
+    });
+    expect(host.textContent).toContain("Бюджет маршрута");
     await act(async () => {
       clickText(host, "Любой");
+    });
+    expect(host.textContent).not.toContain("Культурные");
+    await act(async () => {
+      clickText(host, "Далее");
     });
     await act(async () => {
       clickText(host, "Культурные");
@@ -302,6 +321,61 @@ describe("composed walk", () => {
     });
     expect(host.textContent).toContain("Выбрано: 1");
 
+    root.unmount();
+    host.remove();
+  });
+
+  it("advances time and budget only with Далее and lets the city chip pick a city", async () => {
+    const cities: string[] = [];
+    function Harness() {
+      const [choice, setChoice] = useState(EMPTY_WALK_CHOICE);
+      return createElement(WalkWizard, { city: "Тула", choice, onChange: setChoice, onCity: (city) => cities.push(city) });
+    }
+    const { host, root } = await mount(createElement(Harness));
+    expect(host.textContent).not.toContain("Мои прогулки");
+    await act(async () => {
+      clickText(host, "2 часа");
+    });
+    expect(host.textContent).toContain("Сколько времени");
+    expect(host.textContent).not.toContain("Бюджет маршрута");
+    await act(async () => {
+      clickText(host, "Далее");
+    });
+    expect(host.textContent).toContain("Бюджет маршрута");
+    await act(async () => {
+      clickText(host, "Бесплатно");
+    });
+    expect(host.textContent).not.toContain("Культурные");
+    await act(async () => {
+      clickText(host, "Далее");
+    });
+    expect(host.textContent).toContain("Культурные");
+    await act(async () => {
+      (host.querySelector('button[aria-label="Город"]') as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      clickText(host, "Москва");
+    });
+    expect(cities).toEqual(["Москва"]);
+    root.unmount();
+    host.remove();
+  });
+
+  it("keeps the time step and selection when the city chip changes city", async () => {
+    const { host, root } = await mount(createElement(WalkPage, { city: "Тула" }));
+    await act(async () => {
+      clickText(host, "2 часа");
+    });
+    await act(async () => {
+      (host.querySelector('button[aria-label="Город"]') as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      clickText(host, "Москва");
+    });
+    expect(host.textContent).toContain("Прогулка: Москва");
+    expect(host.textContent).toContain("Сколько времени");
+    expect(host.textContent).not.toContain("Бюджет маршрута");
+    expect(host.querySelector(".app-walk-tile--selected")?.textContent).toContain("2 часа");
     root.unmount();
     host.remove();
   });
