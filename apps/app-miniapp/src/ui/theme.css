@@ -29326,6 +29326,106 @@ button.app-pcodes-iconbtn {
   padding-left: 42px;
 }
 
+.app-pcodes-field:has(.app-pcodes-select--open) {
+  position: relative;
+  z-index: 30;
+}
+
+.app-pcodes-select {
+  position: relative;
+}
+
+.app-pcodes-select-btn {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e7eef6;
+  border-radius: 16px;
+  box-shadow: 0 6px 16px rgba(28, 45, 90, 0.04);
+  color: #12183a;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 12px 14px 12px 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-pcodes-select-btn--placeholder {
+  color: #a9b6ce;
+  font-weight: 600;
+}
+
+.app-pcodes-select-btn svg {
+  color: #b7c3d8;
+  flex: none;
+  transform: rotate(90deg);
+}
+
+.app-pcodes-select--open .app-pcodes-select-btn svg {
+  transform: rotate(-90deg);
+}
+
+.app-pcodes-menu {
+  background: #ffffff;
+  border: 1px solid #e4ebf5;
+  border-radius: 16px;
+  box-shadow: 0 16px 36px rgba(22, 36, 78, 0.16);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  left: 0;
+  max-width: calc(100vw - 32px);
+  min-width: 100%;
+  padding: 6px;
+  position: absolute;
+  top: calc(100% + 6px);
+  width: max-content;
+  z-index: 31;
+}
+
+.app-pcodes-select--up .app-pcodes-menu {
+  bottom: calc(100% + 6px);
+  top: auto;
+}
+
+.app-pcodes-option {
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  color: #12183a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 10px 14px;
+  text-align: left;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.app-pcodes-option--on,
+.app-pcodes-option--on:hover {
+  background: #2f6bff;
+  color: #ffffff;
+}
+
+.app-pcodes-option:hover {
+  background: #f3f6fb;
+}
+
+.app-pcodes-select-btn:focus-visible,
+.app-pcodes-option:focus-visible {
+  outline: 2px solid #2f6bff;
+  outline-offset: 2px;
+}
+
 .app-pcodes-toggle-row {
   align-items: center;
   color: #12183a;

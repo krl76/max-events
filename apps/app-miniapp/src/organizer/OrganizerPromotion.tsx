@@ -5,7 +5,7 @@
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 
-import { useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { useOrganizerNativeBack } from "./organizer-native-back";
 
@@ -104,17 +104,6 @@ export const EMPTY_PROMO_DRAFT: PromoDraft = {
   allTickets: true,
   limit: "",
   message: "",
-};
-
-/** The filled «Новый промокод» screen from the cabinet mock. */
-export const CODE_FORM_DRAFT: PromoDraft = {
-  ...EMPTY_PROMO_DRAFT,
-  code: "SUMMER2025",
-  discount: "20",
-  discountKind: "Процент",
-  period: "01.08.2025 — 31.08.2025",
-  limitMode: "Без ограничений",
-  allTickets: true,
 };
 
 export type PromoCodePhase = "active" | "archived";
@@ -284,6 +273,82 @@ export function PromoCodesScreen({ onBack, onCreate }: { onBack: () => void; onC
   );
 }
 
+function PromoSelect({ label, value, placeholder, options, onChange }: { label: string; value: string; placeholder?: string; options: readonly string[]; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const shown = value === "" ? (placeholder ?? "") : value;
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const button = rootRef.current?.querySelector(".app-pcodes-select-btn");
+    const menu = rootRef.current?.querySelector(".app-pcodes-menu");
+    if (button === null || button === undefined || menu === null || menu === undefined) return;
+    const rect = button.getBoundingClientRect();
+    const height = menu.getBoundingClientRect().height;
+    const spaceBelow = window.innerHeight - rect.bottom - 72;
+    setDropUp(spaceBelow < height + 8 && rect.top > height + 8);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const selected = rootRef.current?.querySelector<HTMLButtonElement>('[role="option"][aria-selected="true"]');
+    (selected ?? rootRef.current?.querySelector<HTMLButtonElement>('[role="option"]'))?.focus({ preventScroll: true });
+    const onPointer = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      const items = rootRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]');
+      if (items === undefined || items.length === 0) return;
+      event.preventDefault();
+      const list = [...items];
+      const index = list.findIndex((node) => node === document.activeElement);
+      const next = event.key === "ArrowDown" ? (index + 1) % list.length : index <= 0 ? list.length - 1 : index - 1;
+      list[next]?.focus();
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className={open ? `app-pcodes-select app-pcodes-select--open${dropUp ? " app-pcodes-select--up" : ""}` : "app-pcodes-select"} ref={rootRef}>
+      <button type="button" className={value === "" ? "app-pcodes-select-btn app-pcodes-select-btn--placeholder" : "app-pcodes-select-btn"} aria-label={label} aria-haspopup="listbox" aria-expanded={open} aria-controls={listId} onClick={() => setOpen((current) => !current)}>
+        <span>{shown}</span>
+        <ActionIcon name="chevron" size={16} strokeWidth={2.2} />
+      </button>
+      {open && (
+        <div className="app-pcodes-menu" id={listId} role="listbox" aria-label={label}>
+          {options.map((item) => (
+            <button
+              key={item}
+              type="button"
+              role="option"
+              aria-selected={item === value}
+              className={item === value ? "app-pcodes-option app-pcodes-option--on" : "app-pcodes-option"}
+              onClick={() => {
+                onChange(item);
+                setOpen(false);
+              }}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PromoCodeCreate({ draft, block, onChange, onSubmit, onBack }: { draft: PromoDraft; block: string | null; onChange: (patch: Partial<PromoDraft>) => void; onSubmit: () => void; onBack: () => void }) {
   useOrganizerNativeBack(true, onBack);
   const amountLabel = draft.discountKind === "Процент" ? "Размер скидки, %" : "Размер скидки, ₽";
@@ -300,55 +365,33 @@ export function PromoCodeCreate({ draft, block, onChange, onSubmit, onBack }: { 
       </header>
       <label className="app-pcodes-field">
         <span>Название промокода</span>
-        <input className="app-pcodes-input" value={draft.code} onChange={(change) => onChange({ code: change.target.value })} />
+        <input className="app-pcodes-input" autoComplete="off" value={draft.code} onChange={(change) => onChange({ code: change.target.value })} />
       </label>
       <div className="app-pcodes-pair">
-        <label className="app-pcodes-field">
+        <div className="app-pcodes-field">
           <span>Тип скидки</span>
-          <span className="app-pcodes-control">
-            <select aria-label="Тип скидки" value={draft.discountKind} onChange={(change) => onChange({ discountKind: change.target.value })}>
-              {DISCOUNT_KINDS.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-            <ActionIcon name="chevron" size={16} strokeWidth={2.2} />
-          </span>
-        </label>
+          <PromoSelect label="Тип скидки" value={draft.discountKind} options={DISCOUNT_KINDS} onChange={(discountKind) => onChange({ discountKind })} />
+        </div>
         <label className="app-pcodes-field">
           <span>{amountLabel}</span>
-          <input className="app-pcodes-input" inputMode="numeric" value={draft.discount} onChange={(change) => onChange({ discount: change.target.value })} />
+          <input className="app-pcodes-input" inputMode="numeric" autoComplete="off" value={draft.discount} onChange={(change) => onChange({ discount: change.target.value })} />
         </label>
       </div>
-      <label className="app-pcodes-field">
+      <div className="app-pcodes-field">
         <span>События</span>
-        <span className={draft.eventTitle === "" ? "app-pcodes-control app-pcodes-control--placeholder" : "app-pcodes-control"}>
-          <select aria-label="События" value={draft.eventTitle} onChange={(change) => onChange({ eventTitle: change.target.value })}>
-            <option value="">Выберите событие</option>
-            {PROMO_EVENTS.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-          <ActionIcon name="chevron" size={16} strokeWidth={2.2} />
-        </span>
-      </label>
+        <PromoSelect label="События" value={draft.eventTitle} placeholder="Выберите событие" options={PROMO_EVENTS} onChange={(eventTitle) => onChange({ eventTitle })} />
+      </div>
       <label className="app-pcodes-field">
         <span>Период действия</span>
         <span className="app-pcodes-control app-pcodes-control--icon">
           <ActionIcon name="calendar" size={18} strokeWidth={1.9} />
-          <input aria-label="Период действия" value={draft.period} onChange={(change) => onChange({ period: change.target.value })} />
+          <input aria-label="Период действия" autoComplete="off" value={draft.period} onChange={(change) => onChange({ period: change.target.value })} />
         </span>
       </label>
-      <label className="app-pcodes-field">
+      <div className="app-pcodes-field">
         <span>Лимит использований</span>
-        <span className="app-pcodes-control">
-          <select aria-label="Лимит использований" value={draft.limitMode} onChange={(change) => onChange({ limitMode: change.target.value })}>
-            {LIMIT_MODES.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-          <ActionIcon name="chevron" size={16} strokeWidth={2.2} />
-        </span>
-      </label>
+        <PromoSelect label="Лимит использований" value={draft.limitMode} options={LIMIT_MODES} onChange={(limitMode) => onChange({ limitMode })} />
+      </div>
       <div className="app-pcodes-toggle-row">
         <span>Применять ко всем билетам</span>
         <button type="button" role="switch" aria-checked={draft.allTickets} aria-label="Применять ко всем билетам" className={draft.allTickets ? "app-pcodes-switch app-pcodes-switch--on" : "app-pcodes-switch"} onClick={() => onChange({ allTickets: !draft.allTickets })}>
@@ -384,7 +427,7 @@ export function OrganizerPromotion() {
 
   const openCodeForm = () => {
     setBlock(null);
-    setDraft(CODE_FORM_DRAFT);
+    setDraft(EMPTY_PROMO_DRAFT);
     setCodes("form");
   };
 

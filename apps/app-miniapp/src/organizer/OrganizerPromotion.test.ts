@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { CODE_FORM_DRAFT, EMPTY_PROMO_DRAFT, PROMO_CAMPAIGNS, PROMO_CODE_ROWS, PROMO_HOME_TOOLS, PROMO_TOOL_CARDS, PromoCodeCreate, PromoCodesScreen, promoToolBlock, promoToolNotice, OrganizerPromotion } from "./OrganizerPromotion";
+import { EMPTY_PROMO_DRAFT, PROMO_CAMPAIGNS, PROMO_CODE_ROWS, PROMO_HOME_TOOLS, PROMO_TOOL_CARDS, PromoCodeCreate, PromoCodesScreen, promoToolBlock, promoToolNotice, OrganizerPromotion } from "./OrganizerPromotion";
 
 describe("promoToolBlock", () => {
   it("asks for a campaign name and a whole-ruble budget", () => {
@@ -49,7 +49,7 @@ describe("OrganizerPromotion", () => {
   it("draws the promo-code list and the new-code form from the mocks", () => {
     const noop = () => {};
     const list = renderToStaticMarkup(createElement(PromoCodesScreen, { onBack: noop, onCreate: noop }));
-    const form = renderToStaticMarkup(createElement(PromoCodeCreate, { draft: CODE_FORM_DRAFT, block: null, onChange: noop, onSubmit: noop, onBack: noop }));
+    const form = renderToStaticMarkup(createElement(PromoCodeCreate, { draft: EMPTY_PROMO_DRAFT, block: null, onChange: noop, onSubmit: noop, onBack: noop }));
 
     expect(list).toContain("Промокоды");
     expect(list).toContain("Архивные");
@@ -62,13 +62,16 @@ describe("OrganizerPromotion", () => {
       expect(list).toContain(row.delta);
     }
     expect(form).toContain("Новый промокод");
-    expect(form).toContain("SUMMER2025");
+    expect(form).not.toContain("SUMMER2025");
+    expect(form).not.toContain("01.08.2025");
+    expect(form).not.toContain("<select");
     expect(form).toContain("Тип скидки");
     expect(form).toContain("Размер скидки, %");
+    expect(form).toContain("Процент");
     expect(form).toContain("Выберите событие");
-    expect(form).toContain("01.08.2025 — 31.08.2025");
     expect(form).toContain("Без ограничений");
     expect(form).toContain("Применять ко всем билетам");
     expect(form).toContain('aria-checked="true"');
+    expect(form).toContain('aria-haspopup="listbox"');
   });
 });
