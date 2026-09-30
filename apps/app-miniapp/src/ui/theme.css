@@ -14111,21 +14111,6 @@ button.app-poll-result {
   padding-top: max(4px, env(safe-area-inset-top, 0px));
 }
 
-.app-dayroute-close {
-  align-items: center;
-  background: none;
-  border: none;
-  color: var(--app-text);
-  cursor: pointer;
-  display: flex;
-  flex: none;
-  height: 36px;
-  justify-content: center;
-  margin: 2px 0 0;
-  padding: 0;
-  width: 28px;
-}
-
 .app-dayroute-heading {
   display: flex;
   flex: 1;
@@ -14216,6 +14201,10 @@ button.app-poll-result {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+.app-dayroute-list[hidden] {
+  display: none;
 }
 
 .app-dayroute-row {
@@ -24706,13 +24695,14 @@ button.app-story-viewer-author {
   text-align: left;
   transition: background var(--app-duration-fast) var(--app-ease-out), border-color var(--app-duration-fast) var(--app-ease-out), transform var(--app-duration-fast) var(--app-ease-out);
 }
-.app-walk-tile:hover {
+.app-walk-tile:hover:not(.app-walk-tile--selected) {
   background: rgba(var(--app-scheme-neutral), 0.07);
 }
 .app-walk-tile:active {
   transform: scale(0.97);
 }
-.app-walk-tile--selected {
+.app-walk-tile--selected,
+.app-walk-tile--selected:hover {
   background: color-mix(in srgb, var(--app-accent) 16%, var(--app-card));
   border-color: var(--app-accent);
 }
@@ -24861,13 +24851,14 @@ button.app-story-viewer-author {
   transition: background var(--app-duration-fast) var(--app-ease-out), border-color var(--app-duration-fast) var(--app-ease-out), transform var(--app-duration-fast) var(--app-ease-out);
   width: 100%;
 }
-.app-walk-budget-card:hover {
+.app-walk-budget-card:hover:not(.app-walk-budget-card--selected) {
   background: rgba(var(--app-scheme-neutral), 0.07);
 }
 .app-walk-budget-card:active {
   transform: scale(0.98);
 }
-.app-walk-budget-card--selected {
+.app-walk-budget-card--selected,
+.app-walk-budget-card--selected:hover {
   background: color-mix(in srgb, var(--app-accent) 16%, var(--app-card));
   border-color: var(--app-accent);
 }
@@ -24963,13 +24954,14 @@ button.app-story-viewer-author {
   padding: 8px 16px;
   transition: all var(--app-duration-fast) cubic-bezier(0.16, 1, 0.3, 1);
 }
-.app-walk-interest-chip:hover {
+.app-walk-interest-chip:hover:not(.app-walk-interest-chip--selected) {
   background: rgba(var(--app-scheme-neutral), 0.07);
 }
 .app-walk-interest-chip:active {
   transform: scale(0.96);
 }
-.app-walk-interest-chip--selected {
+.app-walk-interest-chip--selected,
+.app-walk-interest-chip--selected:hover {
   background: var(--app-text);
   border-color: var(--app-text);
   color: var(--app-canvas);

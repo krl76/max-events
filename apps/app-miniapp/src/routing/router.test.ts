@@ -254,4 +254,17 @@ describe("routeFromHistoryState", () => {
     expect(routeFromHistoryState({ route: { name: "map", walkId: "w1" }, idx: 1 })).toEqual({ route: { name: "map", walkId: "w1" }, idx: 1 });
     expect(routeFromHistoryState({ route: { name: "map", walkId: "" }, idx: 0 })).toEqual({ route: { name: "map" }, idx: 0 });
   });
+
+  it("keeps a day-route trail on the map and drops a trail with fewer than two stops", () => {
+    const trail = {
+      title: "Москва",
+      minutes: 13,
+      stops: [
+        { title: "Старт", lat: 55.75, lng: 37.62 },
+        { title: "Кофейня", lat: 55.76, lng: 37.63, placeId: "p1" },
+      ],
+    };
+    expect(routeFromHistoryState({ route: { name: "map", trail }, idx: 1 })).toEqual({ route: { name: "map", trail }, idx: 1 });
+    expect(routeFromHistoryState({ route: { name: "map", trail: { title: "Москва", minutes: 13, stops: [{ title: "Одна", lat: 55, lng: 37 }] } }, idx: 0 })).toEqual({ route: { name: "map" }, idx: 0 });
+  });
 });

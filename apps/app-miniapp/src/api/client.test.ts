@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiClient, parseEventFilters, serializeEventFilters } from "./client";
 import type { Event } from "@max-events/api-contracts";
+import { ApiClient, parseEventFilters, serializeEventFilters } from "./client";
+import { API_REQUEST_TIMEOUT_MS } from "./endpoints/transport";
+import { WALK_COMPOSE_TIMEOUT_MS } from "./endpoints/walks";
+import { composeMockWalk } from "./mock/walks";
 
 function mockFetchOnce(ok: boolean, status: number, body: unknown): void {
   vi.stubGlobal(
@@ -90,7 +93,8 @@ describe("ApiClient", () => {
   it("throws a timeout ApiError when fetch is aborted", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const aborted = Object.assign(new Error("The operation was aborted"), { name: "AbortError" });
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(aborted));
+    const fetchMock = vi.fn().mockRejectedValue(aborted);
+    vi.stubGlobal("fetch", fetchMock);
     const client = new ApiClient("http://localhost:3100/api");
 
     await expect(client.getEvent(validEvent.id)).rejects.toMatchObject({
@@ -98,6 +102,49 @@ describe("ApiClient", () => {
       status: 0,
       message: expect.stringContaining("timeout"),
     });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats TimeoutError as a timeout and does not retry it", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const timedOut = Object.assign(new Error("signal timed out"), { name: "TimeoutError" });
+    const fetchMock = vi.fn().mockRejectedValue(timedOut);
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.getEvent(validEvent.id)).rejects.toMatchObject({
+      name: "ApiError",
+      status: 0,
+      message: expect.stringContaining("timeout"),
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives composeCityWalk a longer abort window than a regular GET", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const walk = composeMockWalk({
+      city: "Казань",
+      durationMinutes: 120,
+      budgetMode: "any",
+      budgetRub: null,
+      interests: ["cultural"],
+      excludeKeys: [],
+    });
+    if (walk === "no_sights") throw new Error("expected a walk");
+    mockFetchOnce(true, 201, walk);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await client.composeCityWalk({
+      city: "Казань",
+      durationMinutes: 120,
+      budgetMode: "any",
+      budgetRub: null,
+      interests: ["cultural"],
+      excludeKeys: [],
+    });
+
+    expect(WALK_COMPOSE_TIMEOUT_MS).toBeGreaterThan(API_REQUEST_TIMEOUT_MS);
+    expect(timeout).toHaveBeenCalledWith(WALK_COMPOSE_TIMEOUT_MS);
   });
 
   it("passes an abort signal so a hung request cannot wait forever", async () => {

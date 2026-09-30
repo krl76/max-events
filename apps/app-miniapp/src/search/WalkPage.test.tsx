@@ -379,4 +379,28 @@ describe("composed walk", () => {
     root.unmount();
     host.remove();
   });
+
+  it("composes the walk for the city picked on the chip", async () => {
+    const calls: ComposeCityWalkWrite[] = [];
+    const compose = (body: ComposeCityWalkWrite): Promise<CityWalk> => {
+      calls.push(body);
+      return Promise.resolve({ ...sampleWalk(), city: body.city });
+    };
+    const { host, root } = await mount(createElement(WalkPage, { city: "Москва", initialChoice: readyChoice(), compose }));
+    await act(async () => {
+      (host.querySelector('button[aria-label="Город"]') as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      clickText(host, "Казань");
+    });
+    expect(host.textContent).toContain("Прогулка: Казань");
+    await act(async () => {
+      clickText(host, "Собрать прогулку");
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.city).toBe("Казань");
+    expect(host.textContent).toContain("Прогулка: Казань");
+    root.unmount();
+    host.remove();
+  });
 });

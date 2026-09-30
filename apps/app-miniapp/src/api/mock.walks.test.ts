@@ -26,6 +26,10 @@ describe("city walk mock", () => {
       expect(walk.city).toBe("Москва");
       expect(walk.stops).toHaveLength(2);
       expect(walk.stops[0]?.title).toBe("Парк Горького");
+      const kazan = await new ApiClient().composeCityWalk({ ...write, city: "Казань" });
+      expect(kazan.city).toBe("Казань");
+      expect(kazan.stops[0]?.title).toBe("Казанский кремль");
+      expect(kazan.stops[0]?.address).toContain("Казань");
     } finally {
       restore();
     }
