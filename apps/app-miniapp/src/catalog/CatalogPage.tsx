@@ -28,7 +28,7 @@ import { useRoute } from "../routing/router";
 import { AppChip, AppState, AppMedia } from "../ui/primitives";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { browsedCityOrigin } from "../geo/viewer-origin";
-import { eventFillLabel, pictured } from "../ui/photos";
+import { pictured } from "../ui/photos";
 import { CATEGORY_LABELS, formatEventWeather, formatStartsAt } from "./format";
 import { MapScreen } from "./MapScreen";
 
@@ -120,7 +120,6 @@ export function EventCard({ event, onOpen }: { event: Event; onOpen?: (id: strin
           {event.city} · {event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}
           {event.organizerName ? ` · ${event.organizerName}` : ""}
           {event.distanceKm !== undefined && event.distanceKm !== null ? ` · ${event.distanceKm.toFixed(1)} км` : ""}
-          {eventFillLabel(event) !== null ? ` · ${eventFillLabel(event)}` : ""}
           {event.ratingAverage !== undefined && event.ratingAverage !== null ? ` · ${event.ratingAverage.toFixed(1)}` : ""}
           {event.waitlistCount ? ` · ${event.waitlistCount} в листе` : ""}
         </span>

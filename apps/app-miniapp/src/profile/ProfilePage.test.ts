@@ -96,6 +96,7 @@ function renderProfileView(overrides: Partial<Parameters<typeof ProfileView>[0]>
       onBookings: noop,
       onOpenBooking: noop,
       onCalendar: noop,
+      onWalks: noop,
       onSubscriptions: noop,
       onFollowers: noop,
       onAchievements: noop,
@@ -283,6 +284,7 @@ describe("ProfileView", () => {
     const html = renderProfileView();
 
     expect(html).toContain("Календарь");
+    expect(html).toContain("Мои прогулки");
     expect(html).not.toContain("Создать план");
     expect(html).toContain("Все планы");
     expect(html).toContain("Все брони");
@@ -293,7 +295,7 @@ describe("ProfileView", () => {
     expect(html).not.toContain("Моё сообщество");
     expect(html).toContain("Группы");
     expect(html).toContain("Друзья");
-    expect(html.match(/class="app-me-shortcut"/g)).toHaveLength(6);
+    expect(html.match(/class="app-me-shortcut"/g)).toHaveLength(7);
     expect(html).toContain("Сохранённое");
     expect(html).not.toContain("app-me-row");
     expect(html).not.toContain("app-me-avatar-plus");
@@ -387,7 +389,7 @@ describe("ProfileView", () => {
 
     expect(html).toContain("Сохранённое");
     expect(html).not.toContain("Сохранённое ·");
-    expect(html).not.toContain("Списки");
+    expect(html).not.toContain(">Списки<");
     expect(html).toContain("24 друга");
     expect(html).toContain("1 из 1 собрано");
   });

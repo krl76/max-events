@@ -654,13 +654,7 @@ function feedDateBadge(startsAt: string): { month: string; day: string } {
   return { month: date.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "").slice(0, 3).toUpperCase(), day: date.toLocaleDateString("ru-RU", { day: "numeric" }) };
 }
 
-/** «12 из 30» — сколько мест уже занято. Без вместимости строка не появляется. */
-function eventFill(event: Event): string | null {
-  if (event.capacity == null) return null;
-  const booked = event.bookedCount ?? (event.remainingSeats != null ? Math.max(0, event.capacity - event.remainingSeats) : null);
-  if (booked == null) return null;
-  return `${booked} из ${event.capacity}`;
-}
+
 
 /** The social feed can be empty. The city still has events, and they should look like photographs. */
 function FeedCityPhotos({ onOpen, onCreate }: { onOpen: (id: string) => void; onCreate: () => void }) {
@@ -690,7 +684,6 @@ function FeedCityPhotos({ onOpen, onCreate }: { onOpen: (id: string) => void; on
       <div className="app-feed-city-grid">
         {events.map((event) => {
           const badge = feedDateBadge(event.startsAt);
-          const fill = eventFill(event);
           const liked = likes[event.id] === true;
           const going = event.friendsGoing?.length ?? 0;
           return (
@@ -704,7 +697,7 @@ function FeedCityPhotos({ onOpen, onCreate }: { onOpen: (id: string) => void; on
                 <span className="app-feed-city-veil">
                   <span className="app-feed-city-kicker">Событие</span>
                   <span className="app-feed-city-title">{event.title}</span>
-                  <span className="app-feed-city-meta">{fill === null ? event.city : `${event.city} · занято ${fill}`}</span>
+                  <span className="app-feed-city-meta">{event.city}</span>
                   {going > 0 && (
                     <span className="app-feed-city-meta">
                       {going} {pluralRu(going, "человек идёт", "человека идут", "человек идут")}

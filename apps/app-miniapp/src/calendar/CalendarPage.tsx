@@ -29,7 +29,7 @@ import { sharePayload, startParamFromSharedUrl } from "../max/links";
 import { useRoute } from "../routing/router";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
-import { eventFillLabel, pictured } from "../ui/photos";
+import { pictured } from "../ui/photos";
 import { AppButton, AppState, AppSection, AppMedia } from "../ui/primitives";
 import { buildCalendarIcs } from "./calendar-ics";
 import { MonthGrid, calendarReminder, dayKey, dayTitle, entriesOn, entryTime, mergeCalendarEntries, monthTitle, overlapWarnings, type CalendarDayEntry } from "./MonthCalendar";
@@ -67,7 +67,6 @@ function BookingCard({ entry, onCancel, onOpen, onRate, onRepeat }: { entry: Cal
         </span>
         <span className="app-card-subtitle">
           {CATEGORY_LABELS[event.category]} · {event.priceRub === null ? "Бесплатно" : `${event.priceRub} ₽`}
-          {eventFillLabel(event) !== null ? ` · ${eventFillLabel(event)}` : ""}
         </span>
         {onOpen !== null && (
           <AppButton tone="secondary" onClick={onOpen}>

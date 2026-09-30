@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Общий механизм жестов пальцем: чистое решение «это свайп или прокрутка» и pointer-хуки useSwipe / useSwipeDrag поверх него.
+// PURPOSE: Общий механизм жестов пальцем: чистое решение «это свайп или прокрутка», pointer-хуки useSwipe / useSwipeDrag и usePressPan для горизонтального ряда кнопок.
 // SCOPE: Только распознавание жеста и его обработчики; что жест делает, решает экран. Спор за палец всегда выигрывает прокрутка, а всё, что даёт жест, экран обязан оставить доступным тапом — механизм это не проверяет, но на это рассчитан.
 // DEPENDS: react
 // LINKS: M-APP-MINIAPP
@@ -28,9 +28,10 @@
 // - SwipeDragOptions - useSwipe плюс предел затухания для элементов, тянущихся за пальцем
 // - SwipeDrag - что отдаёт useSwipeDrag: смещение, признак возврата и props элемента
 // - useSwipeDrag - useSwipe с готовым состоянием: элемент тянется за пальцем и сам едет домой
+// - usePressPan - горизонтальная прокрутка нажатием и тягой: кнопка внутри ряда в MAX webview не двигает нативный overflow-x
 // END_MODULE_MAP
 
-import { useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 
 export type SwipeAxis = "x" | "y";
 
@@ -278,4 +279,66 @@ export function useSwipeDrag(options: SwipeDragOptions = {}): SwipeDrag {
     },
   });
   return { offset: drag.offset, settling: drag.settling, gesture };
+}
+
+/**
+ * Горизонтальный press-and-drag по overflow-x ряду. Касание, начатое на кнопке внутри,
+ * в MAX webview не двигает нативный скроллер — этот хук сам пишет scrollLeft.
+ */
+export function usePressPan(ref: RefObject<HTMLElement | null>): void {
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    let pointer = -1;
+    let startX = 0;
+    let startY = 0;
+    let startLeft = 0;
+    let dragged = false;
+    const down = (event: PointerEvent) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      pointer = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      startLeft = node.scrollLeft;
+      dragged = false;
+    };
+    const move = (event: PointerEvent) => {
+      if (event.pointerId !== pointer) return;
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      if (!dragged) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dy) > Math.abs(dx)) {
+          pointer = -1;
+          return;
+        }
+        dragged = true;
+        node.setPointerCapture(event.pointerId);
+      }
+      node.scrollLeft = startLeft - dx;
+      event.preventDefault();
+    };
+    const up = (event: PointerEvent) => {
+      if (event.pointerId !== pointer && !dragged) return;
+      pointer = -1;
+      if (!dragged) return;
+      const stopClick = (click: globalThis.Event) => {
+        click.preventDefault();
+        click.stopPropagation();
+        node.removeEventListener("click", stopClick, true);
+      };
+      node.addEventListener("click", stopClick, true);
+      dragged = false;
+    };
+    node.addEventListener("pointerdown", down);
+    node.addEventListener("pointermove", move, { passive: false });
+    node.addEventListener("pointerup", up);
+    node.addEventListener("pointercancel", up);
+    return () => {
+      node.removeEventListener("pointerdown", down);
+      node.removeEventListener("pointermove", move);
+      node.removeEventListener("pointerup", up);
+      node.removeEventListener("pointercancel", up);
+    };
+  }, [ref]);
 }

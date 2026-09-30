@@ -23,6 +23,12 @@ describe("Layout tabbar active predicates", () => {
     expect(active[0].route).toBe("profile");
   });
 
+  it("highlights the Profile tab on saved walks", () => {
+    expect(TABS.filter((tab) => tab.active("walks")).map((tab) => tab.route)).toEqual(["profile"]);
+    expect(TABS.filter((tab) => tab.active("walk")).map((tab) => tab.route)).toEqual(["profile"]);
+    expect(TABS.filter((tab) => tab.active("walk-saved")).map((tab) => tab.route)).toEqual(["profile"]);
+  });
+
   it("highlights the Profile tab on the friends screen", () => {
     const active = TABS.filter((tab) => tab.active("friends"));
 

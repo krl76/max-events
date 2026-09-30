@@ -78,6 +78,7 @@ describe("profile post delete", () => {
         onBookings: noop,
         onOpenBooking: noop,
         onCalendar: noop,
+        onWalks: noop,
         onSubscriptions: noop,
         onFollowers: noop,
         onAchievements: noop,

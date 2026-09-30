@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mockEvents, mockPlaces } from "../api/mock";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { escapeHtml, filterMapEvents, formatDrawnRoute, formatMapChange, formatMapHour, formatMapTemperature, formatTravelOption, MapSelectionCard, mapFriendsLine, mapHourGlyph, mapHourlyWindow, MAP_HOURLY_COLUMNS, mapNotice, mapRainHint, mapWeatherChipText, routeGlyphs, type MapNoticeInput } from "./MapScreen";
+import { escapeHtml, filterMapEvents, filterMapPlaces, formatDrawnRoute, formatMapChange, formatMapHour, formatMapTemperature, formatTravelOption, MapSelectionCard, mapFriendsLine, mapHourGlyph, mapHourlyWindow, MAP_HOURLY_COLUMNS, mapNotice, mapRainHint, mapWeatherChipText, routeGlyphs, type MapNoticeInput } from "./MapScreen";
 
 const NOTICE: MapNoticeInput = { mapFailed: false, tilesFailed: false, vectorFallback: false, loading: false, placesFailed: false, eventsFailed: false, markerCount: 4, query: "", anyLayerOn: true, geoDenied: false, locateOn: false };
 
@@ -19,6 +19,15 @@ describe("filterMapEvents", () => {
     expect(filterMapEvents(mockEvents, undefined, "спортик").length).toBe(sport.length);
     const picked = sport[0];
     expect(filterMapEvents(mockEvents, undefined, "что угодно", new Set([picked.id])).map((item) => item.id)).toEqual([picked.id]);
+  });
+});
+
+describe("filterMapPlaces", () => {
+  it("drops venues while a category chip is on", () => {
+    expect(filterMapPlaces(mockPlaces, undefined, "").length).toBe(mockPlaces.length);
+    expect(filterMapPlaces(mockPlaces, "sport", "")).toEqual([]);
+    expect(filterMapPlaces(mockPlaces, "afisha", "парк")).toEqual([]);
+    expect(filterMapPlaces(mockPlaces, undefined, "этот запрос ничему не равен")).toEqual([]);
   });
 });
 

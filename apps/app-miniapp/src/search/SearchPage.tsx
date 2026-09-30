@@ -34,7 +34,7 @@ import { useRoute, type BrowseList } from "../routing/router";
 import { HeaderSlot } from "../ui/Layout";
 import { countsForCards } from "./BrowsePage";
 import { toggleEventLike, useEventLiked } from "../ui/event-likes";
-import { eventFillLabel, pictured } from "../ui/photos";
+import { pictured } from "../ui/photos";
 import { afishaDayChip, dayKey, formatPickDistance, formatPickPrice, SearchDayButton, type DistanceVoice, type TodayState } from "../today/TodaySection";
 import { BackToTop } from "../ui/BackToTop";
 import { ActionIcon } from "../ui/icons";
@@ -377,7 +377,6 @@ interface SearchNearbyProps {
 
 function RailCard({ card, inCity, onOpen }: { card: CatalogCard; inCity: boolean; onOpen: () => void }) {
   const liked = useEventLiked(card.event.id);
-  const fill = eventFillLabel(card.event);
   return (
     <article className={`app-rail-card app-media--${card.event.category}`}>
       <img className="app-rail-photo" alt="" src={pictured(card.event.id, card.event.coverUrl)} />
@@ -386,7 +385,7 @@ function RailCard({ card, inCity, onOpen }: { card: CatalogCard; inCity: boolean
         {eventAcceptsPushkinCard(card.event) && <span className="app-pushkin-badge app-pushkin-badge--rail">Пушкинская</span>}
         <span className="app-rail-veil">
           <span className="app-rail-title">{card.event.title}</span>
-          <span className="app-rail-meta">{[railMeta(card, inCity ? "you" : "center"), fill].filter((part) => part !== null && part !== "").join(" · ")}</span>
+          <span className="app-rail-meta">{railMeta(card, inCity ? "you" : "center")}</span>
         </span>
       </button>
       <button type="button" className="app-pick-save" aria-label="Нравится" aria-pressed={liked} onClick={() => toggleEventLike(card.event.id)}>

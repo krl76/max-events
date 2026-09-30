@@ -6999,11 +6999,19 @@ button.app-today-stat {
   scroll-padding-inline: 4px;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
+  touch-action: pan-x;
   -webkit-overflow-scrolling: touch;
 }
 
 .app-map16-weather-strip::-webkit-scrollbar {
   display: none;
+}
+
+.app-map16-weather-strip,
+.app-map16-weather-strip * {
+  -webkit-user-select: none;
+  touch-action: pan-x;
+  user-select: none;
 }
 
 .app-map16-weather-hour {
@@ -21839,6 +21847,7 @@ button.app-cal-peer-chip {
 .app-map16-weather,
 .app-map16-filter,
 .app-map16-filter-slot,
+.app-map16-filter-pop,
 .app-map16-dock,
 .app-map16-zoom,
 .app-map16-notice,
@@ -21848,6 +21857,10 @@ button.app-cal-peer-chip {
 .app-map16-search {
   pointer-events: auto;
   z-index: 1001;
+}
+
+.app-map16-filter-pop {
+  z-index: 1003;
 }
 
 /* ===========================================================================

@@ -37,6 +37,7 @@ import { markStoriesSeen, readSeenStories, storyRail } from "../stories/rail";
 import { StoryRing } from "../stories/StoryRing";
 import { PhotoGallery } from "./gallery";
 import { pictured } from "../ui/photos";
+import { usePressPan } from "../ui/gestures";
 import { AppAvatar, AppButton, AppEmptyState, AppIconButton, AppState, AppSkeleton, AppSection, AppMedia } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { parsePinLabel, placePinTitle } from "../ui/pin-label";
@@ -626,65 +627,6 @@ function storyRingClass(unseen: boolean): string {
   return unseen ? "app-story-ring app-story-ring--active" : "app-story-ring app-story-ring--seen";
 }
 
-/** Horizontal press-and-drag. A touch that starts on an avatar button does not move a native scroller in the MAX webview. */
-function useStoryPan(ref: RefObject<HTMLDivElement | null>) {
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    let pointer = -1;
-    let startX = 0;
-    let startY = 0;
-    let startLeft = 0;
-    let dragged = false;
-    const down = (event: PointerEvent) => {
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-      pointer = event.pointerId;
-      startX = event.clientX;
-      startY = event.clientY;
-      startLeft = node.scrollLeft;
-      dragged = false;
-    };
-    const move = (event: PointerEvent) => {
-      if (event.pointerId !== pointer) return;
-      const dx = event.clientX - startX;
-      const dy = event.clientY - startY;
-      if (!dragged) {
-        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-        if (Math.abs(dy) > Math.abs(dx)) {
-          pointer = -1;
-          return;
-        }
-        dragged = true;
-        node.setPointerCapture(event.pointerId);
-      }
-      node.scrollLeft = startLeft - dx;
-      event.preventDefault();
-    };
-    const up = (event: PointerEvent) => {
-      if (event.pointerId !== pointer && !dragged) return;
-      pointer = -1;
-      if (!dragged) return;
-      const stopClick = (click: globalThis.Event) => {
-        click.preventDefault();
-        click.stopPropagation();
-        node.removeEventListener("click", stopClick, true);
-      };
-      node.addEventListener("click", stopClick, true);
-      dragged = false;
-    };
-    node.addEventListener("pointerdown", down);
-    node.addEventListener("pointermove", move, { passive: false });
-    node.addEventListener("pointerup", up);
-    node.addEventListener("pointercancel", up);
-    return () => {
-      node.removeEventListener("pointerdown", down);
-      node.removeEventListener("pointermove", move);
-      node.removeEventListener("pointerup", up);
-      node.removeEventListener("pointercancel", up);
-    };
-  }, [ref]);
-}
-
 export function StoriesRow() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
@@ -761,7 +703,7 @@ export function StoriesRow() {
 
   const rail = storyRail(friends, stories, myId, seen);
   const scroller = useRef<HTMLDivElement>(null);
-  useStoryPan(scroller);
+  usePressPan(scroller);
   const openEditor = () => navigate({ name: "story-new" });
 
   useEffect(() => {

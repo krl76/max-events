@@ -61,6 +61,20 @@ describe("CatalogView", () => {
     expect(html).not.toContain("<article");
   });
 
+  it("keeps seat counts off the list card", () => {
+    const html = renderToStaticMarkup(
+      createElement(CatalogView, {
+        state: { status: "ready", events: [{ ...free, capacity: 20, bookedCount: 4, remainingSeats: 16 }] },
+        filters: {},
+        onFilters: () => {},
+      }),
+    );
+
+    expect(html).toContain(free.title);
+    expect(html).not.toContain("занято");
+    expect(html).not.toContain("из 20");
+  });
+
   it("renders catalog extras when the list DTO carries them", () => {
     const html = renderToStaticMarkup(
       createElement(CatalogView, {

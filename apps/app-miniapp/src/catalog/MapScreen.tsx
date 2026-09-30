@@ -25,6 +25,7 @@
 // - MapNoticeInput - everything the one line over the canvas has to weigh: failures, emptiness, filters, geolocation
 // - MAP_EVENT_CATEGORIES - «Афиша», «Туризм», «Спорт», «Волонтёрство» on the map filter row
 // - filterMapEvents - event pins after the category chip and the map search
+// - filterMapPlaces - venue pins stay only when the category chip is «Все»; a category hides them so the map actually filters
 // - mapNotice - the single line the map says about itself; null when there is nothing to explain
 // - MapView - the data the map is drawn from: markers, viewer origin, route, selected key, the basemap the tiles come from and the rendered colour scheme
 // - MapCallbacks - what the map calls back into React: open event, open place, select a pin, report dead tiles, fall back from a vector basemap that could not mount
@@ -36,6 +37,7 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePressPan } from "../ui/gestures";
 import type { Event, EventCategory, FriendPlaceVisit, Place } from "@max-events/api-contracts";
 import "leaflet/dist/leaflet.css";
 import { apiClient, type EventForecast, type EventWeatherHour, type MapWeather, type TravelOption } from "../api/client";
@@ -251,6 +253,14 @@ export function filterMapEvents(events: readonly Event[], category: EventCategor
     if (MAP_TRIP.test(named) && (item.category === "tourism" || MAP_TRIP.test(blob))) return true;
     return false;
   });
+}
+
+/** Venue pins stay on «Все». A category chip is about events, so places would keep the map looking unfiltered. */
+export function filterMapPlaces(places: readonly Place[], category: EventCategory | undefined, needle: string): Place[] {
+  if (category !== undefined) return [];
+  const query = needle.trim().toLowerCase();
+  if (query === "") return [...places];
+  return places.filter((item) => `${item.title} ${item.address}`.toLowerCase().includes(query));
 }
 
 function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void, onOpenPlace: (id: string) => void): HTMLElement {
@@ -534,6 +544,18 @@ function MapHourColumn({ hour, selected, onSelect }: { hour: EventWeatherHour; s
   );
 }
 
+function WeatherHourStrip({ hours, selectedAt, onSelect }: { hours: readonly EventWeatherHour[]; selectedAt: string | null; onSelect: (at: string) => void }) {
+  const scroller = useRef<HTMLOListElement>(null);
+  usePressPan(scroller);
+  return (
+    <ol ref={scroller} className="app-map16-weather-strip" aria-label="Прогноз на ближайшие часы">
+      {hours.map((hour) => (
+        <MapHourColumn key={hour.at} hour={hour} selected={(selectedAt ?? hours[0]?.at) === hour.at} onSelect={() => onSelect(hour.at)} />
+      ))}
+    </ol>
+  );
+}
+
 const EMPTY_VISITS: FriendPlaceVisit[] = [];
 const EMPTY_MARKERS: readonly MapMarker[] = [];
 
@@ -738,15 +760,21 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const needle = query.trim().toLowerCase();
   const aiIds = useMapAssistIds(query);
   const shownEvents = useMemo(() => (layers.events ? filterMapEvents(events, category, needle, aiIds) : []), [events, layers.events, needle, category, aiIds]);
-  const shownPlaces = useMemo(() => (layers.places ? readyPlaces.filter((item) => needle === "" || `${item.title} ${item.address}`.toLowerCase().includes(needle)) : []), [readyPlaces, layers.places, needle]);
+  const shownPlaces = useMemo(() => (layers.places ? filterMapPlaces(readyPlaces, category, needle) : []), [readyPlaces, layers.places, needle, category]);
   // A fresh [] on every render would land in the map's dependency list and rebuild Leaflet each time.
-  const visits = useMemo(() => (layers.friends ? friendVisits : EMPTY_VISITS), [layers.friends, friendVisits]);
+  const visits = useMemo(() => (category === undefined && layers.friends ? friendVisits : EMPTY_VISITS), [layers.friends, friendVisits, category]);
   const showingWalk = walkPath !== null && walkPath.length >= 2;
   const markers = useMemo(() => {
     if (showingWalk) return [...extraMarkers];
     const catalog = buildMapMarkers(shownEvents, shownPlaces, visits, { placeCatalog: readyPlaces });
     return extraMarkers.length === 0 ? catalog : [...extraMarkers, ...catalog];
   }, [showingWalk, shownEvents, shownPlaces, visits, readyPlaces, extraMarkers]);
+
+  useEffect(() => {
+    if (selected === null) return;
+    if (markers.some((item) => item.key === selected.key)) return;
+    setSelected(null);
+  }, [markers, selected]);
 
   const selectedPlaceId = selected === null ? null : (selected.placeId ?? events.find((item) => item.id === selected.eventId)?.placeId ?? null);
   const travelTargetId = selectedPlaceId ?? (routePlace?.kind === "place" ? (routePlace.placeId ?? null) : null);
@@ -1190,13 +1218,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
               {weatherChange !== null && weatherHourAt === null && <p className="app-map16-weather-next">Ожидается: {weatherChange}</p>}
             </>
           )}
-          {hourly !== null && hourly.hours.length > 0 && (
-            <ol className="app-map16-weather-strip" aria-label="Прогноз на ближайшие часы">
-              {hourly.hours.map((hour) => (
-                <MapHourColumn key={hour.at} hour={hour} selected={(weatherHourAt ?? hourly.hours[0]?.at) === hour.at} onSelect={() => setWeatherHourAt(hour.at)} />
-              ))}
-            </ol>
-          )}
+          {hourly !== null && hourly.hours.length > 0 && <WeatherHourStrip hours={hourly.hours} selectedAt={weatherHourAt} onSelect={setWeatherHourAt} />}
           {hourly?.note != null && hourly.note !== "" && <p className="app-map16-weather-next">{hourly.note}</p>}
           {hourly !== null && <p className="app-map16-weather-source">{hourly.source}</p>}
         </section>

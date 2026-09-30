@@ -39,7 +39,7 @@ export const TABS: Array<{ icon: TabIcon; label: string; active: (route: string)
     icon: "profile",
     label: "Профиль",
     route: "profile",
-    active: (name) => name === "profile" || name === "user" || name === "friends" || name === "subscriptions" || name === "followers" || name === "discovery" || name === "people" || name === "friend-route" || name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "lists" || name === "list" || name === "bookings" || name === "slot-ticket",
+    active: (name) => name === "profile" || name === "user" || name === "friends" || name === "subscriptions" || name === "followers" || name === "discovery" || name === "people" || name === "friend-route" || name === "plans" || name === "plan" || name === "day-route" || name === "calendar" || name === "walks" || name === "walk" || name === "walk-saved" || name === "lists" || name === "list" || name === "bookings" || name === "slot-ticket",
   },
 ];
 

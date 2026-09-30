@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 36 «Профиль»: обложка со шапкой и меню, аватар без бейджа, имя и строка подписок, для своего профиля — строчные переходы в календарь, планы, брони, достижения, группы и друзья, затем вкладки «Посты» / «Места» / «Сохранённое». Чужой профиль вместо переходов показывает действия с человеком.
+// PURPOSE: Экран 36 «Профиль»: обложка со шапкой и меню, аватар без бейджа, имя и строка подписок, для своего профиля — строчные переходы в календарь, прогулки, планы, брони, достижения, группы и друзья, затем вкладки «Посты» / «Места» / «Сохранённое». Чужой профиль вместо переходов показывает действия с человеком.
 // SCOPE: The profile screen only — data via apiClient.getProfile/getProfileCounters/listUserPosts/listVisitedPlaces/listLists/listSubscriptions/listFollowing/listFollowers/getAchievements/listWeGroups/listFriends; secondary blocks stay silent when their request fails. Editing lives on the settings route (./SettingsPage.tsx), the follow lists on ../subscriptions/.
 // DEPENDS: ../api/client.js (apiClient, ListSummary, ProfileCounters, ProfilePost, VisitedPlace), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../feed/photo.js (readFeedPhoto), ../max/bridge.js (shareResult, webApp), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, @max-events/api-contracts (Achievement, Friend, Profile, Subscription, User, WeGroupScreen), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -24,7 +24,7 @@
 // - communityLetters - до четырёх букв названий живых компаний для стопки в карточке сообщества
 // - AchievementSeal - кольцо прогресса с медалью вместо ленты на аватаре
 // - QuietImage - фото карточки, которое при ошибке загрузки не оставляет значок битого файла
-// - ProfileDashboard - строчные переходы своего профиля: календарь, планы, брони, достижения, группы, друзья
+// - ProfileDashboard - строчные переходы своего профиля: календарь, прогулки, планы, брони, достижения, группы, друзья
 // - ProfilePostGrid - сетка постов профиля: плитки со статой, приглашение опубликовать, плейсхолдеры загрузки
 // - ProfileEntries - куда ведут счётчики, карточки и сетки экрана 36
 // - isCustomProfileAvatar - in-app pick is /api/uploads or a data URL; MAX photo_url is another https host
@@ -247,6 +247,7 @@ export interface ProfileEntries {
   onBookings: () => void;
   onOpenBooking: () => void;
   onCalendar: () => void;
+  onWalks: () => void;
   onSubscriptions: () => void;
   onFollowers: () => void;
   onAchievements: () => void;
@@ -315,6 +316,7 @@ const TAB_ICON = { posts: "cards", places: "pin", saved: "bookmark" } as const;
 
 const PROFILE_SHORTCUTS = [
   { id: "calendar", label: "Календарь", icon: "calendar" },
+  { id: "walks", label: "Мои прогулки", icon: "walk" },
   { id: "plans", label: "Все планы", icon: "bookmark" },
   { id: "bookings", label: "Все брони", icon: "ticket" },
 ] as const;
@@ -326,11 +328,11 @@ function QuietImage({ src, className }: { src: string; className: string }) {
   return <img className={className} alt="" src={src} onError={() => setFailedSrc(src)} />;
 }
 
-function ProfileDashboard({ achievements, weGroups, friendsCount, onPlans, onBookings, onCalendar, onAchievements, onWeGroups, onFriends }: { achievements: Achievement[] | null; weGroups: WeGroupScreen[] | null; friendsCount: number | null; onPlans: () => void; onBookings: () => void; onCalendar: () => void; onAchievements: () => void; onWeGroups: () => void; onFriends: () => void }) {
+function ProfileDashboard({ achievements, weGroups, friendsCount, onPlans, onBookings, onCalendar, onWalks, onAchievements, onWeGroups, onFriends }: { achievements: Achievement[] | null; weGroups: WeGroupScreen[] | null; friendsCount: number | null; onPlans: () => void; onBookings: () => void; onCalendar: () => void; onWalks: () => void; onAchievements: () => void; onWeGroups: () => void; onFriends: () => void }) {
   const hint = achievements === null ? null : achievementsHint(achievements);
   const groupsLine = weGroups === null ? null : weGroupsHint(weGroups);
   const friendsLine = friendsCount === null ? null : friendsHint(friendsCount);
-  const openShortcut = { calendar: onCalendar, plans: onPlans, bookings: onBookings };
+  const openShortcut = { calendar: onCalendar, walks: onWalks, plans: onPlans, bookings: onBookings };
   const extra = [
     { id: "achievements", label: "Достижения", icon: "medal" as const, hint, onClick: onAchievements },
     { id: "groups", label: "Группы", icon: "group" as const, hint: groupsLine, onClick: onWeGroups },
@@ -518,7 +520,7 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
           </div>
         )}
         {!own && <p className="app-me-link-hint">Добавьте человека или позовите ссылкой в MAX. Друзья — когда добавление взаимное.</p>}
-        {own && <ProfileDashboard achievements={achievements} weGroups={weGroups} friendsCount={friendsCount} onPlans={entries.onPlans} onBookings={entries.onBookings} onCalendar={entries.onCalendar} onAchievements={entries.onAchievements} onWeGroups={entries.onWeGroups} onFriends={entries.onFriends} />}
+        {own && <ProfileDashboard achievements={achievements} weGroups={weGroups} friendsCount={friendsCount} onPlans={entries.onPlans} onBookings={entries.onBookings} onCalendar={entries.onCalendar} onWalks={entries.onWalks} onAchievements={entries.onAchievements} onWeGroups={entries.onWeGroups} onFriends={entries.onFriends} />}
         <div
           className="app-me-tabs"
           role="tablist"
@@ -854,6 +856,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         onBookings={() => navigate({ name: "bookings" })}
         onOpenBooking={() => navigate({ name: "bookings" })}
         onCalendar={() => navigate({ name: "calendar" })}
+        onWalks={() => navigate({ name: "walks" })}
         onSubscriptions={() => navigate({ name: "subscriptions" })}
         onFollowers={() => navigate({ name: "followers" })}
         onAchievements={() => navigate({ name: "achievements" })}

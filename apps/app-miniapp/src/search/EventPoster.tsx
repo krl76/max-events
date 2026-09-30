@@ -1,20 +1,14 @@
 import type { CatalogCard } from "../api/client";
 import { eventAcceptsPushkinCard } from "../catalog/benefits";
-import { pluralRu } from "../catalog/format";
 import { pictured } from "../ui/photos";
 
 function posterWhen(startsAt: string): string {
   return new Date(startsAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-/** Seats, not a rating: the event has not happened yet. */
+/** Price or free entry on the mini-card. Seat counts live on the event page. */
 export function posterHighlight(card: CatalogCard): string | null {
   const event = card.event;
-  if (event.capacity !== null && event.capacity > 0) {
-    const taken = event.bookedCount ?? 0;
-    const free = Math.max(0, event.capacity - taken);
-    return `${taken} из ${event.capacity} · свободно ${free} ${pluralRu(free, "место", "места", "мест")}`;
-  }
   if (!event.isPaid) return "Вход свободный";
   return event.priceRub !== null ? `${event.priceRub} ₽` : null;
 }
