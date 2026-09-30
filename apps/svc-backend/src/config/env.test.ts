@@ -44,7 +44,7 @@ describe("validateEnv", () => {
     expect(() => validateEnv({ ...valid, PAYMENT_PROVIDER: "live" })).toThrow(/PAYMENT_PROVIDER/);
   });
 
-  it("keeps the bot webhook secret and long poll unset by default and validates the secret shape", () => {
+  it("keeps the bot webhook secret and long poll optional and validates the secret shape", () => {
     expect(validateEnv(valid).BOT_WEBHOOK_SECRET).toBeUndefined();
     expect(validateEnv({ ...valid, BOT_WEBHOOK_SECRET: "abc123" }).BOT_WEBHOOK_SECRET).toBe("abc123");
     // MAX itself constrains the subscription secret to 5-256 chars of [A-Za-z0-9_-].

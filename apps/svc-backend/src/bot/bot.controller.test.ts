@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { describe, expect, it, vi } from "vitest";
 import { BotController, parseWebhookBody, secretsEqual, webhookSecretOk } from "./bot.controller";
 import type { BotService } from "./bot.service";
+import { derivedWebhookSecret } from "./bot-stack";
 
 const secret = "test-secret-value";
 
@@ -70,6 +71,15 @@ describe("BotController.webhook", () => {
 
     const bare = createController({ NODE_ENV: "production", BOT_WEBHOOK_SECRET: "" });
     expect(() => bare.controller.webhook(undefined, { updates: [] })).toThrow(NotFoundException);
+  });
+
+  it("on production without BOT_WEBHOOK_SECRET accepts the secret derived from MAX_BOT_TOKEN", async () => {
+    const token = "prod-bot-token";
+    const { controller, handled } = createController({ NODE_ENV: "production", BOT_WEBHOOK_SECRET: "", MAX_BOT_TOKEN: token });
+    expect(controller.webhook(derivedWebhookSecret(token), { updates: [{ update_type: "bot_started" }] })).toEqual({ ok: true });
+    expect(() => controller.webhook("wrong", { updates: [] })).toThrow(NotFoundException);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(handled).toEqual([{ marker: true }]);
   });
 
   it("answers 200 even for a body it cannot use, so MAX does not retry for hours", async () => {

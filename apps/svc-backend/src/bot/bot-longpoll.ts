@@ -15,6 +15,7 @@ import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nest
 import { ConfigService } from "@nestjs/config";
 import { MaxBotClient, type MaxBotUpdatesResult } from "../max-bot/max-bot.client";
 import { BotService } from "./bot.service";
+import { flagOn } from "./bot-stack";
 
 /** A failed GET /updates or an idle answer pauses this long before the next poll. */
 export const LONGPOLL_BACKOFF_MS = 2_000;
@@ -49,7 +50,7 @@ export class BotLongPoll implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit(): void {
-    if (this.config.get<string>("BOT_LONGPOLL") !== "true") return;
+    if (!flagOn(this.config.get("BOT_LONGPOLL"))) return;
     this.stopped = false;
     this.logger.log("BOT_LONGPOLL is on: polling GET /updates (dev contour; production uses the webhook)");
     void this.loop();

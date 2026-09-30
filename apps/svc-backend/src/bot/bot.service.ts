@@ -28,6 +28,7 @@ import { UsersService } from "../users/users.service";
 import { WaitlistService } from "../waitlist/waitlist.service";
 import { WheretoService } from "../whereto/whereto.service";
 import { botPayload, parseBotPayload, type BotPayload } from "./bot-payloads";
+import { stackOrigin } from "./bot-stack";
 import { alreadyBookedMessage, bookedMessage, bookingsMessage, confirmBookMessage, emptyCatalogMessage, eventNotFoundMessage, failureMessage, helpMessage, menuMessage, noSeatsMessage, nothingFoundMessage, picksMessage, plansMessage, rateLimitMessage, todayMessage, unknownTextMessage, waitlistMessage, welcomeMessage, wheretoQuestion, wheretoResultMessage, type BotMedia } from "./bot-renderer";
 import { type BotInbound, type BotMessageBody, parseUpdates } from "./bot.types";
 
@@ -260,7 +261,14 @@ export class BotService {
 
   /** Where covers and the hero image live, and the bot's public name for open_app buttons. */
   private media(): BotMedia {
-    return { baseUrl: this.config.get<string>("BOT_PUBLIC_URL") ?? null, webApp: this.webAppName() };
+    return {
+      baseUrl: stackOrigin({
+        BOT_PUBLIC_URL: this.config.get<string>("BOT_PUBLIC_URL"),
+        PUBLIC_APP_URL: this.config.get<string>("PUBLIC_APP_URL"),
+        AUTH_ALLOW_BROWSER: this.config.get("AUTH_ALLOW_BROWSER"),
+      }),
+      webApp: this.webAppName(),
+    };
   }
 
   private webAppName(): string {

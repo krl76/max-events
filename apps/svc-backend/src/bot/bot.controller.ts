@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Public webhook endpoint where MAX delivers bot updates.
-// SCOPE: POST /bot/webhook; @Public. Authenticates the delivery by the X-Max-Bot-Api-Secret header against BOT_WEBHOOK_SECRET (timing-safe): a configured secret is mandatory, and when none is configured the endpoint answers 404 unless NODE_ENV is development or test. Always 200 on an accepted delivery — MAX retries a non-200 for up to 8 hours and then unsubscribes the bot; processing happens after the answer via setImmediate so a slow model call cannot time the delivery out. Never logs update bodies.
+// SCOPE: POST /bot/webhook; @Public. Authenticates the delivery by the X-Max-Bot-Api-Secret header (timing-safe) against BOT_WEBHOOK_SECRET or, when that is unset, the SHA-256 of MAX_BOT_TOKEN. Without either secret the endpoint answers 404 unless NODE_ENV is development or test. Always 200 on an accepted delivery — MAX retries a non-200 for up to 8 hours and then unsubscribes the bot; processing happens after the answer via setImmediate so a slow model call cannot time the delivery out. Never logs update bodies.
 // DEPENDS: @nestjs/common, @nestjs/config, node:crypto, node:timers, express (types), ../auth/auth.guard (Public), ../max-bot/max-bot.client (header name), ./bot.service
 // LINKS: M-SVC-BACKEND, https://dev.max.ru/docs-api/methods/POST/subscriptions
 // END_MODULE_CONTRACT
@@ -19,6 +19,7 @@ import { ConfigService } from "@nestjs/config";
 import { Public } from "../auth/auth.guard";
 import { MAX_WEBHOOK_SECRET_HEADER } from "../max-bot/max-bot.client";
 import { BotService } from "./bot.service";
+import { webhookSecret } from "./bot-stack";
 
 /** Hashing both sides normalizes length so timingSafeEqual never throws and leaks nothing about it. */
 export function secretsEqual(a: string, b: string): boolean {
@@ -26,11 +27,11 @@ export function secretsEqual(a: string, b: string): boolean {
 }
 
 /**
- * Fail-closed: with a secret configured, only a matching header is MAX. Without one the endpoint
- * exists only on development and test stacks — on a production host an unauthenticated public
- * message-injection point is not an option, so it pretends not to exist (the caller answers 404).
+ * Fail-closed: with a secret (explicit or derived from the bot token), only a matching header is
+ * MAX. Without one the endpoint exists only on development and test stacks — on a production host
+ * an unauthenticated public message-injection point is not an option, so it pretends not to exist.
  */
-export function webhookSecretOk(header: string | undefined, configured: string | undefined, nodeEnv: string | undefined): boolean {
+export function webhookSecretOk(header: string | undefined, configured: string | null | undefined, nodeEnv: string | undefined): boolean {
   if (configured) return typeof header === "string" && secretsEqual(header, configured);
   return nodeEnv === "development" || nodeEnv === "test";
 }
@@ -58,7 +59,11 @@ export class BotController {
   @Post("webhook")
   @HttpCode(200)
   webhook(@Headers(MAX_WEBHOOK_SECRET_HEADER) secret: string | undefined, @Body() body: unknown): { ok: boolean } {
-    if (!webhookSecretOk(secret, this.config.get<string>("BOT_WEBHOOK_SECRET"), this.config.get<string>("NODE_ENV"))) {
+    const expected = webhookSecret({
+      BOT_WEBHOOK_SECRET: this.config.get<string>("BOT_WEBHOOK_SECRET"),
+      MAX_BOT_TOKEN: this.config.get<string>("MAX_BOT_TOKEN"),
+    });
+    if (!webhookSecretOk(secret, expected, this.config.get<string>("NODE_ENV"))) {
       throw new NotFoundException();
     }
     // The body reaches here already JSON-parsed by the express json() middleware (main.ts sets a 12mb

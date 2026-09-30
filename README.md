@@ -16,18 +16,9 @@ bun run check                # гейт: test:quality + secrets + format + lint 
 
 ### Чат-бот MAX
 
-Бот `t691_hakaton_max_bot` — гостевой ассистент в диалоге: приветствие с фото, «Что сегодня», «Куда пойти», поиск словами, запись и лист ожидания, планы и брони. Кнопка `open_app` открывает мини-приложение. Картинки (hero и обложки событий) уходят абсолютными URL с `BOT_PUBLIC_URL`.
+Бот `t691_hakaton_max_bot` — гостевой ассистент в диалоге: приветствие с фото, «Что сегодня», «Куда пойти», поиск словами, запись и лист ожидания, планы и брони. Кнопка `open_app` открывает мини-приложение.
 
-```bash
-# .env на стеке
-# BOT_WEBHOOK_SECRET=$(openssl rand -hex 32)
-# BOT_PUBLIC_URL=https://events.versacegus.cc
-# MAX_BOT_TOKEN=<токен бота>
-
-# MAX должен POST-ить апдейты на ${BOT_PUBLIC_URL}/api/bot/webhook
-# с заголовком X-Max-Bot-Api-Secret = BOT_WEBHOOK_SECRET
-# и update_types: bot_started, message_created, message_callback
-```
+На проде ничего сверх уже стоящего `MAX_BOT_TOKEN` не нужно: origin картинок и вебхука — `https://events.versacegus.cc`, секрет вебхука считается из токена, при старте бэкенд сам подписывает `POST /subscriptions`. Стенд `dev.events.versacegus.cc` вебхук живого бота не перехватывает.
 
 Проверка: написать боту «Начать» → welcome с фото; «Что сегодня»; гид «Куда пойти»; «джаз вечером до 3000»; записаться из чата. Локально без публичного HTTPS: `BOT_LONGPOLL=true` (не вместе с webhook).
 
