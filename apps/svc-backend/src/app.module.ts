@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Root NestJS module wiring config, Postgres (TypeORM) and feature modules.
-// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, feature modules including my-city, reviews, waitlist, feed, reports and place-page.
-// DEPENDS: @nestjs/config, @nestjs/typeorm, auth/auth.module, health/health.module, places/places.module, events/events.module, bookings/bookings.module, calendar/calendar.module, reminders/reminders.module, participations/participations.module, friends/friends.module, whereto/whereto.module, today/today.module, gatherings/gatherings.module, plans/plans.module, lists/lists.module, subscriptions/subscriptions.module, checkins/check-ins.module, achievements/achievements.module
+// SCOPE: Global ConfigModule, TypeOrmModule from DATABASE_URL, feature modules including my-city, reviews, waitlist, feed, reports, place-page and the conversational bot.
+// DEPENDS: @nestjs/config, @nestjs/typeorm, auth/auth.module, health/health.module, places/places.module, events/events.module, bookings/bookings.module, calendar/calendar.module, reminders/reminders.module, participations/participations.module, friends/friends.module, whereto/whereto.module, today/today.module, gatherings/gatherings.module, plans/plans.module, lists/lists.module, subscriptions/subscriptions.module, checkins/check-ins.module, achievements/achievements.module, bot/bot.module
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
@@ -54,6 +54,7 @@ import { WeGroupsModule } from "./wegroups/we-groups.module";
 import { VotesModule } from "./votes/votes.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { AssistModule } from "./assist/assist.module";
+import { BotModule } from "./bot/bot.module";
 import { StoriesModule } from "./stories/stories.module";
 import { SwipeModule } from "./swipe/swipe.module";
 import { SlotsModule } from "./slots/slots.module";
@@ -118,6 +119,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     AssistModule,
     StoriesModule,
     WalksModule,
+    BotModule,
   ],
 })
 export class AppModule {}

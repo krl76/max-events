@@ -98,6 +98,22 @@ export const envSchema = z.object({
   // Optional JSON MAX user for AUTH_ALLOW_BROWSER. Unset = tools/max-dev-accounts.json owner.
   AUTH_BROWSER_USER: z.string().min(1).optional(),
   STORAGE_DIR: z.string().min(1).optional(),
+  // Conversational bot webhook. MAX echoes BOT_WEBHOOK_SECRET in X-Max-Bot-Api-Secret on every
+  // delivery; unset means the endpoint cannot tell MAX from anyone else, so it only answers in
+  // development. The platform constrains the secret to 5-256 chars of [A-Za-z0-9_-].
+  BOT_WEBHOOK_SECRET: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{5,256}$/, "must be 5-256 characters of A-Z, a-z, 0-9, hyphen or underscore")
+    .optional(),
+  // Public HTTPS origin of this stack (serves the miniapp static files and proxies /api/).
+  // The bot sends covers and its hero image by absolute URL from here. MAX should POST updates to
+  // ${BOT_PUBLIC_URL}/api/bot/webhook.
+  BOT_PUBLIC_URL: z.preprocess((value) => (typeof value === "string" && value.trim() === "" ? undefined : value), z.string().url().optional()),
+  // Dev contour: poll GET /updates in-process instead of exposing a webhook. Production is webhook.
+  BOT_LONGPOLL: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   // Kept so an older deploy env still parses. Chat links do not use it: they are max.ru/?startapp=.
   PUBLIC_APP_URL: z.preprocess((value) => (typeof value === "string" && value.trim() === "" ? undefined : value), z.string().url().optional()),
   // https://max.ru/<bot>, no query. Bot messages and calendar invites append ?startapp=.

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Nest module wiring NL assist (model API or keyword fallback + catalog match).
-// SCOPE: LLM_PROVIDER factory, AssistService, controller.
+// SCOPE: LLM_PROVIDER factory, AssistService, controller; exports AssistService for the chat bot.
 // DEPENDS: @nestjs/config, @nestjs/typeorm, events/checkins/friends/lists entities
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -45,6 +45,6 @@ export function createLlmProvider(apiKey: string | undefined, baseUrl: string, m
     AssistRateLimiter,
     AssistService,
   ],
-  exports: [LLM_PROVIDER],
+  exports: [LLM_PROVIDER, AssistService],
 })
 export class AssistModule {}

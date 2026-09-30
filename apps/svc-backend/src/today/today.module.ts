@@ -1,12 +1,12 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Nest module wiring the "What to do today?" digest.
-// SCOPE: Registers event/place/participation/user repos, TodayService, TodayController; imports UsersModule and FriendsModule.
-// DEPENDS: @nestjs/typeorm, ../users/users.module, ../friends/friends.module, ./today.service, ./today.controller
+// SCOPE: Registers event/place/participation/user repos, TodayService, TodayController; imports UsersModule and FriendsModule; exports TodayService for the chat bot.
+// DEPENDS: @nestjs/typeorm, ../users/users.module, ../friends/friends.module, ../taste/taste.module, ./today.service, ./today.controller
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - TodayModule - provides TodayService and TodayController
+// - TodayModule - provides and exports TodayService, provides TodayController
 // END_MODULE_MAP
 
 import { Module } from "@nestjs/common";
@@ -25,5 +25,6 @@ import { TodayService } from "./today.service";
   imports: [TypeOrmModule.forFeature([EventEntity, PlaceEntity, ParticipationEntity, UserEntity]), UsersModule, FriendsModule, TasteModule],
   controllers: [TodayController],
   providers: [TodayService],
+  exports: [TodayService],
 })
 export class TodayModule {}

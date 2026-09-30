@@ -44,6 +44,24 @@ describe("validateEnv", () => {
     expect(() => validateEnv({ ...valid, PAYMENT_PROVIDER: "live" })).toThrow(/PAYMENT_PROVIDER/);
   });
 
+  it("keeps the bot webhook secret and long poll unset by default and validates the secret shape", () => {
+    expect(validateEnv(valid).BOT_WEBHOOK_SECRET).toBeUndefined();
+    expect(validateEnv({ ...valid, BOT_WEBHOOK_SECRET: "abc123" }).BOT_WEBHOOK_SECRET).toBe("abc123");
+    // MAX itself constrains the subscription secret to 5-256 chars of [A-Za-z0-9_-].
+    expect(() => validateEnv({ ...valid, BOT_WEBHOOK_SECRET: "ab" })).toThrow(/BOT_WEBHOOK_SECRET/);
+    expect(() => validateEnv({ ...valid, BOT_WEBHOOK_SECRET: "has spaces" })).toThrow(/BOT_WEBHOOK_SECRET/);
+    expect(validateEnv(valid).BOT_LONGPOLL).toBe(false);
+    expect(validateEnv({ ...valid, BOT_LONGPOLL: "true" }).BOT_LONGPOLL).toBe(true);
+    expect(() => validateEnv({ ...valid, BOT_LONGPOLL: "yes" })).toThrow(/BOT_LONGPOLL/);
+  });
+
+  it("reads BOT_PUBLIC_URL as an optional URL and treats a blank as unset", () => {
+    expect(validateEnv(valid).BOT_PUBLIC_URL).toBeUndefined();
+    expect(validateEnv({ ...valid, BOT_PUBLIC_URL: "   " }).BOT_PUBLIC_URL).toBeUndefined();
+    expect(validateEnv({ ...valid, BOT_PUBLIC_URL: "https://events.versacegus.cc" }).BOT_PUBLIC_URL).toBe("https://events.versacegus.cc");
+    expect(() => validateEnv({ ...valid, BOT_PUBLIC_URL: "not-a-url" })).toThrow(/BOT_PUBLIC_URL/);
+  });
+
   it("keeps browser auth off unless AUTH_ALLOW_BROWSER is explicitly true", () => {
     expect(validateEnv(valid).AUTH_ALLOW_BROWSER).toBe(false);
     expect(validateEnv({ ...valid, AUTH_ALLOW_BROWSER: "true" }).AUTH_ALLOW_BROWSER).toBe(true);
