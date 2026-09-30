@@ -22,6 +22,7 @@ export type MapRouteStop = {
   readonly title: string;
   readonly latitude: number;
   readonly longitude: number;
+  readonly placeId?: string;
 };
 
 type DroppedPin = { readonly lat: number; readonly lng: number };
@@ -40,8 +41,9 @@ export function droppedPinStop(pin: DroppedPin): MapRouteStop {
   return { kind: "pin", title: DROPPED_PIN_TITLE, latitude: pin.lat, longitude: pin.lng };
 }
 
-export function placeRouteStop(place: { readonly title: string; readonly latitude: number; readonly longitude: number }): MapRouteStop {
-  return { kind: "place", title: place.title, latitude: place.latitude, longitude: place.longitude };
+export function placeRouteStop(place: { readonly id?: string; readonly title: string; readonly latitude: number; readonly longitude: number }): MapRouteStop {
+  if (place.id === undefined) return { kind: "place", title: place.title, latitude: place.latitude, longitude: place.longitude };
+  return { kind: "place", title: place.title, latitude: place.latitude, longitude: place.longitude, placeId: place.id };
 }
 
 export function routeBarLabel(stop: MapRouteStop): string {

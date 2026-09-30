@@ -382,6 +382,8 @@ describe("toEventDto", () => {
       weather: null,
     });
     expect(toEventDto({ ...entity, published: false }).published).toBe(false);
+    expect(toEventDto(entity).pushkinCard).toBe(false);
+    expect(toEventDto({ ...entity, isPaid: true }).pushkinCard).toBe(true);
   });
 
   it("exposes the early-access bookingOpensAt window as ISO or null", () => {

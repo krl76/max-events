@@ -181,8 +181,8 @@ const MapWeatherSchema: ZodSchema<MapWeather> = {
   },
 };
 
-/** How the traveller gets there. The routing domain knows distance and nothing about transport (#504). */
-export type TravelMode = "walk" | "metro";
+/** How the traveller gets there: foot graph, metro, or car roads. */
+export type TravelMode = "walk" | "metro" | "car";
 
 /** One way to the selected object (макет, экран 16): «18 мин · пешком · 1,4 км», «9 мин · метро · 1 пересадка». */
 export interface TravelOption {
@@ -194,7 +194,7 @@ export interface TravelOption {
   transfers: number | null;
 }
 
-const TRAVEL_MODES: readonly TravelMode[] = ["walk", "metro"];
+const TRAVEL_MODES: readonly TravelMode[] = ["walk", "metro", "car"];
 
 const TravelOptionsSchema: ZodSchema<TravelOption[]> = {
   safeParse(data: unknown) {

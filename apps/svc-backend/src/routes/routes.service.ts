@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Day-route timeline with walking legs and order optimization (min total distance).
-// SCOPE: build() from event/place stops; optimize() brute-force permutation of 2–8 points; travelToPlace() walk/metro tiles for a map pin.
+// SCOPE: build() from event/place stops; optimize() brute-force permutation of 2–8 points; travelToPlace() walk/metro/car tiles for a map pin.
 // DEPENDS: typeorm, @max-events/api-contracts, events/places, geo/haversine
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -73,6 +73,7 @@ export class RoutesService {
     return [
       { mode: "walk", minutes: travelMinutes(meters, "walk"), distanceKm, transfers: null },
       { mode: "metro", minutes: travelMinutes(meters, "metro"), distanceKm, transfers: meters >= 4000 ? 1 : 0 },
+      { mode: "car", minutes: travelMinutes(meters, "taxi"), distanceKm, transfers: null },
     ];
   }
 

@@ -8,16 +8,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { CityWalk, ComposeCityWalkWrite } from "@max-events/api-contracts";
 import { ApiError } from "../api/endpoints/transport";
 import { mockEvents } from "../api/mock";
-import { cityWalkAsk, nextWalkAsk, walkBudgetLabel, walkBudgetRub, walkClock, walkSpanLabel, walkSpanMinutes, WalkPage, WalkView } from "./WalkPage";
+import { cityWalkAsk, nextWalkAsk, walkBudgetLabel, walkBudgetRub, walkClock, walkSpanLabel, walkSpanMinutes, walkWaitTitle, WalkPage, WalkView } from "./WalkPage";
 import { WalkResult, walkArrivalOffsetMinutes, walkErrorText, walkStopBlurb, walkStopKeys } from "./WalkResult";
 import { EMPTY_WALK_CHOICE, selectWalkBudget, selectWalkTime, toggleWalkInterest, walkComposeReady, WalkWizard } from "./WalkWizard";
 
 describe("city walk query", () => {
   it("asks for sights in the selected city, and a later ask asks for a different route", () => {
-    expect(cityWalkAsk("Тула")).toContain("Тула");
+    expect(cityWalkAsk("Тула")).toContain("Тулы");
     expect(cityWalkAsk("Тула")).toContain("достопримечательностям");
     expect(nextWalkAsk("Тула")).toContain("другой");
     expect(nextWalkAsk("Тула")).not.toBe(cityWalkAsk("Тула"));
+    expect(walkWaitTitle("Москва")).toBe("Прокладываю маршрут по Москве");
   });
 });
 
@@ -207,7 +208,7 @@ describe("composed walk", () => {
     await act(async () => {
       clickText(host, "Собрать прогулку");
     });
-    expect(host.textContent).toContain("Прокладываю маршрут по Тула");
+    expect(host.textContent).toContain("Прокладываю маршрут по Туле");
     expect(host.textContent).toContain("проверяю реальные места и расстояния");
     await act(async () => {
       release(sampleWalk());

@@ -473,4 +473,10 @@ describe("the post grid", () => {
     expect(html).not.toContain("app-profile-form");
     expect(html).not.toContain("Сохранить");
   });
+
+  it("offers delete on the owner's tiles only when a handler is wired", () => {
+    expect(renderProfileView()).not.toContain("Удалить пост");
+    expect(renderProfileView({ onDeletePost: () => {} })).toContain("Удалить пост");
+    expect(renderProfileView({ own: false, onDeletePost: () => {} })).not.toContain("Удалить пост");
+  });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ApiError } from "../api/client";
 import type { EventDetails, TravelOption } from "../api/client";
 import { mockEvents, mockPlaces } from "../api/mock";
-import { bookingErrorMessage, eventShareText, organizerDisplayName, PARTICIPATION_STATUS_LABELS, walkingOption } from "./EventPage";
+import { bookingErrorMessage, eventShareText, fastestTravelOption, organizerDisplayName, PARTICIPATION_STATUS_LABELS, walkingOption } from "./EventPage";
 
 // Локальное время без смещения: «14:00» обязано читаться одинаково в любой зоне прогона.
 const STARTS_AT = "2026-09-19T14:00:00";
@@ -68,6 +68,20 @@ describe("walkingOption", () => {
 
     expect(walkingOption(options)).toEqual({ mode: "walk", minutes: 18, distanceKm: 2.1, transfers: null });
     expect(walkingOption([options[0]])).toBeNull();
+  });
+});
+
+describe("fastestTravelOption", () => {
+  it("picks the shortest tile so the event card prefers the road or metro over a long walk", () => {
+    const options: TravelOption[] = [
+      { mode: "walk", minutes: 28, distanceKm: 2.1, transfers: null },
+      { mode: "metro", minutes: 14, distanceKm: 2.1, transfers: 1 },
+      { mode: "car", minutes: 9, distanceKm: 2.1, transfers: null },
+    ];
+
+    expect(fastestTravelOption(options)?.mode).toBe("car");
+    expect(fastestTravelOption(options.slice(0, 2))?.mode).toBe("metro");
+    expect(fastestTravelOption([])).toBeNull();
   });
 });
 

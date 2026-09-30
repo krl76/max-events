@@ -27,8 +27,8 @@ describe("droppedPinStop", () => {
   });
 
   it("names a catalog destination by its place title", () => {
-    const stop = placeRouteStop({ title: "Парк Горького", latitude: 55.73, longitude: 37.6 });
-    expect(stop).toEqual({ kind: "place", title: "Парк Горького", latitude: 55.73, longitude: 37.6 });
+    const stop = placeRouteStop({ id: "b0000000-0000-4000-8000-000000000001", title: "Парк Горького", latitude: 55.73, longitude: 37.6 });
+    expect(stop).toEqual({ kind: "place", title: "Парк Горького", latitude: 55.73, longitude: 37.6, placeId: "b0000000-0000-4000-8000-000000000001" });
     expect(routeBarLabel(stop)).toBe("Маршрут до Парк Горького");
     expect(routeBarLabel(droppedPinStop(PIN))).toBe("Маршрут до точки");
   });

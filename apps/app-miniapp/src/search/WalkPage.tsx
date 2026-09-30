@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AssistDayResponse, CityWalk, ComposeCityWalkWrite } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { pluralRu } from "../catalog/format";
+import { genitiveCity, prepositionalCity } from "../geo/city-case";
 import { useRoute } from "../routing/router";
 import { AppButton, AppState } from "../ui/primitives";
 import { EMPTY_WALK_CHOICE, walkComposeReady, WalkWizard, type WalkChoice } from "./WalkWizard";
@@ -10,11 +11,11 @@ import { WalkResult, walkErrorText, walkStopKeys } from "./WalkResult";
 const WAIT_SKELETONS: readonly number[] = [0, 1, 2, 3];
 
 export function cityWalkAsk(city: string): string {
-  return `Собери пеший маршрут по достопримечательностям города ${city}: 4–6 остановок по порядку, время между точками и где поесть рядом.`;
+  return `Собери пеший маршрут по достопримечательностям города ${genitiveCity(city)}: 4–6 остановок по порядку, время между точками и где поесть рядом.`;
 }
 
 export function nextWalkAsk(city: string): string {
-  return `Собери другой пеший маршрут по достопримечательностям города ${city}. Не повторяй предыдущий.`;
+  return `Собери другой пеший маршрут по достопримечательностям города ${genitiveCity(city)}. Не повторяй предыдущий.`;
 }
 
 export function walkBudgetRub(stops: readonly { readonly event: { readonly priceRub: number | null } }[]): number {
@@ -49,7 +50,7 @@ export function walkClock(at: string): string {
 }
 
 export function walkWaitTitle(city: string): string {
-  return `Прокладываю маршрут по ${city}`;
+  return `Прокладываю маршрут по ${prepositionalCity(city)}`;
 }
 
 export function walkWaitSubtitle(durationMinutes: number): string {

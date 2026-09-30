@@ -67,6 +67,8 @@ const EventObjectSchema = z.object({
   ratingAverage: z.number().min(0).max(5).nullable().optional(),
   waitlistCount: z.number().int().nonnegative().optional(),
   friendsGoing: z.array(z.object({ id: IdSchema, name: z.string().min(1) })).optional(),
+  /** True when the event accepts a Pushkin Card. Derived for imported afisha when omitted. */
+  pushkinCard: z.boolean().optional(),
 });
 
 const hasValidPaymentLink = (data: { isPaid: boolean; paymentUrl: string | null }) => (data.isPaid ? data.paymentUrl !== null : data.paymentUrl === null);

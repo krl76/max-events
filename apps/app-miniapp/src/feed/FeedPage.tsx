@@ -419,7 +419,7 @@ export function FeedPostCard({ post, eventTitle, eventCategory, userId, onToggle
 
 export function FeedPostPage({ id }: { id: string }) {
   const auth = useAuth();
-  const { navigate } = useRoute();
+  const { navigate, back } = useRoute();
   const userId = auth.status === "authenticated" ? auth.user.id : "";
   const [post, setPost] = useState<FeedPost | null>(null);
   const [event, setEvent] = useState<Event | null>(null);
@@ -486,7 +486,7 @@ export function FeedPostPage({ id }: { id: string }) {
       onOpenAuthor={(authorId) => navigate({ name: "user", id: authorId })}
       onDelete={() => {
         if (userId === "") return;
-        void apiClient.deleteFeedPost(post.id).then(() => navigate({ name: "home" }));
+        void apiClient.deleteFeedPost(post.id).then(() => back());
       }}
     />
   );

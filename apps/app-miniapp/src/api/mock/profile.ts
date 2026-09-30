@@ -14,6 +14,7 @@
 // - profileCountersFor - экран 36 counters: events and places from the visit history, «компании» = visited events a friend was at too (#496)
 // - visitedPlacesFor - impressions grid of экран 36: the places of the viewer's check-ins with their visit counts, most visited first
 // - userPostsFor - post grid of экран 36: the seeded own posts plus everything this author published live, newest first
+// - deleteMockProfilePost - drop a seeded tile after DELETE /feed/:id, so the profile grid matches the wall
 // - DEFAULT_APP_SETTINGS - the экран 41 preferences a user starts with
 // - appSettingsFor - stored app settings of a user, seeded from the defaults
 // - updateMockAppSettings - merge a patch into the stored app settings
@@ -257,11 +258,23 @@ const MOCK_OWN_POST_HISTORY: readonly { event: number; likes: number; comments: 
  * account only, so the empty state stays reachable for everyone else), then everything they published
  * live through экран 06 — publishing a post must put a tile on the profile, not only into the wall.
  */
+const deletedProfilePosts = new Set<string>();
+
+/** Seeded profile tiles are not feed posts; DELETE /feed/:id still has to drop them from the grid. */
+export function deleteMockProfilePost(postId: string, userId: string): boolean {
+  if (userId !== mockDemoUser.id) return false;
+  if (deletedProfilePosts.has(postId)) return false;
+  const seededIds = MOCK_OWN_POST_HISTORY.map((_, index) => `33000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`);
+  if (!seededIds.includes(postId)) return false;
+  deletedProfilePosts.add(postId);
+  return true;
+}
+
 export function userPostsFor(userId: string): ProfilePost[] {
   const seeded: ProfilePost[] = userId !== mockDemoUser.id ? [] : MOCK_OWN_POST_HISTORY.flatMap((row, index) => postTile(`33000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`, mockEvents[row.event].id, null, row.likes, row.comments));
   const live = mockFeedPosts.filter((post) => post.author.id === userId).flatMap((post) => postTile(post.id, post.eventId, post.photoUrl, post.likesCount, post.comments.length));
   // Обе половины сложены по возрастанию времени, поэтому разворачивается общий список, а не каждая
-  return [...seeded, ...live].reverse();
+  return [...seeded, ...live].reverse().filter((post) => !deletedProfilePosts.has(post.postId));
 }
 
 /** A post about an event the fixtures do not have is no tile at all: the cover has nowhere to come from. */

@@ -141,6 +141,11 @@ describe("FeedFriendPost", () => {
     expect(html).toContain("1/2");
     expect(html).not.toContain("app-feed-photos");
   });
+
+  it("does not offer to delete a post from the feed, even when the viewer wrote it", () => {
+    const html = post({ author: { ...friendCard.author, id: "u1" } });
+    expect(html).not.toContain("Удалить пост");
+  });
 });
 
 describe("FeedPlacePost", () => {

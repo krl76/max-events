@@ -33,7 +33,8 @@ describe("TravelOptionSchema", () => {
     expect(TravelOptionSchema.parse({ mode: "metro", minutes: 9, distanceKm: 1.4, transfers: 1 }).transfers).toBe(1);
   });
 
-  it("rejects taxi — the map pin only prints walk and metro", () => {
+  it("accepts a car tile and still rejects taxi", () => {
+    expect(TravelOptionSchema.parse({ mode: "car", minutes: 8, distanceKm: 1.4, transfers: null }).mode).toBe("car");
     expect(TravelOptionSchema.safeParse({ mode: "taxi", minutes: 6, distanceKm: 1.4, transfers: null }).success).toBe(false);
   });
 });

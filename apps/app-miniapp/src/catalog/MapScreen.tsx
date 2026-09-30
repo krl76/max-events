@@ -40,14 +40,15 @@ import type { Event, EventCategory, FriendPlaceVisit, Place } from "@max-events/
 import "leaflet/dist/leaflet.css";
 import { apiClient, type EventForecast, type EventWeatherHour, type MapWeather, type TravelOption } from "../api/client";
 import { CATEGORY_LABELS, pluralRu } from "./format";
-import { planMetroRide } from "./metroRoute";
+import { metroGeometry, planMetroRide } from "./metroRoute";
+import { drivingRoute, stitchWalkingRoute, walkingRoute } from "./walkingRoute";
+import { intentForStopKind, mapRouteProfileFor, type MapRouteProfile } from "./mapRoutePolicy";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { useAppliedScheme, type ThemeScheme } from "../ui/theme";
 import { basemapCredit, MAP_BASEMAPS, readBasemapPreference, STANDARD_BASEMAP, writeBasemapPreference, type MapBasemap } from "./basemaps";
 import { buildMapMarkers, clusterMapMarkers, type MapMarker, type MapPinGlyph } from "./mapMarkers";
-import { stitchWalkingRoute, walkingRoute } from "./walkingRoute";
 import { droppedPinCardVisible, droppedPinKey, droppedPinStop, DROPPED_PIN_TITLE, placeRouteStop, routeBarLabel, type MapRouteStop } from "./droppedPinRoute";
 import { pinLabel } from "../ui/pin-label";
 import { useLeafletMap } from "./useLeafletMap";
@@ -128,13 +129,23 @@ export function mapRainHint(weather: MapWeather | null, options: TravelOption[])
   return `${change} с ${at} — метро суше, зонт не понадобится`;
 }
 
+const TRAVEL_MODE_NOTE: Record<TravelOption["mode"], string> = { walk: "пешком", metro: "метро", car: "на машине" };
+
 /** «18 мин» over «пешком · 1,4 км»: the number carries the decision, the line under it the reason (#504). */
 export function formatTravelOption(option: TravelOption): { value: string; note: string } {
-  const parts = [option.mode === "walk" ? "пешком" : "метро"];
-  if (option.mode === "walk" && option.distanceKm !== null) parts.push(`${option.distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`);
+  const parts = [TRAVEL_MODE_NOTE[option.mode]];
+  if ((option.mode === "walk" || option.mode === "car") && option.distanceKm !== null) parts.push(`${option.distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км`);
   if (option.mode === "metro" && option.transfers !== null) parts.push(option.transfers === 0 ? "без пересадок" : `${option.transfers} ${pluralRu(option.transfers, "пересадка", "пересадки", "пересадок")}`);
   return { value: `${option.minutes} мин`, note: parts.join(" · ") };
 }
+
+export function travelModeToProfile(mode: TravelOption["mode"]): MapRouteProfile {
+  if (mode === "metro") return "metro";
+  if (mode === "car") return "driving";
+  return "foot";
+}
+
+const ROUTE_PROFILE_LABEL: Record<MapRouteProfile, string> = { foot: "Пешком", metro: "Метро", driving: "На машине" };
 
 /**
  * «Анна и Дима были здесь» — the layer answers past visits, so the line is in the past tense. Russian
@@ -527,6 +538,8 @@ interface MapSelectionCardProps {
   /** Минуты метро есть, а станции схемы рядом нет: минуты остаются по прямой. */
   metroFar: boolean;
   routeOn: boolean;
+  routeProfile?: MapRouteProfile;
+  onPickTravel?: (mode: TravelOption["mode"]) => void;
   onRoute: () => void;
   /** Без обработчика кнопка не рисуется: мёртвая кнопка читается как сломанный экран. */
   onDiscuss?: () => void;
@@ -567,14 +580,16 @@ export function MapSelectionCard(props: MapSelectionCardProps) {
       {props.travel.length > 0 && (
         <div className="app-map16-travel">
           {props.travel.map((option) => {
-            const extra = option.mode === "walk" && option.distanceKm !== null ? `${option.distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км` : option.mode === "walk" ? "пешком" : "метро";
+            const extra = option.mode === "walk" && option.distanceKm !== null ? `${option.distanceKm.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} км` : TRAVEL_MODE_NOTE[option.mode];
+            const pressed = props.routeProfile === travelModeToProfile(option.mode);
+            const icon: ActionIconName = option.mode === "walk" ? "walk" : option.mode === "car" ? "car" : "metro";
             return (
-              <span key={option.mode} className="app-map16-travel-item">
-                <ActionIcon name={option.mode === "walk" ? "navigation" : "metro"} size={16} />
+              <button key={option.mode} type="button" className={pressed ? "app-map16-travel-item app-map16-travel-item--on" : "app-map16-travel-item"} aria-pressed={pressed} onClick={() => (props.onPickTravel !== undefined ? props.onPickTravel(option.mode) : props.onRoute())}>
+                <ActionIcon name={icon} size={16} />
                 <span className="app-map16-travel-line">
                   {option.minutes} мин · {extra}
                 </span>
-              </span>
+              </button>
             );
           })}
         </div>
@@ -630,6 +645,8 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const [selected, setSelected] = useState<MapMarker | null>(null);
   const [routeOn, setRouteOn] = useState(drawRoute);
   const [routePlace, setRoutePlace] = useState<MapRouteStop | null>(null);
+  const [routeProfile, setRouteProfile] = useState<MapRouteProfile>(walkPath !== null ? "foot" : "driving");
+  const routePicked = useRef(false);
   const [dismissedPinKey, setDismissedPinKey] = useState<string | null>(null);
   const [routePath, setRoutePath] = useState<[number, number][] | null>(null);
   const [weatherOpen, setWeatherOpen] = useState(false);
@@ -716,16 +733,17 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   }, [showingWalk, shownEvents, shownPlaces, visits, readyPlaces, extraMarkers]);
 
   const selectedPlaceId = selected === null ? null : (selected.placeId ?? events.find((item) => item.id === selected.eventId)?.placeId ?? null);
+  const travelTargetId = selectedPlaceId ?? (routePlace?.kind === "place" ? (routePlace.placeId ?? null) : null);
   const selectedPlace = selectedPlaceId === null ? undefined : readyPlaces.find((item) => item.id === selectedPlaceId);
   const selectedCategory = selected === null || selected.eventId === null ? null : (events.find((item) => item.id === selected.eventId)?.category ?? null);
 
   useEffect(() => {
-    if (selectedPlaceId === null) {
+    if (travelTargetId === null) {
       setTravel([]);
       return;
     }
     let alive = true;
-    apiClient.getTravelOptions(selectedPlaceId, { latitude: originPoint[0], longitude: originPoint[1] }).then(
+    apiClient.getTravelOptions(travelTargetId, { latitude: originPoint[0], longitude: originPoint[1] }).then(
       (options) => {
         if (alive) setTravel(options);
       },
@@ -737,7 +755,14 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     return () => {
       alive = false;
     };
-  }, [selectedPlaceId, originPoint]);
+  }, [travelTargetId, originPoint]);
+
+  useEffect(() => {
+    if (routePicked.current) return;
+    if (!routeOn || routePlace === null || routePlace.kind !== "place") return;
+    if (travel.length === 0) return;
+    setRouteProfile(mapRouteProfileFor("event", travel));
+  }, [travel, routeOn, routePlace]);
 
   useEffect(() => {
     if (walkPath !== null && walkPath.length >= 2) return;
@@ -748,16 +773,30 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     const dest: [number, number] = [routePlace.latitude, routePlace.longitude];
     setRoutePath([originPoint, dest]);
     let alive = true;
-    walkingRoute(originPoint, dest).then(
-      (path) => {
+    const draw = async () => {
+      if (routeProfile === "foot") {
+        const path = await walkingRoute(originPoint, dest);
         if (alive) setRoutePath(path);
-      },
-      () => {},
-    );
+        return;
+      }
+      if (routeProfile === "driving") {
+        const path = await drivingRoute(originPoint, dest);
+        if (alive) setRoutePath(path);
+        return;
+      }
+      const metro = await metroGeometry(originPoint, dest);
+      if (!alive) return;
+      if (metro !== null) {
+        setRoutePath(metro);
+        return;
+      }
+      setRoutePath(await drivingRoute(originPoint, dest));
+    };
+    void draw();
     return () => {
       alive = false;
     };
-  }, [routeOn, originPoint, routePlace, walkPath]);
+  }, [routeOn, originPoint, routePlace, walkPath, routeProfile]);
   const select = useCallback((marker: MapMarker) => {
     setSelected(marker);
     setWeatherOpen(false);
@@ -765,6 +804,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     setFiltersOpen(false);
     setRouteOn(false);
     setRoutePlace(null);
+    setRouteProfile("foot");
   }, []);
   const reopenPin = useCallback(() => {
     setSelected(null);
@@ -834,7 +874,9 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
       const pinned = places.places.find((item) => item.id === focusPlaceId);
       if (pinned === undefined) return;
       flown.current = `${key}:route`;
+      routePicked.current = false;
       setRoutePlace(placeRouteStop(pinned));
+      setRouteProfile(mapRouteProfileFor("event", travel));
       setRouteOn(true);
       return;
     }
@@ -853,13 +895,15 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     flown.current = focusPlaceId;
     handleRef.current?.focus([place.latitude, place.longitude], 16);
     if (drawRoute) {
+      routePicked.current = false;
       setRoutePlace(placeRouteStop(place));
+      setRouteProfile(mapRouteProfileFor("event", travel));
       setRouteOn(true);
       return;
     }
     const marker = markers.find((item) => item.placeId === focusPlaceId && item.eventId === null);
     if (marker) setSelected(marker);
-  }, [status, pin, focusPoint, focusPlaceId, places, markers, handleRef, drawRoute, walkPath]);
+  }, [status, pin, focusPoint, focusPlaceId, places, markers, handleRef, drawRoute, walkPath, travel]);
 
   const framed = useRef("");
   useEffect(() => {
@@ -1026,8 +1070,22 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
           metroFar={selectedPlace !== undefined && metroAsked && metroPlan === null}
           rainHint={mapRainHint(weather, shownTravel)}
           routeOn={routeOn}
+          routeProfile={routeProfile}
+          onPickTravel={(mode) => {
+            if (selectedPlace === undefined) return;
+            routePicked.current = true;
+            setRouteProfile(travelModeToProfile(mode));
+            setRoutePlace(placeRouteStop(selectedPlace));
+            setRouteOn(true);
+            setSelected(null);
+            setWeatherOpen(false);
+            setBasemapsOpen(false);
+            setFiltersOpen(false);
+          }}
           onRoute={() => {
             if (selectedPlace === undefined) return;
+            routePicked.current = false;
+            setRouteProfile(mapRouteProfileFor(intentForStopKind("place"), shownTravel));
             setRoutePlace(placeRouteStop(selectedPlace));
             setRouteOn(true);
             setSelected(null);
@@ -1050,7 +1108,10 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
           metroFar={false}
           rainHint={null}
           routeOn={false}
+          routeProfile="foot"
           onRoute={() => {
+            routePicked.current = true;
+            setRouteProfile("foot");
             setRoutePlace(droppedPinStop(customPin));
             setRouteOn(true);
             setDismissedPinKey(droppedPinKey(customPin));
@@ -1064,16 +1125,35 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
       )}
       {routeOn && routePlace !== null && selected === null && !weatherOpen && (
         <div className="app-map16-routebar">
-          <span>{routeBarLabel(routePlace)}</span>
-          <button
-            type="button"
-            onClick={() => {
-              setRouteOn(false);
-              setRoutePlace(null);
-            }}
-          >
-            Скрыть
-          </button>
+          <div className="app-map16-routebar-row">
+            <span>{routeBarLabel(routePlace)}</span>
+            <button
+              type="button"
+              className="app-map16-routebar-hide"
+              onClick={() => {
+                setRouteOn(false);
+                setRoutePlace(null);
+              }}
+            >
+              Скрыть
+            </button>
+          </div>
+          <div className="app-map16-route-modes" role="group" aria-label="Как добраться">
+            {(["foot", "metro", "driving"] as const).map((profile) => (
+              <button
+                key={profile}
+                type="button"
+                className={routeProfile === profile ? "app-map16-route-mode app-map16-route-mode--on" : "app-map16-route-mode"}
+                aria-pressed={routeProfile === profile}
+                onClick={() => {
+                  routePicked.current = true;
+                  setRouteProfile(profile);
+                }}
+              >
+                {ROUTE_PROFILE_LABEL[profile]}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       {weatherOpen && (

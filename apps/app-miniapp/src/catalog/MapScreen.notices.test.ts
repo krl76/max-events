@@ -93,6 +93,7 @@ describe("map chrome formatting", () => {
     expect(formatTravelOption(METRO)).toEqual({ value: "9 мин", note: "метро · 1 пересадка" });
     expect(formatTravelOption({ ...METRO, transfers: 0 })).toEqual({ value: "9 мин", note: "метро · без пересадок" });
     expect(formatTravelOption({ ...METRO, transfers: 2 })).toEqual({ value: "9 мин", note: "метро · 2 пересадки" });
+    expect(formatTravelOption({ mode: "car", minutes: 8, distanceKm: 1.4, transfers: null })).toEqual({ value: "8 мин", note: "на машине · 1,4 км" });
   });
 
   it("names the friends who were at the selected place, in the past tense the layer answers in", () => {

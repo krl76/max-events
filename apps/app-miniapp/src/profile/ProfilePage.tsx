@@ -46,6 +46,7 @@ import { ListsPage } from "../lists/ListsPage";
 import { ActionIcon } from "../ui/icons";
 import { pictured, showPhoto } from "../ui/photos";
 import { AppMedia, AppSkeleton, AppState } from "../ui/primitives";
+import { ConfirmSheet } from "../ui/ConfirmSheet";
 
 const INTERESTS_ON_LINE = 3;
 
@@ -192,7 +193,7 @@ const POST_SKELETON_TILES = 6;
  * recognised by its cover and its counters: the author's own impression photo when there is one, and
  * the category gradient of the event otherwise, because the product shows no photographs of people.
  */
-export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost, canPublish = true }: { posts: ProfilePost[] | null; failed: boolean; onOpenPost: (post: ProfilePost) => void; onNewPost: () => void; canPublish?: boolean }) {
+export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost, canPublish = true, onAskDelete }: { posts: ProfilePost[] | null; failed: boolean; onOpenPost: (post: ProfilePost) => void; onNewPost: () => void; canPublish?: boolean; onAskDelete?: (post: ProfilePost) => void }) {
   if (failed) return <AppState error>Не удалось загрузить посты.</AppState>;
   if (posts === null)
     return (
@@ -212,19 +213,26 @@ export function ProfilePostGrid({ posts, failed, onOpenPost, onNewPost, canPubli
   return (
     <div className="app-me-posts">
       {posts.map((post) => (
-        <button key={post.postId} type="button" className="app-me-post" aria-label={post.eventId === null ? `Пост «${post.eventTitle}»` : `Пост о событии «${post.eventTitle}»`} onClick={() => onOpenPost(post)}>
-          {post.photoUrl === null ? <AppMedia category={post.category} src={pictured(post.eventId ?? post.postId)} className="app-me-post-media" /> : <QuietImage className="app-me-post-photo" src={showPhoto(post.photoUrl) ?? post.photoUrl} />}
-          <span className="app-me-post-stats" aria-hidden="true">
-            <span className="app-me-post-stat">
-              <ActionIcon name="heart" size={14} strokeWidth={2.4} />
-              {post.likesCount}
+        <div key={post.postId} className="app-me-post">
+          <button type="button" className="app-me-post-open" aria-label={post.eventId === null ? `Пост «${post.eventTitle}»` : `Пост о событии «${post.eventTitle}»`} onClick={() => onOpenPost(post)}>
+            {post.photoUrl === null ? <AppMedia category={post.category} src={pictured(post.eventId ?? post.postId)} className="app-me-post-media" /> : <QuietImage className="app-me-post-photo" src={showPhoto(post.photoUrl) ?? post.photoUrl} />}
+            <span className="app-me-post-stats" aria-hidden="true">
+              <span className="app-me-post-stat">
+                <ActionIcon name="heart" size={14} strokeWidth={2.4} />
+                {post.likesCount}
+              </span>
+              <span className="app-me-post-stat">
+                <ActionIcon name="comment" size={14} strokeWidth={2.4} />
+                {post.commentsCount}
+              </span>
             </span>
-            <span className="app-me-post-stat">
-              <ActionIcon name="comment" size={14} strokeWidth={2.4} />
-              {post.commentsCount}
-            </span>
-          </span>
-        </button>
+          </button>
+          {onAskDelete !== undefined && (
+            <button type="button" className="app-me-post-delete" aria-label="Удалить пост" onClick={() => onAskDelete(post)}>
+              <ActionIcon name="trash" size={14} strokeWidth={2.4} />
+            </button>
+          )}
+        </div>
       ))}
     </div>
   );
@@ -250,6 +258,7 @@ export interface ProfileEntries {
   closeFriend?: boolean;
   onInvite: () => void;
   onOpenPost: (post: ProfilePost) => void;
+  onDeletePost?: (post: ProfilePost) => void;
   onNewPost: () => void;
   onOpenPlace: (placeId: string) => void;
   onTab: (tab: ProfileTab) => void;
@@ -431,6 +440,7 @@ interface ProfileViewProps extends ProfileEntries {
 
 export function ProfileView({ user, profile, lists, subscriptions, following, followers, achievements, weGroups, friendsCount, posts, postsFailed, visitedPlaces, tab, own = true, followingThem = false, subscribePending = false, ...entries }: ProfileViewProps) {
   const [mediaMenu, setMediaMenu] = useState<"avatar" | "cover" | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<ProfilePost | null>(null);
   const [clickShield, setClickShield] = useState(false);
   const dismissMenu = useCallback(() => {
     setMediaMenu(null);
@@ -542,94 +552,98 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
           </p>
         )}
         {about !== "" && <p className="app-me-about">{about}</p>}
-      {!own && (
-        <div className="app-me-actions">
-          <button type="button" className="app-me-action app-me-action--primary" disabled={subscribePending} onClick={entries.onSubscribe}>
-            {followingThem && entries.followsYou ? "Друзья" : followingThem ? "Вы добавили" : "Добавить"}
-          </button>
-          <button type="button" className="app-me-action" onClick={entries.onWrite}>
-            Написать
-          </button>
-          {entries.onToggleClose !== undefined && (
-            <button type="button" className="app-me-action" aria-pressed={entries.closeFriend === true} onClick={entries.onToggleClose}>
-              {entries.closeFriend ? "В близких" : "В близкие"}
+        {!own && (
+          <div className="app-me-actions">
+            <button type="button" className="app-me-action app-me-action--primary" disabled={subscribePending} onClick={entries.onSubscribe}>
+              {followingThem && entries.followsYou ? "Друзья" : followingThem ? "Вы добавили" : "Добавить"}
             </button>
-          )}
-          <button type="button" className="app-me-action" onClick={entries.onInvite}>
-            Позвать
-          </button>
-        </div>
-      )}
-      {!own && <p className="app-me-link-hint">Добавьте человека или позовите ссылкой в MAX. Друзья — когда добавление взаимное.</p>}
-      {own && (
-        <ProfileDashboard
-          achievements={achievements}
-          weGroups={weGroups}
-          friendsCount={friendsCount}
-          onPlans={entries.onPlans}
-          onCreatePlan={entries.onCreatePlan}
-          onBookings={entries.onBookings}
-          onCalendar={entries.onCalendar}
-          onAchievements={entries.onAchievements}
-          onWeGroups={entries.onWeGroups}
-          onFriends={entries.onFriends}
-        />
-      )}
-      <div
-        className="app-me-tabs"
-        role="tablist"
-        aria-label="Что показывать"
-        style={{ ["--me-tabs" as string]: shownTabs.length, ["--me-tab" as string]: Math.max(0, shownTabs.findIndex((candidate) => candidate.id === tab)) }}
-        onPointerDown={(event) => {
-          const host = event.currentTarget;
-          const pick = (clientX: number) => {
-            const box = host.getBoundingClientRect();
-            const next = Math.min(shownTabs.length - 1, Math.max(0, Math.floor(((clientX - box.left) / Math.max(box.width, 1)) * shownTabs.length)));
-            const chosen = shownTabs[next];
-            if (chosen !== undefined) entries.onTab(chosen.id);
-          };
-          host.setPointerCapture(event.pointerId);
-          pick(event.clientX);
-          const move = (pointer: PointerEvent) => {
-            if (pointer.pointerId !== event.pointerId) return;
-            pick(pointer.clientX);
-          };
-          const up = (pointer: PointerEvent) => {
-            if (pointer.pointerId !== event.pointerId) return;
-            host.removeEventListener("pointermove", move);
-            host.removeEventListener("pointerup", up);
-          };
-          host.addEventListener("pointermove", move);
-          host.addEventListener("pointerup", up);
-        }}
-      >
-        <span className="app-me-tab-pill" aria-hidden="true" />
-        {shownTabs.map((candidate) => (
-          <button key={candidate.id} type="button" role="tab" id={`app-me-tab-${candidate.id}`} aria-selected={tab === candidate.id} aria-controls="app-me-tabpanel" className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => entries.onTab(candidate.id)}>
-            <ActionIcon name={TAB_ICON[candidate.id]} size={15} />
-            {profileTabLabel(candidate.id)}
-          </button>
-        ))}
-      </div>
-      <div key={tab} id="app-me-tabpanel" className="app-me-panel" role="tabpanel" aria-labelledby={`app-me-tab-${tab}`}>
-        {tab === "posts" && <ProfilePostGrid posts={posts} failed={postsFailed} onOpenPost={entries.onOpenPost} onNewPost={entries.onNewPost} canPublish={own} />}
-        {tab === "saved" && <ListsPage userId={user.id} />}
-        {tab === "places" && visitedPlaces.length === 0 && <AppState>Мест пока нет — отметьтесь где-нибудь, и они появятся здесь.</AppState>}
-        {tab === "places" && visitedPlaces.length > 0 && (
-          <div className="app-me-grid">
-            {visitedPlaces.map((place, index) => (
-              <button key={place.placeId} type="button" className={`app-me-cell app-me-cell--${(index % 4) + 1}`} onClick={() => entries.onOpenPlace(place.placeId)}>
-                <span className="app-me-cell-blob" aria-hidden="true" />
-                <span className="app-me-cell-veil">
-                  <span className="app-me-cell-title">{place.title}</span>
-                  <span className="app-me-cell-visits">{visitsLabel(place.visits)}</span>
-                </span>
+            <button type="button" className="app-me-action" onClick={entries.onWrite}>
+              Написать
+            </button>
+            {entries.onToggleClose !== undefined && (
+              <button type="button" className="app-me-action" aria-pressed={entries.closeFriend === true} onClick={entries.onToggleClose}>
+                {entries.closeFriend ? "В близких" : "В близкие"}
               </button>
-            ))}
+            )}
+            <button type="button" className="app-me-action" onClick={entries.onInvite}>
+              Позвать
+            </button>
           </div>
         )}
+        {!own && <p className="app-me-link-hint">Добавьте человека или позовите ссылкой в MAX. Друзья — когда добавление взаимное.</p>}
+        {own && <ProfileDashboard achievements={achievements} weGroups={weGroups} friendsCount={friendsCount} onPlans={entries.onPlans} onCreatePlan={entries.onCreatePlan} onBookings={entries.onBookings} onCalendar={entries.onCalendar} onAchievements={entries.onAchievements} onWeGroups={entries.onWeGroups} onFriends={entries.onFriends} />}
+        <div
+          className="app-me-tabs"
+          role="tablist"
+          aria-label="Что показывать"
+          style={{
+            ["--me-tabs" as string]: shownTabs.length,
+            ["--me-tab" as string]: Math.max(
+              0,
+              shownTabs.findIndex((candidate) => candidate.id === tab),
+            ),
+          }}
+          onPointerDown={(event) => {
+            const host = event.currentTarget;
+            const pick = (clientX: number) => {
+              const box = host.getBoundingClientRect();
+              const next = Math.min(shownTabs.length - 1, Math.max(0, Math.floor(((clientX - box.left) / Math.max(box.width, 1)) * shownTabs.length)));
+              const chosen = shownTabs[next];
+              if (chosen !== undefined) entries.onTab(chosen.id);
+            };
+            host.setPointerCapture(event.pointerId);
+            pick(event.clientX);
+            const move = (pointer: PointerEvent) => {
+              if (pointer.pointerId !== event.pointerId) return;
+              pick(pointer.clientX);
+            };
+            const up = (pointer: PointerEvent) => {
+              if (pointer.pointerId !== event.pointerId) return;
+              host.removeEventListener("pointermove", move);
+              host.removeEventListener("pointerup", up);
+            };
+            host.addEventListener("pointermove", move);
+            host.addEventListener("pointerup", up);
+          }}
+        >
+          <span className="app-me-tab-pill" aria-hidden="true" />
+          {shownTabs.map((candidate) => (
+            <button key={candidate.id} type="button" role="tab" id={`app-me-tab-${candidate.id}`} aria-selected={tab === candidate.id} aria-controls="app-me-tabpanel" className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => entries.onTab(candidate.id)}>
+              <ActionIcon name={TAB_ICON[candidate.id]} size={15} />
+              {profileTabLabel(candidate.id)}
+            </button>
+          ))}
+        </div>
+        <div key={tab} id="app-me-tabpanel" className="app-me-panel" role="tabpanel" aria-labelledby={`app-me-tab-${tab}`}>
+          {tab === "posts" && <ProfilePostGrid posts={posts} failed={postsFailed} onOpenPost={entries.onOpenPost} onNewPost={entries.onNewPost} canPublish={own} onAskDelete={own && entries.onDeletePost !== undefined ? setPendingDelete : undefined} />}
+          {tab === "saved" && <ListsPage userId={user.id} />}
+          {tab === "places" && visitedPlaces.length === 0 && <AppState>Мест пока нет — отметьтесь где-нибудь, и они появятся здесь.</AppState>}
+          {tab === "places" && visitedPlaces.length > 0 && (
+            <div className="app-me-grid">
+              {visitedPlaces.map((place, index) => (
+                <button key={place.placeId} type="button" className={`app-me-cell app-me-cell--${(index % 4) + 1}`} onClick={() => entries.onOpenPlace(place.placeId)}>
+                  <span className="app-me-cell-blob" aria-hidden="true" />
+                  <span className="app-me-cell-veil">
+                    <span className="app-me-cell-title">{place.title}</span>
+                    <span className="app-me-cell-visits">{visitsLabel(place.visits)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      </div>
+      {pendingDelete !== null && entries.onDeletePost !== undefined && (
+        <ConfirmSheet
+          title="Удалить пост?"
+          confirmLabel="Удалить"
+          onClose={() => setPendingDelete(null)}
+          onConfirm={() => {
+            entries.onDeletePost?.(pendingDelete);
+            setPendingDelete(null);
+          }}
+        />
+      )}
     </section>
   );
 }
@@ -735,8 +749,13 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
   const [followedByThem, setFollowedByThem] = useState(false);
   const [myFollows, setMyFollows] = useState<string[]>([]);
   const [localCover, setLocalCover] = useState<string | null | undefined>(undefined);
+  const [hiddenPosts, setHiddenPosts] = useState<string[]>([]);
   const avatarRef = useRef<HTMLInputElement | null>(null);
   const coverRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setHiddenPosts([]);
+  }, [subjectId]);
 
   useEffect(() => {
     if (own) {
@@ -866,7 +885,7 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         achievements={data.achievements}
         weGroups={data.weGroups}
         friendsCount={data.friendsCount}
-        posts={data.posts}
+        posts={data.posts === null ? null : data.posts.filter((post) => !hiddenPosts.includes(post.postId))}
         postsFailed={data.postsFailed}
         visitedPlaces={data.visitedPlaces}
         tab={tab}
@@ -909,6 +928,17 @@ function AuthenticatedProfile({ viewer, subjectId }: { viewer: User; subjectId: 
         }
         onInvite={() => navigate({ name: "plan-new" })}
         onOpenPost={(post) => navigate({ name: "post", id: post.postId })}
+        onDeletePost={
+          own
+            ? (post) => {
+                setHiddenPosts((ids) => [...ids, post.postId]);
+                void apiClient.deleteFeedPost(post.postId).then(
+                  () => {},
+                  () => setHiddenPosts((ids) => ids.filter((id) => id !== post.postId)),
+                );
+              }
+            : undefined
+        }
         onNewPost={() => navigate({ name: "feed-new", eventId: null })}
         onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
         onPickAvatar={own ? () => avatarRef.current?.click() : undefined}

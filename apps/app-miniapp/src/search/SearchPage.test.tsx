@@ -96,7 +96,7 @@ describe("search entries", () => {
 
   describe("cityWalkAsk", () => {
     it("asks MAX for a walking route through the selected city", () => {
-      expect(cityWalkAsk("Казань")).toContain("Казань");
+      expect(cityWalkAsk("Казань")).toContain("Казани");
       expect(cityWalkAsk("Казань")).toContain("достопримечательностям");
     });
   });
@@ -110,7 +110,11 @@ describe("SearchFilterSheet", () => {
     expect(open).toContain("Афиша");
     expect(open).toContain("Волонтёрство");
     expect(open).toContain("Сбросить");
+    expect(open).not.toContain("Пушкинская карта");
     expect(renderToStaticMarkup(createElement(SearchFilterSheet, { category: undefined, onCategory: noop, onClose: noop }))).not.toContain("Сбросить");
+    const pushkin = renderToStaticMarkup(createElement(SearchFilterSheet, { category: undefined, onCategory: noop, onPushkin: noop, pushkinOnly: true, onClose: noop }));
+    expect(pushkin).toContain("Пушкинская карта");
+    expect(pushkin).toContain("Сбросить");
   });
 });
 

@@ -7259,12 +7259,20 @@ button.app-today-stat {
 .app-map16-travel-item {
   align-items: center;
   background: var(--app-surface);
+  border: none;
   border-radius: 12px;
+  color: inherit;
+  cursor: pointer;
   display: flex;
   flex: 1;
   gap: 6px;
   min-width: 0;
   padding: 8px 10px;
+}
+
+.app-map16-travel-item--on {
+  background: color-mix(in srgb, var(--app-accent) 14%, var(--app-surface));
+  color: var(--app-accent);
 }
 
 .app-map16-travel-line {
@@ -21303,13 +21311,40 @@ button.app-cal-peer-chip {
 
 .app-me-post {
   aspect-ratio: 1 / 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-me-post-open {
+  aspect-ratio: 1 / 1;
   background: none;
   border: none;
   border-radius: var(--app-radius-media);
   cursor: pointer;
+  display: block;
+  height: 100%;
   overflow: hidden;
   padding: 0;
   position: relative;
+  width: 100%;
+}
+
+.app-me-post-delete {
+  align-items: center;
+  background: rgba(6, 7, 8, 0.55);
+  border: none;
+  border-radius: 999px;
+  color: var(--brand-white);
+  cursor: pointer;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 28px;
+  z-index: 1;
 }
 
 /* Квадрат вместо 4:5 у .app-card-media: сетка держит ритм только на равных сторонах */
@@ -25245,33 +25280,65 @@ button.app-story-viewer-author {
 }
 
 .app-map16-routebar {
-  align-items: center;
   background: var(--app-card);
   border-radius: 16px;
   bottom: calc(68px + env(safe-area-inset-bottom, 0px));
   box-shadow: var(--app-shadow-lift);
   display: flex;
+  flex-direction: column;
   font-size: 14px;
   font-weight: 800;
   gap: 8px;
-  justify-content: space-between;
   left: 16px;
-  padding: 8px 8px 8px 14px;
+  padding: 10px 10px 10px 14px;
   position: absolute;
   right: 16px;
   z-index: 1002;
 }
 
-.app-map16-routebar button {
+.app-map16-routebar-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.app-map16-routebar-hide {
   background: #007aff;
   border: none;
   border-radius: 12px;
   color: #ffffff;
   cursor: pointer;
+  flex: none;
   font: inherit;
   font-weight: 800;
   height: 36px;
   padding: 0 12px;
+}
+
+.app-map16-route-modes {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.app-map16-route-mode {
+  background: var(--app-surface);
+  border: none;
+  border-radius: 12px;
+  color: var(--app-text);
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  height: 32px;
+  padding: 0 8px;
+}
+
+.app-map16-route-mode--on {
+  background: color-mix(in srgb, var(--app-accent) 14%, var(--app-surface));
+  color: var(--app-accent);
 }
 
 .app-post-action--danger {
@@ -25343,6 +25410,24 @@ button.app-story-viewer-author {
   object-fit: cover;
   position: absolute;
   width: 100%;
+}
+
+.app-pushkin-badge {
+  background: color-mix(in srgb, #6813ff 16%, var(--app-surface));
+  border-radius: 999px;
+  color: #6813ff;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: 3px 8px;
+  width: fit-content;
+}
+
+.app-pushkin-badge--rail {
+  left: 8px;
+  position: absolute;
+  top: 32px;
 }
 
 .app-poster-copy {
@@ -25907,7 +25992,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
   --color: #ffffff;
 }
 
-:is(.app-feed-whereto-start, .app-feed-going:not(.app-feed-going--on), .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-publish, .app-story-plus, .app-post-compose-publish, .app-map16-route, .app-map16-routebar button, .app-swipe-action--like, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-dayroute-chip, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act) {
+:is(.app-feed-whereto-start, .app-feed-going:not(.app-feed-going--on), .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-publish, .app-story-plus, .app-post-compose-publish, .app-map16-route, .app-map16-routebar-hide, .app-swipe-action--like, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-dayroute-chip, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act) {
   background: var(--app-accent);
   color: #ffffff;
 }
@@ -27291,6 +27376,10 @@ button.app-fin-op--btn {
   background: #471aff;
 }
 
+.app-me--user .app-me-community {
+  gap: 10px;
+}
+
 .app-me--user .app-me-friends-mark {
   align-items: center;
   color: var(--app-accent-text);
@@ -27300,6 +27389,11 @@ button.app-fin-op--btn {
   gap: 4px;
   justify-content: center;
   min-height: 28px;
+}
+
+.app-me--user .app-me-friends-num {
+  font-size: 16px;
+  font-weight: 800;
 }
 
 .app-me--user .app-me-community-label {

@@ -590,7 +590,6 @@ export function FeedCardList({ cards, now, handlers, storyAuthors }: { cards: Fe
                 if (card.event) handlers.onOpenEvent(card.event.id);
               }}
               onOpenAuthor={() => handlers.onOpenAuthor(card.author.id)}
-              onDelete={handlers.onDelete ? () => handlers.onDelete?.(card) : undefined}
               onOpenMark={handlers.onOpenMark ? () => handlers.onOpenMark?.(card) : undefined}
               userId={handlers.userId}
               hasStory={storyAuthors?.has(card.author.id) === true}
@@ -883,10 +882,6 @@ export function FeedScreen() {
     // Экран 19 «слоты» is not built yet (#492), so the venue page is where picking a slot starts.
     onSlots: (card) => navigate({ name: "place", id: card.place.id }),
     onGather: () => navigate({ name: "plan-new" }),
-    onDelete: (card) => {
-      if (userId === null || card.author.id !== userId) return;
-      void settle(apiClient.deleteFeedPost(card.id));
-    },
   };
 
   if (state.status === "loading") return <FeedSkeletonScreen />;

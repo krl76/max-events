@@ -11,10 +11,18 @@
 // END_MODULE_MAP
 
 import { pluralRu } from "./format";
+import { walkingRoute } from "./walkingRoute";
+
+export interface MetroStation {
+  name: string;
+  lat: number;
+  lng: number;
+}
 
 export interface MetroItinerary {
   transfers: number;
   steps: string[];
+  stations: MetroStation[];
 }
 
 /** Дальше этого метро «рядом» уже не честно: человек дойдёт пешком быстрее, чем дойдёт до станции. */
@@ -308,9 +316,10 @@ export function planMetroRide(from: { lat: number; lng: number }, to: { lat: num
   const destination = GRAPH.stops[finish.index];
   if (origin === undefined || destination === undefined) return null;
   const steps = [`Пешком до «${origin.name}» · ${walkMinutes(start.meters)} мин`];
+  const asStation = (stop: Stop): MetroStation => ({ name: stop.name, lat: stop.lat, lng: stop.lng });
   if (start.index === finish.index) {
     steps.push(`От «${destination.name}» пешком · ${walkMinutes(finish.meters)} мин`);
-    return { transfers: 0, steps };
+    return { transfers: 0, steps, stations: [asStation(origin)] };
   }
   const found = route(start.index, finish.index);
   if (found === null) return null;
@@ -341,5 +350,26 @@ export function planMetroRide(from: { lat: number; lng: number }, to: { lat: num
     if (end !== undefined && hops > 0) steps.push(rideLabel(here, end, hops));
   }
   steps.push(`От «${destination.name}» пешком · ${walkMinutes(finish.meters)} мин`);
-  return { transfers, steps };
+  const stations: MetroStation[] = [];
+  for (const index of found.path) {
+    const stop = GRAPH.stops[index];
+    if (stop !== undefined) stations.push(asStation(stop));
+  }
+  return { transfers, steps, stations };
+}
+
+/** Foot to the first station, the station line, foot from the last station. Null when metro is not nearby. */
+export async function metroGeometry(from: [number, number], to: [number, number], fetchImpl: typeof fetch = fetch): Promise<[number, number][] | null> {
+  const ride = planMetroRide({ lat: from[0], lng: from[1] }, { lat: to[0], lng: to[1] });
+  if (ride === null || ride.stations.length === 0) return null;
+  const first = ride.stations[0];
+  const last = ride.stations[ride.stations.length - 1];
+  if (first === undefined || last === undefined) return null;
+  const head = await walkingRoute(from, [first.lat, first.lng], fetchImpl);
+  const tail = await walkingRoute([last.lat, last.lng], to, fetchImpl);
+  const rideLine: [number, number][] = ride.stations.map((station) => [station.lat, station.lng]);
+  const joined: [number, number][] = [...head];
+  for (const point of rideLine.slice(1)) joined.push(point);
+  joined.push(...tail.slice(1));
+  return joined.length >= 2 ? joined : null;
 }

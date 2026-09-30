@@ -1,17 +1,22 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Walking geometry from the viewer to a map pin, via public OSRM. Falls back to a straight line when the router is unreachable.
-// SCOPE: One origin-destination pair; lat/lng tuples in Leaflet order.
+// PURPOSE: OSM path geometry from the viewer to a map pin via public OSRM. Foot uses pedestrian ways; driving uses the car graph. Falls back to a straight line when the router is unreachable.
+// SCOPE: One origin-destination pair; lat/lng tuples in Leaflet order. Transit drawing lives in ./metroRoute.ts.
 // DEPENDS: fetch
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - walkingRoute - OSRM foot geometry, or the two endpoints when the router fails
+// - OsrmProfile - foot (walks, «Дойти куда-то») or driving (roads to an event)
+// - osrmRoute - OSRM geometry for a profile, or the two endpoints when the router fails
+// - walkingRoute - OSRM foot geometry
+// - drivingRoute - OSRM car-road geometry
 // END_MODULE_MAP
 
-export async function walkingRoute(from: [number, number], to: [number, number], fetchImpl: typeof fetch = fetch): Promise<[number, number][]> {
+export type OsrmProfile = "foot" | "driving";
+
+export async function osrmRoute(from: [number, number], to: [number, number], profile: OsrmProfile = "foot", fetchImpl: typeof fetch = fetch): Promise<[number, number][]> {
   const straight: [number, number][] = [from, to];
-  const url = `https://router.project-osrm.org/route/v1/foot/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
+  const url = `https://router.project-osrm.org/route/v1/${profile}/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
   try {
     const response = await fetchImpl(url);
     if (!response.ok) return straight;
@@ -32,6 +37,14 @@ export async function walkingRoute(from: [number, number], to: [number, number],
   }
 }
 
+export async function walkingRoute(from: [number, number], to: [number, number], fetchImpl: typeof fetch = fetch): Promise<[number, number][]> {
+  return osrmRoute(from, to, "foot", fetchImpl);
+}
+
+export async function drivingRoute(from: [number, number], to: [number, number], fetchImpl: typeof fetch = fetch): Promise<[number, number][]> {
+  return osrmRoute(from, to, "driving", fetchImpl);
+}
+
 /** Foot geometry through every stop, in order. A failed leg stays a straight segment so the line still joins the steps. */
 export async function stitchWalkingRoute(stops: readonly [number, number][], fetchImpl: typeof fetch = fetch): Promise<[number, number][]> {
   const straight = stops.map((point) => [point[0], point[1]] as [number, number]);
@@ -41,7 +54,7 @@ export async function stitchWalkingRoute(stops: readonly [number, number][], fet
     const from = stops[index - 1];
     const to = stops[index];
     if (from === undefined || to === undefined) continue;
-    const segment = await walkingRoute(from, to, fetchImpl);
+    const segment = await osrmRoute(from, to, "foot", fetchImpl);
     if (joined.length === 0) joined.push(...segment);
     else joined.push(...segment.slice(1));
   }

@@ -37,5 +37,6 @@ export function toEventDto(event: EventEntity, options?: { promoted?: boolean })
     popularity: event.popularity ?? 0,
     remainingSeats: event.capacity === null ? null : Math.max(0, event.capacity - event.bookedCount),
     hitOfTheWeek: options?.promoted === true,
+    pushkinCard: event.category === "afisha" && event.isPaid,
   };
 }

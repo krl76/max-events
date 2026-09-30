@@ -98,6 +98,12 @@ export function walkingOption(options: TravelOption[]): TravelOption | null {
   return options.find((option) => option.mode === "walk") ?? null;
 }
 
+/** Fastest way to the venue: metro or car when they beat walking. */
+export function fastestTravelOption(options: TravelOption[]): TravelOption | null {
+  if (options.length === 0) return null;
+  return [...options].sort((left, right) => left.minutes - right.minutes)[0] ?? null;
+}
+
 export const PARTICIPATION_STATUS_LABELS: Record<ParticipationStatus, string> = {
   wants_to_go: "Хочу пойти",
   probably_going: "Скорее всего пойду",
@@ -198,7 +204,7 @@ export function EventPage({ id }: { id: string }) {
     let alive = true;
     apiClient.getTravelOptions(placeId, { latitude: travelPoint.latitude, longitude: travelPoint.longitude }).then(
       (options) => {
-        if (alive) setTravel(walkingOption(options));
+        if (alive) setTravel(fastestTravelOption(options));
       },
       () => {},
     );

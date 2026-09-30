@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stitchWalkingRoute, walkingRoute } from "./walkingRoute";
+import { drivingRoute, stitchWalkingRoute, walkingRoute } from "./walkingRoute";
 
 const from: [number, number] = [55.75, 37.61];
 const to: [number, number] = [55.76, 37.62];
@@ -33,6 +33,28 @@ describe("walkingRoute", () => {
   it("falls back to the two endpoints when the router fails", async () => {
     const fetchImpl: typeof fetch = async () => new Response(null, { status: 502 });
     await expect(walkingRoute(from, to, fetchImpl)).resolves.toEqual([from, to]);
+  });
+
+  it("asks the driving graph for a car path", async () => {
+    const fetchImpl: typeof fetch = async (url) => {
+      expect(String(url)).toContain("/route/v1/driving/");
+      return new Response(
+        JSON.stringify({
+          routes: [
+            {
+              geometry: {
+                coordinates: [
+                  [37.61, 55.75],
+                  [37.62, 55.76],
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    };
+    await expect(drivingRoute(from, to, fetchImpl)).resolves.toEqual([from, to]);
   });
 
   it("joins each leg and keeps a straight segment when one leg fails", async () => {

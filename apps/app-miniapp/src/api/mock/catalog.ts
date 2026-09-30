@@ -111,6 +111,9 @@ export const MOCK_METRO_KMH = 18;
 /** Minutes a metro trip spends outside the train: entrance, platform, exit. */
 export const MOCK_METRO_OVERHEAD_MIN = 4;
 
+/** Urban driving speed for the car tile on the map. */
+export const MOCK_CAR_KMH = 28;
+
 /**
  * Mock GET /weather (#495). The events domain stores a forecast snapshot taken at the event start and
  * nothing else, so «сейчас +19°, дождь с 19:00» is a fixture pinned to the demo day rather than a
@@ -153,9 +156,9 @@ export function mapHourlyForecast(from?: Date): EventForecast {
 }
 
 /**
- * Mock GET /travel (#504): both estimates come from the straight-line distance, because that is all
- * the routing domain knows. The metro option carries an interchange past the first kilometre — the
- * mock says «1 пересадка» the way the design does, without pretending to know the network.
+ * Mock GET /travel (#504): estimates come from the straight-line distance. The map then traces the
+ * matching OSM graph (foot, driving) or the metro sketch. The metro option carries an interchange
+ * past the first kilometre — the mock says «1 пересадка» the way the design does.
  */
 export function travelOptionsFor(placeId: string, origin: { latitude: number; longitude: number }): TravelOption[] | null {
   const place = mockPlaces.find((item) => item.id === placeId && item.published !== false);
@@ -164,6 +167,7 @@ export function travelOptionsFor(placeId: string, origin: { latitude: number; lo
   return [
     { mode: "walk", minutes: Math.max(1, Math.round((distanceKm / MOCK_WALK_KMH) * 60)), distanceKm, transfers: null },
     { mode: "metro", minutes: Math.max(1, Math.round((distanceKm / MOCK_METRO_KMH) * 60) + MOCK_METRO_OVERHEAD_MIN), distanceKm, transfers: distanceKm > 1 ? 1 : 0 },
+    { mode: "car", minutes: Math.max(1, Math.round((distanceKm / MOCK_CAR_KMH) * 60)), distanceKm, transfers: null },
   ];
 }
 

@@ -35,6 +35,7 @@ import type { ReactNode } from "react";
 import { useSheetSwipe } from "../ui/sheet";
 import type { OrganizerRating } from "@max-events/api-contracts";
 import type { EventCompanions, EventDetails, EventForecast, EventMoodTag, EventNearbySpot, EventWeatherHour, TravelOption } from "../api/client";
+import { eventAcceptsPushkinCard } from "../catalog/benefits";
 import { CATEGORY_LABELS, pluralRu } from "../catalog/format";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { pictured } from "../ui/photos";
@@ -86,7 +87,7 @@ export function formatDistance(distanceM: number): string {
   return `${(distanceM / 1000).toFixed(1).replace(".", ",")} км`;
 }
 
-const TRAVEL_MODE_LABELS: Record<TravelOption["mode"], string> = { walk: "пешком", metro: "на метро" };
+const TRAVEL_MODE_LABELS: Record<TravelOption["mode"], string> = { walk: "пешком", metro: "на метро", car: "на машине" };
 const WALK_MINUTE_CAP = 90;
 const FAR_KM = 80;
 
@@ -177,6 +178,7 @@ export function EventHero({ details, saveOpen, onShare, onSave }: EventHeroProps
           {CATEGORY_LABELS[event.category]}
           {place !== null && ` · ${place.title}`}
           {event.promoted && " · Промо"}
+          {eventAcceptsPushkinCard(event) && " · Пушкинская карта"}
         </p>
         {seats !== null && <p className="app-ev-hero-seats">{formatSeatLine(seats.taken, seats.capacity)}</p>}
       </div>

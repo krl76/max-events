@@ -70,7 +70,7 @@ describe("RoutesService", () => {
     };
     const service = new RoutesService({ findOneBy: async () => null } as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
     const options = await service.travelToPlace(parkId, { latitude: 55.75, longitude: 37.62 });
-    expect(options.map((row) => row.mode)).toEqual(["walk", "metro"]);
+    expect(options.map((row) => row.mode)).toEqual(["walk", "metro", "car"]);
     expect(options[0]?.transfers).toBeNull();
     expect(options[1]?.minutes).toBeLessThan(options[0]!.minutes);
     expect(options[0]?.distanceKm).toBe(options[1]?.distanceKm);

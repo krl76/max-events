@@ -26,6 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { useSheetSwipe } from "../ui/sheet";
 import type { EventCategory } from "@max-events/api-contracts";
 import { apiClient, type CatalogCard, type EventFilters } from "../api/client";
+import { eventAcceptsPushkinCard } from "../catalog/benefits";
 import { CATEGORY_LABELS } from "../catalog/format";
 import { EventPoster } from "./EventPoster";
 import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
@@ -174,8 +175,9 @@ export function SearchQueryForm({ query, onQuery, onSubmit, onPickRecent, recent
 }
 
 /** Categories live in this sheet, not as a permanent row on the search screen. */
-export function SearchFilterSheet({ category, onCategory, onClose }: { category: EventCategory | undefined; onCategory: (category: EventCategory | undefined) => void; onClose: () => void }) {
+export function SearchFilterSheet({ category, onCategory, pushkinOnly = false, onPushkin, onClose }: { category: EventCategory | undefined; onCategory: (category: EventCategory | undefined) => void; pushkinOnly?: boolean; onPushkin?: (value: boolean) => void; onClose: () => void }) {
   const swipe = useSheetSwipe(onClose);
+  const active = category !== undefined || pushkinOnly;
   return (
     <div className="app-picker" role="dialog" aria-modal="true" aria-label="Фильтры">
       <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={onClose} />
@@ -191,8 +193,22 @@ export function SearchFilterSheet({ category, onCategory, onClose }: { category:
             </AppChip>
           ))}
         </div>
-        {category !== undefined && (
-          <button type="button" className="app-filters-reset" onClick={() => onCategory(undefined)}>
+        {onPushkin !== undefined && (
+          <div className="app-filters-chips" role="group" aria-label="Льготы">
+            <AppChip pressed={pushkinOnly} onClick={() => onPushkin(!pushkinOnly)}>
+              Пушкинская карта
+            </AppChip>
+          </div>
+        )}
+        {active && (
+          <button
+            type="button"
+            className="app-filters-reset"
+            onClick={() => {
+              onCategory(undefined);
+              onPushkin?.(false);
+            }}
+          >
             Сбросить
           </button>
         )}
@@ -201,14 +217,14 @@ export function SearchFilterSheet({ category, onCategory, onClose }: { category:
   );
 }
 
-export function SearchFilters({ category, onCategory }: { category: EventCategory | undefined; onCategory: (category: EventCategory | undefined) => void }) {
+export function SearchFilters({ category, onCategory, pushkinOnly = false, onPushkin }: { category: EventCategory | undefined; onCategory: (category: EventCategory | undefined) => void; pushkinOnly?: boolean; onPushkin?: (value: boolean) => void }) {
   const [open, setOpen] = useState(false);
-  const chosen = category !== undefined;
+  const chosen = category !== undefined || pushkinOnly;
   return (
     <>
       <button type="button" className={chosen ? "app-search-filter app-search-filter--on" : "app-search-filter"} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
         <ActionIcon name="filter" size={16} />
-        {chosen ? CATEGORY_LABELS[category] : "Фильтры"}
+        {pushkinOnly && category === undefined ? "Пушкинская" : chosen && category !== undefined ? CATEGORY_LABELS[category] : "Фильтры"}
       </button>
       {open && (
         <SearchFilterSheet
@@ -217,6 +233,15 @@ export function SearchFilters({ category, onCategory }: { category: EventCategor
             onCategory(next);
             setOpen(false);
           }}
+          pushkinOnly={pushkinOnly}
+          onPushkin={
+            onPushkin === undefined
+              ? undefined
+              : (next) => {
+                  onPushkin(next);
+                  setOpen(false);
+                }
+          }
           onClose={() => setOpen(false)}
         />
       )}
@@ -356,6 +381,7 @@ function RailCard({ card, inCity, onOpen }: { card: CatalogCard; inCity: boolean
       <img className="app-rail-photo" alt="" src={pictured(card.event.id, card.event.coverUrl)} />
       <button type="button" className="app-pick-open" aria-label={card.event.title} onClick={onOpen}>
         <span className="app-rail-kind">{CATEGORY_LABELS[card.event.category]}</span>
+        {eventAcceptsPushkinCard(card.event) && <span className="app-pushkin-badge app-pushkin-badge--rail">Пушкинская</span>}
         <span className="app-rail-veil">
           <span className="app-rail-title">{card.event.title}</span>
           <span className="app-rail-meta">{[railMeta(card, inCity ? "you" : "center"), fill].filter((part) => part !== null && part !== "").join(" · ")}</span>
@@ -555,6 +581,7 @@ export function SearchPage() {
   const [query, setQuery] = useState("");
   const [recents, setRecents] = useState<string[]>(readRecentSearches);
   const [category, setCategory] = useState<EventCategory | undefined>(undefined);
+  const [pushkinOnly, setPushkinOnly] = useState(false);
   const [city, setCity] = useState("Москва");
   const [interests, setInterests] = useState<string[]>([]);
   const [day, setDay] = useState(() => dayKey(new Date()));
@@ -676,11 +703,11 @@ export function SearchPage() {
   return (
     <>
       <HeaderSlot>
-        <SearchTopBar city={city} cities={cities.length === 0 ? [city] : cities} onCity={setCity} trailing={<SearchFilters category={category} onCategory={setCategory} />} />
+        <SearchTopBar city={city} cities={cities.length === 0 ? [city] : cities} onCity={setCity} trailing={<SearchFilters category={category} onCategory={setCategory} pushkinOnly={pushkinOnly} onPushkin={setPushkinOnly} />} />
       </HeaderSlot>
       <SearchView
-        state={state}
-        popular={popular}
+        state={pushkinOnly && state.status === "ready" ? { status: "ready", cards: state.cards.filter((card) => eventAcceptsPushkinCard(card.event)) } : state}
+        popular={pushkinOnly ? popular.filter((card) => eventAcceptsPushkinCard(card.event)) : popular}
         today={shownToday}
         query={query}
         onQuery={setQuery}
