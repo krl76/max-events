@@ -26,8 +26,10 @@
 import { z } from "zod";
 import { IdSchema, TimestampSchema } from "./primitives.js";
 
+const LOCAL_PHOTO_PATTERN = /^\/(?:covers|onboarding|api\/(?:media|uploads))\//;
+
 export const ReviewPhotoSchema = z.object({
-  url: z.string().url(),
+  url: z.union([z.string().url(), z.string().max(400).regex(LOCAL_PHOTO_PATTERN, "photo must be a same-origin upload")]),
 });
 export type ReviewPhoto = z.infer<typeof ReviewPhotoSchema>;
 

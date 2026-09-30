@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { DayRoute, OptimizeRoute, RouteStopWrite } from "@max-events/api-contracts";
-import { DayRoutePage, DayRouteView, formatLeg, MAX_ROUTE_STOPS, routeBuildLabel, routeTotalsLabel, savingsLabel, type DayRouteBuildState, type OptimizeState, type RouteStopOption } from "./DayRoutePage";
+import { DayRoutePage, DayRouteView, formatLeg, MAX_ROUTE_STOPS, routeBuildLabel, routeTotalsLabel, savingsLabel, upcomingEventsForRoute, type DayRouteBuildState, type OptimizeState, type RouteStopOption } from "./DayRoutePage";
 import { buildMockDayRoute, mockEvents, mockPlaces, optimizeMockDayRoute } from "../api/mock";
 
 const MOSCOW: [number, number] = [55.7522, 37.6156];
@@ -125,5 +125,17 @@ describe("DayRoutePage", () => {
     const html = renderToStaticMarkup(createElement(DayRoutePage));
 
     expect(html).toContain("Загружаем точки");
+  });
+});
+
+describe("upcomingEventsForRoute", () => {
+  it("drops past events and sorts the rest by date", () => {
+    const now = new Date("2026-09-30T12:00:00+03:00");
+    const past = { id: "past", title: "Прошлое", startsAt: "2026-08-09T00:00:00+03:00", placeId: "p1" };
+    const soon = { id: "soon", title: "Скоро", startsAt: "2026-10-01T00:00:00+03:00", placeId: "p1" };
+    const later = { id: "later", title: "Позже", startsAt: "2026-12-24T00:00:00+03:00", placeId: "p1" };
+    const nowhere = { id: "none", title: "Без места", startsAt: "2026-10-02T00:00:00+03:00", placeId: null };
+
+    expect(upcomingEventsForRoute([later, past, nowhere, soon], now).map((event) => event.id)).toEqual(["soon", "later"]);
   });
 });

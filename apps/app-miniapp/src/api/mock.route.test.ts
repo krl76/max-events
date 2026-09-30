@@ -149,6 +149,10 @@ describe("autoplan/route mock endpoints", () => {
     expect(route.points[0].title).toBe("Старт");
     expect(route.legs).toHaveLength(route.points.length - 1);
 
+    const far = await api.createDayRoute(stops, 58.52, 31.27);
+    expect(far.points[0].title).not.toBe("Старт");
+    expect(far.points.some((point) => point.title === "Старт")).toBe(false);
+
     const result = await api.optimizeDayRoute(stops, ...MOSCOW);
     expect(result.optimized.totalKm).toBeLessThanOrEqual(result.original.totalKm);
     expect(result.savedMinutes).toBe(result.original.totalMinutes - result.optimized.totalMinutes);

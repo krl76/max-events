@@ -12,7 +12,7 @@
 /** The option line of both vote screens: the weekday and time of the event, then what it costs. */
 export function voteOptionMeta(event: { startsAt: string; isPaid: boolean; priceRub: number | null }): string {
   const date = new Date(event.startsAt);
-  const weekday = date.toLocaleDateString("ru-RU", { weekday: "short" });
+  const weekday = date.toLocaleDateString("ru-RU", { weekday: "short" }) || "";
   const when = `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`;
   return `${when} · ${event.isPaid && event.priceRub !== null ? `${event.priceRub.toLocaleString("ru-RU")} ₽` : "бесплатно"}`;
 }

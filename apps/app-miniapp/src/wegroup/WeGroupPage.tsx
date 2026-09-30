@@ -29,7 +29,9 @@ import { ApiError, apiClient, type WeGroupCard } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { openExternalLink } from "../max/bridge";
 import { useRoute } from "../routing/router";
+import { EventPicker } from "../ui/EventPicker";
 import { ActionIcon } from "../ui/icons";
+import { PlacePicker } from "../ui/PlacePicker";
 import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
 import { WeGroupFaces, formatRub, weGroupMembersLabel } from "./WeGroupsPage";
@@ -133,6 +135,7 @@ interface WeGroupPickerProps {
   onPick: (id: string) => void;
 }
 
+/** @deprecated inline dump; the group screen uses EventPicker / PlacePicker sheets. Kept for older tests. */
 export function WeGroupPicker({ title, options, loading, failed, onPick }: WeGroupPickerProps) {
   return (
     <div className="app-we-picker" role="group" aria-label={title}>
@@ -156,12 +159,14 @@ interface WeGroupViewProps {
   now?: Date;
   menuOpen: boolean;
   picker: PickerKind;
-  pickerOptions: { id: string; label: string }[];
+  pickerEvents: Event[];
+  pickerPlaces: Place[];
   pickerLoading: boolean;
   actionFailed: boolean;
   onBack: () => void;
   onToggleMenu: () => void;
   onTogglePicker: (kind: Exclude<PickerKind, null>) => void;
+  onClosePicker: () => void;
   onPick: (id: string) => void;
   onArchive: () => void;
   onChat: (link: string) => void;
@@ -172,7 +177,7 @@ interface WeGroupViewProps {
   onAddPhoto?: () => void;
 }
 
-export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, pickerOptions, pickerLoading, actionFailed, onToggleMenu, onTogglePicker, onPick, onArchive, onChat, onVote, onOpenEvent, onOpenPlace, onOpenMap, onAddPhoto }: WeGroupViewProps) {
+export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, pickerEvents, pickerPlaces, pickerLoading, actionFailed, onToggleMenu, onTogglePicker, onClosePicker, onPick, onArchive, onChat, onVote, onOpenEvent, onOpenPlace, onOpenMap, onAddPhoto }: WeGroupViewProps) {
   if (state.status !== "ready") {
     return (
       <section className="app-we-group" aria-label="Группа «Мы»">
@@ -271,7 +276,7 @@ export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, 
           </>
         }
       >
-        {picker === "event" && <WeGroupPicker title="События" options={pickerOptions} loading={pickerLoading} failed={actionFailed} onPick={onPick} />}
+        {picker === "event" && pickerLoading && <AppState>Загружаем каталог…</AppState>}
         {card.events.length === 0 && picker !== "event" && <p className="app-we-empty">Ещё ничего не запланировано.</p>}
         {card.events.map((event) => (
           <button key={event.id} type="button" className="app-we-row" onClick={() => onOpenEvent(event.id)}>
@@ -296,7 +301,7 @@ export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, 
           ) : undefined
         }
       >
-        {picker === "place" && <WeGroupPicker title="Места" options={pickerOptions} loading={pickerLoading} failed={actionFailed} onPick={onPick} />}
+        {picker === "place" && pickerLoading && <AppState>Загружаем каталог…</AppState>}
         {card.places.length === 0 && picker !== "place" && <p className="app-we-empty">Сохранённых мест пока нет.</p>}
         {card.places.length > 0 && (
           <div className="app-we-pills">
@@ -372,6 +377,12 @@ export function WeGroupView({ state, ownId, now = new Date(), menuOpen, picker, 
         </button>
       )}
       {actionFailed && picker === null && <AppState error>Действие не удалось.</AppState>}
+      {picker === "event" && !pickerLoading && (
+        <EventPicker title="События группы" events={pickerEvents} selectedId={null} onPick={(event) => onPick(event.id)} onClose={onClosePicker} />
+      )}
+      {picker === "place" && !pickerLoading && (
+        <PlacePicker title="Места компании" places={pickerPlaces} selectedId={null} onPick={(place) => onPick(place.id)} onClose={onClosePicker} />
+      )}
     </section>
   );
 }
@@ -435,14 +446,16 @@ export function WeGroupPage({ id }: { id: string }) {
     );
   };
 
-  const pickerOptions = (): { id: string; label: string }[] => {
-    if (catalog === null || picker === null || state.status !== "ready") return [];
-    if (picker === "event") {
-      const bound = new Set(state.card.events.map((item) => item.id));
-      return catalog.events.filter((item) => !bound.has(item.id)).map((item) => ({ id: item.id, label: item.title }));
-    }
+  const pickerEvents = (): Event[] => {
+    if (catalog === null || state.status !== "ready") return [];
+    const bound = new Set(state.card.events.map((item) => item.id));
+    return catalog.events.filter((item) => !bound.has(item.id));
+  };
+
+  const pickerPlaces = (): Place[] => {
+    if (catalog === null || state.status !== "ready") return [];
     const bound = new Set(state.card.places.map((item) => item.id));
-    return catalog.places.filter((item) => !bound.has(item.id)).map((item) => ({ id: item.id, label: item.title }));
+    return catalog.places.filter((item) => !bound.has(item.id));
   };
 
   const pick = (itemId: string) => {
@@ -467,5 +480,28 @@ export function WeGroupPage({ id }: { id: string }) {
     input.click();
   };
 
-  return <WeGroupView state={state} ownId={ownId} menuOpen={menuOpen} picker={picker} pickerOptions={pickerOptions()} pickerLoading={pickerLoading} actionFailed={actionFailed} onBack={back} onToggleMenu={() => setMenuOpen((value) => !value)} onTogglePicker={togglePicker} onPick={pick} onArchive={() => apiClient.archiveWeGroup(id).then(apply, fail)} onChat={openExternalLink} onVote={() => navigate({ name: "vote-new", groupId: id })} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })} onOpenMap={() => navigate({ name: "map" })} onAddPhoto={addPhoto} />;
+  return (
+    <WeGroupView
+      state={state}
+      ownId={ownId}
+      menuOpen={menuOpen}
+      picker={picker}
+      pickerEvents={pickerEvents()}
+      pickerPlaces={pickerPlaces()}
+      pickerLoading={pickerLoading}
+      actionFailed={actionFailed}
+      onBack={back}
+      onToggleMenu={() => setMenuOpen((value) => !value)}
+      onTogglePicker={togglePicker}
+      onClosePicker={() => setPicker(null)}
+      onPick={pick}
+      onArchive={() => apiClient.archiveWeGroup(id).then(apply, fail)}
+      onChat={openExternalLink}
+      onVote={() => navigate({ name: "vote-new", groupId: id })}
+      onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })}
+      onOpenPlace={(placeId) => navigate({ name: "place", id: placeId })}
+      onOpenMap={() => navigate({ name: "map" })}
+      onAddPhoto={addPhoto}
+    />
+  );
 }

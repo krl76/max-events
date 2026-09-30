@@ -37,7 +37,12 @@ import { ParticipationStatusSchema } from "./participation.js";
 export const FriendSchema = z.object({
   id: IdSchema,
   name: z.string().min(1).max(200),
-  avatarUrl: z.string().url().nullable().default(null),
+  avatarUrl: z
+    .string()
+    .max(2000)
+    .refine((value) => (value.startsWith("/") && !value.startsWith("//")) || z.string().url().safeParse(value).success, "avatar must be an absolute URL or a site path")
+    .nullable()
+    .default(null),
   /** MAX username without the @. Omitted when the person has none, so older payloads stay valid. */
   username: z.string().min(1).max(64).optional(),
 });

@@ -53,7 +53,7 @@ function dayKey(date: Date): string {
  */
 export function friendNowLine(group: FriendActivityByFriend, now: Date = new Date()): string | null {
   const next = group.events[0];
-  if (next === undefined) return null;
+  if (next?.event?.startsAt === undefined) return null;
   const starts = new Date(next.event.startsAt);
   const today = dayKey(starts) === dayKey(now);
   const tomorrow = dayKey(starts) === dayKey(new Date(now.getTime() + DAY_MS));
@@ -74,10 +74,10 @@ export function activeFriends(groups: FriendActivityByFriend[], now: Date = new 
   const horizon = now.getTime() + 2 * DAY_MS;
   return groups
     .filter((group) => {
-      const next = group.events[0];
-      return next !== undefined && Date.parse(next.event.startsAt) <= horizon;
+      const startsAt = group.events[0]?.event?.startsAt;
+      return startsAt !== undefined && Date.parse(startsAt) <= horizon;
     })
-    .sort((a, b) => a.events[0].event.startsAt.localeCompare(b.events[0].event.startsAt))
+    .sort((a, b) => (a.events[0]?.event?.startsAt ?? "").localeCompare(b.events[0]?.event?.startsAt ?? ""))
     .slice(0, FRIENDS_NOW_LIMIT);
 }
 

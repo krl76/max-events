@@ -169,13 +169,13 @@ export function PlanCreateView({ draft, events, places, friends, submitting = fa
         </span>
       </div>
       <div className="app-field">
-        <span className="app-field-copy">
+        <button type="button" className="app-field-copy" onClick={() => setPlaceMode("map")}>
           <span className="app-field-k">
             <ActionIcon name="pin" size={16} strokeWidth={2.2} />
             Где встречаемся
           </span>
           <span className={placeEmpty ? "app-field-v app-field-v--empty" : "app-field-v"}>{placeEmpty ? "Выбрать" : placePinTitle(draft.meetingPoint)}</span>
-        </span>
+        </button>
         <PlaceModeButtons onPick={setPlaceMode} />
       </div>
       <button type="button" className="app-field" onClick={() => setPickingFriends(true)}>

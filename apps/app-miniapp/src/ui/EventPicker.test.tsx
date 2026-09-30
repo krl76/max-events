@@ -31,4 +31,12 @@ describe("EventPicker", () => {
 
     expect(html).toContain("В афише пока нет событий.");
   });
+
+  it("keeps a multiple pick inside the sheet with the 2..10 hint", () => {
+    const html = renderToStaticMarkup(createElement(EventPicker, { title: "События голосования", events: [concert, run], selectedIds: ["e1"], multiple: true, hint: "Можно выбрать от 2 до 10 событий", confirmLabel: "Выбрать", onConfirm: () => {}, onClose: () => {} }));
+
+    expect(html).toContain("Можно выбрать от 2 до 10 событий");
+    expect(html).toContain("Выбрать");
+    expect(html).toContain("Отмена");
+  });
 });

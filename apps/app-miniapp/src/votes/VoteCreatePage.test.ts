@@ -9,25 +9,29 @@ const noop = () => {};
 const EVENTS = mockEvents.slice(0, 4);
 const FRIENDS = mockFriends.slice(0, 7);
 
-function render(over: { title?: string; selectedEvents?: string[]; selectedFriends?: string[]; rosterOpen?: boolean; catalogOpen?: boolean; catalogLoading?: boolean; submitting?: boolean; failed?: boolean; cancelLabel?: string | null } = {}): string {
+function render(over: { title?: string; selectedEvents?: string[]; selectedFriends?: string[]; pickingEvents?: boolean; pickingFriends?: boolean; catalogLoading?: boolean; submitting?: boolean; failed?: boolean; cancelLabel?: string | null } = {}): string {
   return renderToStaticMarkup(
     createElement(VoteCreateView, {
       events: EVENTS,
       friends: FRIENDS,
+      catalog: EVENTS,
       title: over.title ?? "Куда идем в пятницу?",
       selectedEvents: over.selectedEvents ?? EVENTS.slice(0, 3).map((event) => event.id),
       selectedFriends: over.selectedFriends ?? [],
-      rosterOpen: over.rosterOpen ?? false,
-      catalogOpen: over.catalogOpen ?? false,
+      pickingEvents: over.pickingEvents ?? false,
+      pickingFriends: over.pickingFriends ?? false,
       catalogLoading: over.catalogLoading ?? false,
       submitting: over.submitting ?? false,
       failed: over.failed ?? false,
       cancelLabel: over.cancelLabel === undefined ? "Назад к подборке" : over.cancelLabel,
       onTitle: noop,
-      onToggleEvent: noop,
-      onToggleFriend: noop,
+      onRemoveEvent: noop,
       onOpenCatalog: noop,
-      onOpenRoster: noop,
+      onCloseCatalog: noop,
+      onConfirmEvents: noop,
+      onOpenFriends: noop,
+      onCloseFriends: noop,
+      onConfirmFriends: noop,
       onSubmit: noop,
       onCancel: noop,
     }),
@@ -89,24 +93,27 @@ describe("voteOptionMeta", () => {
 });
 
 describe("VoteCreateView", () => {
-  it("renders the question, the option rows with their meta and the roster", () => {
+  it("renders the question, the picked options and the 2..10 hint", () => {
     const html = render();
 
     expect(html).toContain("Куда идем в пятницу?");
     expect(html).toContain(voteOptionsCounter(3));
-    for (const event of EVENTS) {
+    expect(html).toContain("Можно выбрать от 2 до 10");
+    for (const event of EVENTS.slice(0, 3)) {
       expect(html).toContain(event.title);
       expect(html).toContain(voteOptionMeta(event));
     }
-    expect(html).toContain("Добавить событие");
+    expect(html).not.toContain(EVENTS[3].title);
+    expect(html).toContain("Изменить события");
     expect(html).toContain("Кто голосует");
   });
 
-  it("marks the picked options and only the picked ones", () => {
+  it("shows only the picked options on the form", () => {
     const html = render({ selectedEvents: [EVENTS[0].id] });
 
     expect(html.match(/app-poll-option--on/g)).toHaveLength(1);
-    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain(EVENTS[0].title);
+    expect(html).not.toContain(EVENTS[1].title);
   });
 
   it("keeps the launch inactive with the reason next to it, and enables it once the conditions are met", () => {
@@ -120,13 +127,14 @@ describe("VoteCreateView", () => {
     expect(ready).toContain("Запустить голосование");
   });
 
-  it("previews part of the friend list and opens the rest behind «Ещё»", () => {
+  it("opens friends in a sheet instead of dumping the roster on the page", () => {
     const preview = render({ selectedFriends: [] });
-    expect(preview).toContain("Ещё");
+    expect(preview).toContain("Выбрать друзей");
+    expect(preview).not.toContain("Ещё");
 
-    const opened = render({ selectedFriends: [], rosterOpen: true });
-    expect(opened).not.toContain(">Ещё<");
-    for (const friend of FRIENDS) expect(opened).toContain(friend.name.split(" ")[0]);
+    const opened = render({ selectedFriends: [], pickingFriends: true });
+    expect(opened).toContain("app-fpick");
+    expect(opened).toContain("Имя друга");
   });
 
   it("hides the cancel button when the screen has a back arrow of its own", () => {

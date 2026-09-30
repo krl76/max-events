@@ -16,7 +16,7 @@
 // - AddWeGroupEventWrite - event write type
 // - AddWeGroupPlaceWriteSchema - bind place
 // - AddWeGroupPlaceWrite - place write type
-// - AddWeGroupPhotoWriteSchema - add a group photo by data URL or https url
+// - AddWeGroupPhotoWriteSchema - add a group photo by data URL, https url or same-origin /api/uploads path
 // - AddWeGroupPhotoWrite - photo write type
 // - WeGroupScreenSchema - group plus members, events, places, bookings, route, budget, photos
 // - WeGroupScreen - screen type
@@ -67,12 +67,16 @@ export const AddWeGroupPlaceWriteSchema = z.object({
 });
 export type AddWeGroupPlaceWrite = z.infer<typeof AddWeGroupPlaceWriteSchema>;
 
+const LOCAL_PHOTO_PATTERN = /^\/(?:covers|onboarding|api\/(?:media|uploads))\//;
+
 export const AddWeGroupPhotoWriteSchema = z.object({
-  url: z
-    .string()
-    .url()
-    .max(16_000)
-    .regex(/^(data:image\/|https:\/\/)/, "photo must be an image data URL or an https URL"),
+  url: z.union([
+    z
+      .string()
+      .max(16_000)
+      .regex(/^(data:image\/|https:\/\/)/, "photo must be an image data URL or an https URL"),
+    z.string().max(400).regex(LOCAL_PHOTO_PATTERN, "photo must be a same-origin upload"),
+  ]),
 });
 export type AddWeGroupPhotoWrite = z.infer<typeof AddWeGroupPhotoWriteSchema>;
 

@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 34 «Место»: the venue as a social object — gradient hero with the daily check-in, the follow row, the three counters, friends who have been here, «Когда людно», the personal visit grid, the bookable windows and «Здесь скоро».
 // SCOPE: Reads apiClient.getPlace/getPlacePage (the social aggregate) and apiClient.getPlaceBoard (everything the design needs that the place domain has no field for), writes apiClient.createCheckIn and the follow. Navigation only outwards: an event card, the slot booking screen, the follows screen. Empty data per block, not a page error.
-// DEPENDS: ../api/client.js (apiClient, PlaceBoard, PlaceSlot), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../organizer/OrganizerPage.js (PLACE_CATEGORY_LABELS), ../subscriptions/SubscribeToggle.js (matchesSubscriptionTarget), ./slots.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, @max-events/api-contracts (Place, PlaceFriendVisit, PlacePage), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, PlaceBoard, PlaceSlot), ../auth/AuthContext.js, ../catalog/format.js (pluralRu, PLACE_CATEGORY_LABELS), ../subscriptions/SubscribeToggle.js (matchesSubscriptionTarget), ./slots.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, @max-events/api-contracts (Place, PlaceFriendVisit, PlacePage), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -25,8 +25,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { CreateSubscription, Place, PlaceFriendVisit, PlacePage as PlacePageAggregate } from "@max-events/api-contracts";
 import { apiClient, trackPageView, whenEndpointMissing, type PlaceBoard, type PlaceSlot, type PlaceUpcomingEvent } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { pluralRu } from "../catalog/format";
-import { PLACE_CATEGORY_LABELS } from "../organizer/OrganizerPage";
+import { PLACE_CATEGORY_LABELS, pluralRu } from "../catalog/format";
 import { matchesSubscriptionTarget } from "../subscriptions/SubscribeToggle";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
@@ -49,13 +48,13 @@ export function friendVisitLabel(visit: PlaceFriendVisit): string {
 
 /** «Парк · открыт до 23:00»; a venue that publishes no hours says only what it is. */
 export function placeKindLabel(place: Pick<Place, "category">, openUntil: string | null): string {
-  const kind = PLACE_CATEGORY_LABELS[place.category];
+  const kind = PLACE_CATEGORY_LABELS[place.category] ?? "Место";
   return openUntil === null ? kind : `${kind} · открыт до ${openUntil}`;
 }
 
 /** The right side of the «Когда людно» heading: what the bar of the current hour says about right now. */
 export function occupancyLabel(board: Pick<PlaceBoard, "occupancy" | "occupancyNowHour">): string | null {
-  const now = board.occupancy.find((hour) => hour.hour === board.occupancyNowHour);
+  const now = (board.occupancy ?? []).find((hour) => hour.hour === board.occupancyNowHour);
   if (now === undefined) return null;
   if (now.load >= 0.75) return "Сейчас людно";
   return now.load >= 0.45 ? "Сейчас оживлённо" : "Сейчас свободно";
@@ -63,7 +62,7 @@ export function occupancyLabel(board: Pick<PlaceBoard, "occupancy" | "occupancyN
 
 /** Five marks under the bars: the first hour, the last, and three evenly between — the axis of the design. */
 export function occupancyAxis(board: Pick<PlaceBoard, "occupancy">): number[] {
-  const hours = board.occupancy.map((bar) => bar.hour);
+  const hours = (board.occupancy ?? []).map((bar) => bar.hour);
   if (hours.length === 0) return [];
   const marks: number[] = [];
   for (let index = 0; index < 5; index += 1) marks.push(hours[Math.round((index * (hours.length - 1)) / 4)]);

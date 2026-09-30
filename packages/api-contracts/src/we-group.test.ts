@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { CreateWeGroupWriteSchema, WeGroupSchema, WeGroupScreenSchema, WeGroupSummarySchema } from "./we-group.js";
+import { AddWeGroupPhotoWriteSchema, CreateWeGroupWriteSchema, WeGroupSchema, WeGroupScreenSchema, WeGroupSummarySchema } from "./we-group.js";
 
 const ownerUserId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f";
 const memberId = "018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d90";
+
+describe("AddWeGroupPhotoWriteSchema", () => {
+  it("accepts a same-origin upload path the mini-app stores after PUT /uploads", () => {
+    expect(AddWeGroupPhotoWriteSchema.parse({ url: "/api/uploads/018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f" }).url).toContain("/api/uploads/");
+    expect(AddWeGroupPhotoWriteSchema.parse({ url: "https://cdn.example.com/p.jpg" }).url).toContain("https://");
+    expect(AddWeGroupPhotoWriteSchema.safeParse({ url: "javascript:alert(1)" }).success).toBe(false);
+  });
+});
 
 describe("CreateWeGroupWriteSchema", () => {
   it("requires a title and defaults memberIds to empty", () => {

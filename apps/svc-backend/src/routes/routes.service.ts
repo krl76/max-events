@@ -29,6 +29,12 @@ const TAXI_M_PER_MIN = 500;
 const METRO_FARE_RUB = 67;
 const TAXI_LANDING_RUB = 150;
 const TAXI_PER_KM_RUB = 40;
+/** Same city reach as «Город 25»: a far GPS/profile point is not a route start. */
+const CITY_REACH_M = 25_000;
+
+export function originNearStops(latitude: number, longitude: number, points: RoutePoint[]): boolean {
+  return points.some((point) => haversineMeters({ latitude, longitude }, point.latitude, point.longitude) <= CITY_REACH_M);
+}
 
 export function walkingMinutes(meters: number): number {
   return travelMinutes(meters, "walk");
@@ -108,7 +114,7 @@ export class RoutesService {
         points.push({ title: place.title, at: null, latitude: place.latitude, longitude: place.longitude, eventId: null, placeId: place.id });
       }
     }
-    if (payload.latitude !== undefined && payload.longitude !== undefined) {
+    if (payload.latitude !== undefined && payload.longitude !== undefined && originNearStops(payload.latitude, payload.longitude, points)) {
       points.unshift({ title: "Старт", at: null, latitude: payload.latitude, longitude: payload.longitude, eventId: null, placeId: null });
     }
     if (points.length < 2) throw new BadRequestException("Need at least two route points");

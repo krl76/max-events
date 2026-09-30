@@ -13,7 +13,7 @@
 
 /** The design puts one letter on the disc, not two: a 28px face in a stack has room for exactly one. */
 export function personLetter(name: string): string {
-  return name.trim().charAt(0).toUpperCase();
+  return (name ?? "").trim().charAt(0).toUpperCase() || "?";
 }
 
 /** Colour by id, not by position: a friend keeps the same face in the feed, on the card and in the route. */

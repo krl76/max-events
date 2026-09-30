@@ -368,7 +368,14 @@ export function createMockAutoPlan(payload: CreateAutoPlanWrite): AutoPlanPropos
 
 type MockRouteError = "no_event" | "no_place" | "event_without_place";
 
-/** Resolve event/place stops to route points from fixtures (backend RoutesService.resolve parity); the optional origin becomes the «Старт» point. */
+/** Same city reach as «Город 25»: a far GPS/profile point is not a route start. */
+const CITY_REACH_KM = 25;
+
+function originNearMockStops(latitude: number, longitude: number, points: RoutePoint[]): boolean {
+  return points.some((point) => haversineKm(latitude, longitude, point.latitude, point.longitude) <= CITY_REACH_KM);
+}
+
+/** Resolve event/place stops to route points from fixtures (backend RoutesService.resolve parity); a nearby origin becomes the «Старт» point. */
 function mockRoutePoints(payload: CreateDayRouteWrite): RoutePoint[] | MockRouteError {
   const points: RoutePoint[] = [];
   for (const stop of payload.stops) {
@@ -385,7 +392,7 @@ function mockRoutePoints(payload: CreateDayRouteWrite): RoutePoint[] | MockRoute
       points.push({ title: place.title, at: null, latitude: place.latitude, longitude: place.longitude, eventId: null, placeId: place.id });
     }
   }
-  if (payload.latitude !== undefined && payload.longitude !== undefined) {
+  if (payload.latitude !== undefined && payload.longitude !== undefined && originNearMockStops(payload.latitude, payload.longitude, points)) {
     points.unshift({ title: "Старт", at: null, latitude: payload.latitude, longitude: payload.longitude, eventId: null, placeId: null });
   }
   return points;

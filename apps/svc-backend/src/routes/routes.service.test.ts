@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import { EventEntity } from "../events/event.entity";
 import { PlaceEntity } from "../places/place.entity";
-import { pickMode, shortestPermutation, toDayRoute, travelMinutes, walkingMinutes } from "./routes.service";
+import { originNearStops, pickMode, shortestPermutation, toDayRoute, travelMinutes, walkingMinutes } from "./routes.service";
 import { RoutesService } from "./routes.service";
 
 const now = new Date("2026-09-12T10:00:00Z");
@@ -81,6 +81,21 @@ describe("RoutesService", () => {
     expect(options[1]?.minutes).toBeLessThan(options[0]!.minutes);
     expect(options[0]?.distanceKm).toBe(options[1]?.distanceKm);
     expect(options[0]?.distanceKm).toBeGreaterThan(0);
+  });
+
+  it("skips Старт when the origin is farther than the city reach", async () => {
+    const places = {
+      findOneBy: async (where: { id: string }) => (where.id === parkId ? place(parkId, "Парк", 55.73, 37.6) : where.id === foodId ? place(foodId, "Депо", 55.75, 37.62) : null),
+    };
+    const service = new RoutesService({ findOneBy: async () => null } as unknown as Repository<EventEntity>, places as unknown as Repository<PlaceEntity>);
+    const route = await service.build({
+      stops: [{ placeId: parkId }, { placeId: foodId }],
+      latitude: 58.52,
+      longitude: 31.27,
+    });
+    expect(route.points[0]?.title).toBe("Парк");
+    expect(route.points.some((point) => point.title === "Старт")).toBe(false);
+    expect(originNearStops(55.75, 37.62, route.points)).toBe(true);
   });
 
   it("hides an unpublished place behind 404", async () => {

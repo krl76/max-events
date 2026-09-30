@@ -43,7 +43,12 @@ const basePlaceShape = {
 export const PlaceSchema = z.object({
   ...basePlaceShape,
   published: z.boolean().default(true),
-  logoUrl: z.string().url().nullable().default(null),
+  logoUrl: z
+    .string()
+    .max(2000)
+    .refine((value) => (value.startsWith("/") && !value.startsWith("//")) || z.string().url().safeParse(value).success, "logo must be an absolute URL or a site path")
+    .nullable()
+    .default(null),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });
@@ -51,6 +56,11 @@ export type Place = z.infer<typeof PlaceSchema>;
 
 export const CreatePlaceSchema = PlaceSchema.omit({ id: true, published: true, createdAt: true, updatedAt: true }).extend({
   // Optional on write so PATCH /places/:id does not wipe an existing logo when the field is omitted.
-  logoUrl: z.string().url().nullable().optional(),
+  logoUrl: z
+    .string()
+    .max(2000)
+    .refine((value) => (value.startsWith("/") && !value.startsWith("//")) || z.string().url().safeParse(value).success, "logo must be an absolute URL or a site path")
+    .nullable()
+    .optional(),
 });
 export type CreatePlace = z.infer<typeof CreatePlaceSchema>;

@@ -315,13 +315,13 @@ export function MicroEventCreateView({ draft, places, submitting, failed, onChan
         </span>
       </div>
       <div className="app-field">
-        <span className="app-field-copy">
+        <button type="button" className="app-field-copy" onClick={() => setPlaceMode("map")}>
           <span className="app-field-k">
             <ActionIcon name="pin" size={16} strokeWidth={2.2} />
             Место проведения
           </span>
           <span className={whereEmpty ? "app-field-v app-field-v--empty" : "app-field-v"}>{whereEmpty ? "Выбрать" : placePinTitle(draft.where)}</span>
-        </span>
+        </button>
         <PlaceModeButtons onPick={setPlaceMode} />
       </div>
       <label className="app-field app-field--tall">

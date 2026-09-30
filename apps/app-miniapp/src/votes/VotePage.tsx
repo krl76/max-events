@@ -47,7 +47,7 @@ export function voteProgressLabel(voted: number, total: number): string {
 }
 
 export function voteMineNote(vote: VoteScreen): string | null {
-  const mine = vote.options.find((option) => option.event.id === vote.myBallotEventId);
+  const mine = (vote.options ?? []).find((option) => option?.event?.id === vote.myBallotEventId);
   return mine === undefined ? null : `Ты проголосовал за «${mine.event.title}»`;
 }
 
@@ -57,20 +57,22 @@ export function voteMineNote(vote: VoteScreen): string | null {
  * is right for any number and any gender, and the second sentence of the design stays verbatim.
  */
 export function votePendingNote(vote: VoteScreen, ownId: string | null): string | null {
-  const voted = new Set(vote.votedUserIds);
-  const pending = vote.voters.filter((voter) => !voted.has(voter.id) && voter.id !== ownId);
+  const voted = new Set(vote.votedUserIds ?? []);
+  const roster = vote.voters ?? vote.participants ?? [];
+  const pending = roster.filter((voter) => !voted.has(voter.id) && voter.id !== ownId);
   if (pending.length === 0) return null;
-  return `Ещё не проголосовали: ${pending.map((voter) => voter.name.split(" ")[0]).join(", ")}. Напомнить можно в чате MAX.`;
+  return `Ещё не проголосовали: ${pending.map((voter) => (voter.name ?? "").split(" ")[0]).join(", ")}. Напомнить можно в чате MAX.`;
 }
 
 export function VoteFaces({ vote }: { vote: VoteScreen }) {
-  const voted = vote.voters.filter((voter) => vote.votedUserIds.includes(voter.id));
+  const roster = vote.voters ?? vote.participants ?? [];
+  const voted = roster.filter((voter) => (vote.votedUserIds ?? []).includes(voter.id));
   if (voted.length === 0) return null;
   return (
     <span className="app-we-faces" role="img" aria-label={voted.map((voter) => voter.name).join(", ")}>
       {voted.map((voter) => (
         <span key={voter.id} className="app-we-face">
-          {voter.name.charAt(0)}
+          {(voter.name ?? "?").charAt(0)}
         </span>
       ))}
     </span>
@@ -111,11 +113,12 @@ export function VoteView({ state, ownId, myChoice, voting, closing, revoting, fa
   }
 
   const { vote } = state;
+  const options = (vote.options ?? []).filter((option) => option?.event != null);
   const myBallotEventId = vote.myBallotEventId ?? myChoice;
   const closed = vote.status === "closed";
   const isHost = ownId !== null && vote.hostUserId === ownId;
-  const cast = voteBallotsCast(vote);
-  const leader = vote.options.find((option) => option.event.id === vote.winnerEventId) ?? null;
+  const cast = options.reduce((sum, option) => sum + option.votes, 0);
+  const leader = options.find((option) => option.event.id === vote.winnerEventId) ?? null;
   const pickable = !closed && (myBallotEventId === null || revoting);
   const pending = votePendingNote(vote, ownId);
   const mine = voteMineNote(vote);
@@ -163,7 +166,7 @@ export function VoteView({ state, ownId, myChoice, voting, closing, revoting, fa
 
       <h2 className="app-poll-section">Все варианты</h2>
       <div className="app-poll-results">
-        {vote.options.map((option) => {
+        {options.map((option) => {
           const percent = votePercent(option.votes, cast);
           const isMine = myBallotEventId === option.event.id;
           const body = (

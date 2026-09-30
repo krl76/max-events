@@ -7,13 +7,14 @@
 //
 // START_MODULE_MAP
 // - CATEGORY_LABELS - ru labels per event category (re-exported by ./CatalogPage.js, where the screens already import it from)
+// - PLACE_CATEGORY_LABELS - ru labels per place category (used by the guest venue screen without the organizer cabinet)
 // - formatStartsAt - ru "day month, hh:mm" formatting (reused by the event page and other screens)
 // - formatEventWeather - catalog chip: "+12°, облачно"
 // - formatEventWeatherDetail - event page line: chip plus rain probability
 // - pluralRu - ru plural form (one/few/many) via Intl.PluralRules, backs every counter label across screens
 // END_MODULE_MAP
 
-import type { EventCategory, EventWeather } from "@max-events/api-contracts";
+import type { EventCategory, EventWeather, PlaceCategory } from "@max-events/api-contracts";
 
 /** Lives in this leaf rather than in the catalog screen, so the feed can label a category without pulling the map in. */
 export const CATEGORY_LABELS: Record<EventCategory, string> = {
@@ -21,6 +22,15 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
   volunteering: "Волонтёрство",
   tourism: "Туризм",
   sport: "Спорт",
+};
+
+/** Place labels live here so a guest venue screen does not load the organizer cabinet. */
+export const PLACE_CATEGORY_LABELS: Record<PlaceCategory, string> = {
+  park: "Парк",
+  museum: "Музей",
+  food: "Еда",
+  sport: "Спорт",
+  other: "Другое",
 };
 
 export function formatStartsAt(startsAt: string): string {

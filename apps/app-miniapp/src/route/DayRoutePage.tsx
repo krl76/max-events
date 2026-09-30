@@ -35,6 +35,12 @@ import { dayRouteKey, readSavedDayRoutes, rememberDayRoute, type SavedDayRoute }
 export const MIN_ROUTE_STOPS = 2;
 export const MAX_ROUTE_STOPS = 8;
 
+/** Upcoming events with a venue, soonest first — the picker of «Маршрут на день». */
+export function upcomingEventsForRoute<T extends { startsAt: string; placeId: string | null }>(events: T[], now: Date = new Date()): T[] {
+  const ts = now.getTime();
+  return events.filter((event) => event.placeId !== null && Date.parse(event.startsAt) >= ts).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+}
+
 export interface RouteStopOption {
   key: string;
   title: string;
@@ -327,12 +333,10 @@ export function DayRoutePage() {
         setOptions({
           status: "ready",
           options: [
-            ...events
-              .filter((event) => event.placeId !== null)
-              .map((event) => {
-                const place = event.placeId === null ? undefined : placeById.get(event.placeId);
-                return { key: `event:${event.id}`, title: event.title, hint: formatStartsAt(event.startsAt), placeTitle: place?.title ?? null, imageUrl: pictured(event.id, event.coverUrl), stop: { eventId: event.id } };
-              }),
+            ...upcomingEventsForRoute(events).map((event) => {
+              const place = event.placeId === null ? undefined : placeById.get(event.placeId);
+              return { key: `event:${event.id}`, title: event.title, hint: formatStartsAt(event.startsAt), placeTitle: place?.title ?? null, imageUrl: pictured(event.id, event.coverUrl), stop: { eventId: event.id } };
+            }),
             ...places.map((place) => ({ key: `place:${place.id}`, title: place.title, hint: place.address, imageUrl: null, stop: { placeId: place.id } })),
           ],
         });

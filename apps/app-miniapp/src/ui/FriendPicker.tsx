@@ -26,7 +26,7 @@ const FOCUSABLE = "button:not([disabled]), input:not([disabled])";
 export function filterFriends(friends: Friend[], query: string): Friend[] {
   const needle = query.trim().toLowerCase();
   if (needle === "") return friends;
-  return friends.filter((friend) => friend.name.toLowerCase().includes(needle));
+  return friends.filter((friend) => friend.name.toLowerCase().includes(needle) || friendHandle(friend).toLowerCase().includes(needle) || (friend.username ?? "").toLowerCase().includes(needle));
 }
 
 /**
@@ -56,15 +56,17 @@ export interface FriendPickerProps {
   emptyText?: string;
   /** Множественный выбор; по умолчанию окно выбирает одного. */
   multiple?: boolean;
+  /** Уже выбранные id, чтобы окно открылось с галочками. */
+  selectedIds?: readonly string[];
   /** Подтверждение в работе: кнопки заперты, пока вызывающий не закроет окно. */
   busy?: boolean;
   onConfirm: (friendIds: string[]) => void;
   onClose: () => void;
 }
 
-export function FriendPicker({ friends, title = "Выбери друга", hint = null, confirmLabel = "Добавить", emptyText = "Друзей пока нет.", multiple = false, busy = false, onConfirm, onClose }: FriendPickerProps) {
+export function FriendPicker({ friends, title = "Выбери друга", hint = null, confirmLabel = "Добавить", emptyText = "Друзей пока нет.", multiple = false, selectedIds, busy = false, onConfirm, onClose }: FriendPickerProps) {
   const [query, setQuery] = useState("");
-  const [picked, setPicked] = useState<string[]>([]);
+  const [picked, setPicked] = useState<string[]>(() => (selectedIds ? [...selectedIds] : []));
   const sheet = useRef<HTMLDivElement | null>(null);
   const search = useRef<HTMLInputElement | null>(null);
   const swipe = useSheetSwipe(onClose);

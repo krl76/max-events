@@ -23,7 +23,10 @@ import type { Event, Friend } from "@max-events/api-contracts";
 import { apiClient, type VoteScreen } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
+import { PersonAvatar } from "../friends/avatar";
 import { useRoute } from "../routing/router";
+import { EventPicker } from "../ui/EventPicker";
+import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
@@ -31,9 +34,6 @@ import { voteOptionMeta } from "./format";
 
 export const VOTE_MIN_OPTIONS = 2;
 export const VOTE_MAX_OPTIONS = 10;
-
-/** How many friend tiles the roster shows before «Ещё» opens the rest of the list. */
-const ROSTER_PREVIEW = 6;
 
 export function voteCreateReady(title: string, eventIds: string[], friendIds: string[]): boolean {
   return voteCreateBlockers(title, eventIds, friendIds).length === 0;
@@ -73,28 +73,55 @@ export function voteInviteNote(count: number): string {
 interface VoteCreateViewProps {
   events: Event[];
   friends: Friend[];
+  catalog: Event[];
   title: string;
   selectedEvents: string[];
   selectedFriends: string[];
-  /** Все друзья раскрыты: «Ещё» уже нажали. */
-  rosterOpen: boolean;
-  catalogOpen: boolean;
+  pickingEvents: boolean;
+  pickingFriends: boolean;
   catalogLoading: boolean;
   submitting: boolean;
   failed: boolean;
   cancelLabel: string | null;
   onTitle: (title: string) => void;
-  onToggleEvent: (id: string) => void;
-  onToggleFriend: (id: string) => void;
+  onRemoveEvent: (id: string) => void;
   onOpenCatalog: () => void;
-  onOpenRoster: () => void;
+  onCloseCatalog: () => void;
+  onConfirmEvents: (ids: string[]) => void;
+  onOpenFriends: () => void;
+  onCloseFriends: () => void;
+  onConfirmFriends: (ids: string[]) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }
 
-export function VoteCreateView({ events, friends, title, selectedEvents, selectedFriends, rosterOpen, catalogOpen, catalogLoading, submitting, failed, cancelLabel, onTitle, onToggleEvent, onToggleFriend, onOpenCatalog, onOpenRoster, onSubmit, onCancel }: VoteCreateViewProps) {
+export function VoteCreateView({
+  events,
+  friends,
+  catalog,
+  title,
+  selectedEvents,
+  selectedFriends,
+  pickingEvents,
+  pickingFriends,
+  catalogLoading,
+  submitting,
+  failed,
+  cancelLabel,
+  onTitle,
+  onRemoveEvent,
+  onOpenCatalog,
+  onCloseCatalog,
+  onConfirmEvents,
+  onOpenFriends,
+  onCloseFriends,
+  onConfirmFriends,
+  onSubmit,
+  onCancel,
+}: VoteCreateViewProps) {
   const blockers = voteCreateBlockers(title, selectedEvents, selectedFriends);
-  const roster = rosterOpen ? friends : friends.filter((friend, index) => index < ROSTER_PREVIEW || selectedFriends.includes(friend.id));
+  const pickedEvents = events.filter((event) => selectedEvents.includes(event.id));
+  const pickedFriends = friends.filter((friend) => selectedFriends.includes(friend.id));
   return (
     <section className="app-poll-new" aria-label="Новое голосование">
       <label className="app-poll-new-label" htmlFor="app-poll-new-title">
@@ -106,53 +133,40 @@ export function VoteCreateView({ events, friends, title, selectedEvents, selecte
         <h2 className="app-we-block-title">Варианты</h2>
         <span className="app-we-block-count">{voteOptionsCounter(selectedEvents.length)}</span>
       </div>
-      {events.map((event) => {
-        const picked = selectedEvents.includes(event.id);
-        return (
-          <button type="button" key={event.id} aria-pressed={picked} className={picked ? "app-poll-option app-poll-option--on" : "app-poll-option"} onClick={() => onToggleEvent(event.id)}>
-            <span className="app-poll-check" aria-hidden="true">
-              {picked && <ActionIcon name="check" size={12} strokeWidth={3.4} />}
-            </span>
-            <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} className="app-poll-option-media" />
-            <span className="app-poll-option-text">
-              <span className="app-poll-option-title">{event.title}</span>
-              <span className="app-poll-option-meta">{voteOptionMeta(event)}</span>
-            </span>
-          </button>
-        );
-      })}
-      {!catalogOpen && (
-        <button type="button" className="app-poll-more" disabled={catalogLoading} onClick={onOpenCatalog}>
-          <ActionIcon name="plus" size={16} strokeWidth={2.8} />
-          {catalogLoading ? "Загружаем афишу…" : "Добавить событие"}
+      <p className="app-poll-hint">Можно выбрать от {VOTE_MIN_OPTIONS} до {VOTE_MAX_OPTIONS} событий.</p>
+      {pickedEvents.map((event) => (
+        <button type="button" key={event.id} className="app-poll-option app-poll-option--on" onClick={() => onRemoveEvent(event.id)}>
+          <span className="app-poll-check" aria-hidden="true">
+            <ActionIcon name="check" size={12} strokeWidth={3.4} />
+          </span>
+          <AppMedia category={event.category} src={pictured(event.id, event.coverUrl)} className="app-poll-option-media" />
+          <span className="app-poll-option-text">
+            <span className="app-poll-option-title">{event.title}</span>
+            <span className="app-poll-option-meta">{voteOptionMeta(event)}</span>
+          </span>
         </button>
-      )}
+      ))}
+      <button type="button" className="app-poll-more" disabled={catalogLoading} onClick={onOpenCatalog}>
+        <ActionIcon name="plus" size={16} strokeWidth={2.8} />
+        {catalogLoading ? "Загружаем афишу…" : selectedEvents.length === 0 ? "Выбрать события" : "Изменить события"}
+      </button>
 
       <div className="app-we-block-head">
         <h2 className="app-we-block-title">Кто голосует</h2>
         <span className="app-we-block-count">{voteFriendsCounter(selectedFriends.length)}</span>
       </div>
-      <div className="app-poll-roster" role="group" aria-label="Кто голосует">
-        {roster.map((friend) => {
-          const picked = selectedFriends.includes(friend.id);
-          return (
-            <button type="button" key={friend.id} aria-pressed={picked} className={picked ? "app-poll-voter app-poll-voter--on" : "app-poll-voter"} onClick={() => onToggleFriend(friend.id)}>
-              <span className="app-poll-voter-face" aria-hidden="true">
-                {friend.name.charAt(0)}
-              </span>
-              <span className="app-poll-voter-name">{friend.name.split(" ")[0]}</span>
-            </button>
-          );
-        })}
-        {!rosterOpen && friends.length > roster.length && (
-          <button type="button" className="app-poll-voter app-poll-voter--more" onClick={onOpenRoster}>
-            <span className="app-poll-voter-face app-poll-voter-face--more" aria-hidden="true">
-              <ActionIcon name="plus" size={18} strokeWidth={2.8} />
-            </span>
-            <span className="app-poll-voter-name">Ещё</span>
-          </button>
-        )}
-      </div>
+      <ul className="app-we-form-people" aria-label="Кто голосует">
+        {pickedFriends.map((friend) => (
+          <li key={friend.id} className="app-we-form-person">
+            {friend.avatarUrl ? <img className="app-fpick-avatar" src={friend.avatarUrl} alt="" /> : <PersonAvatar id={friend.id} name={friend.name} size={36} />}
+            <span className="app-fpick-name">{friend.name}</span>
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="app-poll-more" onClick={onOpenFriends}>
+        <ActionIcon name="plus" size={16} strokeWidth={2.8} />
+        {selectedFriends.length === 0 ? "Выбрать друзей" : "Изменить участников"}
+      </button>
 
       <p className="app-poll-max">
         <span className="app-poll-max-mark" aria-hidden="true">
@@ -174,12 +188,34 @@ export function VoteCreateView({ events, friends, title, selectedEvents, selecte
           </button>
         )}
       </div>
+
+      {pickingEvents && (
+        <EventPicker
+          title="События голосования"
+          hint={`Можно выбрать от ${VOTE_MIN_OPTIONS} до ${VOTE_MAX_OPTIONS} событий`}
+          events={catalog}
+          selectedIds={selectedEvents}
+          multiple
+          max={VOTE_MAX_OPTIONS}
+          confirmLabel="Выбрать"
+          onConfirm={(chosen) => onConfirmEvents(chosen.map((event) => event.id))}
+          onClose={onCloseCatalog}
+        />
+      )}
+      {pickingFriends && (
+        <FriendPicker
+          title="Кто голосует"
+          hint="Позови друзей, которым уйдёт приглашение в MAX."
+          friends={friends}
+          selectedIds={selectedFriends}
+          multiple
+          confirmLabel="Готово"
+          onConfirm={onConfirmFriends}
+          onClose={onCloseFriends}
+        />
+      )}
     </section>
   );
-}
-
-function toggle(ids: string[], id: string): string[] {
-  return ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id];
 }
 
 interface VoteCreateSectionProps {
@@ -194,12 +230,12 @@ interface VoteCreateSectionProps {
 
 export function VoteCreateSection({ events, onCreated, onCancel, preselectedFriendIds = [], cancelLabel = "Назад к подборке" }: VoteCreateSectionProps) {
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [options, setOptions] = useState<Event[]>(events);
+  const [catalog, setCatalog] = useState<Event[]>(events);
   const [title, setTitle] = useState("Куда идем в пятницу?");
   const [selectedEvents, setSelectedEvents] = useState<string[]>(events.slice(0, VOTE_MAX_OPTIONS).map((event) => event.id));
   const [selectedFriends, setSelectedFriends] = useState<string[]>(preselectedFriendIds);
-  const [rosterOpen, setRosterOpen] = useState(false);
-  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [pickingEvents, setPickingEvents] = useState(false);
+  const [pickingFriends, setPickingFriends] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -217,14 +253,17 @@ export function VoteCreateSection({ events, onCreated, onCancel, preselectedFrie
     };
   }, []);
 
-  /** «Добавить событие» is the rest of the афиша, appended after what the screen came in with. */
   const openCatalog = () => {
+    if (catalog.length > events.length) {
+      setPickingEvents(true);
+      return;
+    }
     setCatalogLoading(true);
     apiClient.listEvents().then(
       (list) => {
-        const known = new Set(options.map((event) => event.id));
-        setOptions((current) => [...current, ...list.filter((event) => !known.has(event.id))]);
-        setCatalogOpen(true);
+        const known = new Set(catalog.map((event) => event.id));
+        setCatalog((current) => [...current, ...list.filter((event) => !known.has(event.id))]);
+        setPickingEvents(true);
         setCatalogLoading(false);
       },
       () => {
@@ -247,7 +286,38 @@ export function VoteCreateSection({ events, onCreated, onCancel, preselectedFrie
     );
   };
 
-  return <VoteCreateView events={options} friends={friends} title={title} selectedEvents={selectedEvents} selectedFriends={selectedFriends} rosterOpen={rosterOpen} catalogOpen={catalogOpen} catalogLoading={catalogLoading} submitting={submitting} failed={failed} cancelLabel={cancelLabel} onTitle={setTitle} onToggleEvent={(eventId) => setSelectedEvents((current) => toggle(current, eventId))} onToggleFriend={(friendId) => setSelectedFriends((current) => toggle(current, friendId))} onOpenCatalog={openCatalog} onOpenRoster={() => setRosterOpen(true)} onSubmit={submit} onCancel={onCancel} />;
+  return (
+    <VoteCreateView
+      events={catalog}
+      friends={friends}
+      catalog={catalog}
+      title={title}
+      selectedEvents={selectedEvents}
+      selectedFriends={selectedFriends}
+      pickingEvents={pickingEvents}
+      pickingFriends={pickingFriends}
+      catalogLoading={catalogLoading}
+      submitting={submitting}
+      failed={failed}
+      cancelLabel={cancelLabel}
+      onTitle={setTitle}
+      onRemoveEvent={(eventId) => setSelectedEvents((current) => current.filter((id) => id !== eventId))}
+      onOpenCatalog={openCatalog}
+      onCloseCatalog={() => setPickingEvents(false)}
+      onConfirmEvents={(ids) => {
+        setSelectedEvents(ids.slice(0, VOTE_MAX_OPTIONS));
+        setPickingEvents(false);
+      }}
+      onOpenFriends={() => setPickingFriends(true)}
+      onCloseFriends={() => setPickingFriends(false)}
+      onConfirmFriends={(ids) => {
+        setSelectedFriends(ids);
+        setPickingFriends(false);
+      }}
+      onSubmit={submit}
+      onCancel={onCancel}
+    />
+  );
 }
 
 type SeedState = { status: "loading" } | { status: "error" } | { status: "ready"; events: Event[]; friendIds: string[] };
@@ -262,7 +332,7 @@ export function VoteCreatePage({ groupId }: { groupId: string | null }) {
     let alive = true;
     setSeed({ status: "loading" });
     // Из группы голосование наследует её события и её людей; без группы — обычная афиша и пустой список.
-    const load = groupId === null ? apiClient.listEvents().then((events) => ({ events, friendIds: [] as string[] })) : apiClient.getWeGroup(groupId).then((card) => ({ events: card.events, friendIds: card.members.map((member) => member.id).filter((id) => id !== ownId) }));
+    const load = groupId === null ? Promise.resolve({ events: [] as Event[], friendIds: [] as string[] }) : apiClient.getWeGroup(groupId).then((card) => ({ events: card.events, friendIds: card.members.map((member) => member.id).filter((id) => id !== ownId) }));
     load.then(
       ({ events, friendIds }) => {
         if (alive) setSeed({ status: "ready", events, friendIds });

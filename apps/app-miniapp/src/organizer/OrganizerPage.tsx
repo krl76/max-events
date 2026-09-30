@@ -34,6 +34,7 @@ import { useEffect, useRef, useState } from "react";
 import { EventCategorySchema, PlaceCategorySchema, type CreateEvent, type CreatePlace, type EventCategory, type PlaceCategory, type UpdateOrganizerEventOptions } from "@max-events/api-contracts";
 import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganizerEvent } from "../api/client";
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { PLACE_CATEGORY_LABELS } from "../catalog/format";
 import { eventFillLabel, pictured } from "../ui/photos";
 import { CABINET_EVENTS, mergeCabinetEvents } from "./cabinet-catalog";
 import { weeklySeriesUntil } from "./OrganizerEventForm";
@@ -43,13 +44,7 @@ import { AppButton, AppChip, AppMedia, AppState } from "../ui/primitives";
 import { useOrganizerNativeBack } from "./organizer-native-back";
 import { VenuePinMap } from "./VenuePinMap";
 
-export const PLACE_CATEGORY_LABELS: Record<PlaceCategory, string> = {
-  park: "Парк",
-  museum: "Музей",
-  food: "Еда",
-  sport: "Спорт",
-  other: "Другое",
-};
+export { PLACE_CATEGORY_LABELS };
 
 export interface EventDraft {
   title: string;

@@ -28,9 +28,12 @@ import { useEffect, useState } from "react";
 import type { Friend } from "@max-events/api-contracts";
 import { apiClient, type WeGroupCard } from "../api/client";
 import { pluralRu } from "../catalog/format";
+import { PersonAvatar } from "../friends/avatar";
 import { useRoute } from "../routing/router";
+import { friendHandle } from "../ui/friend-handle";
+import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
-import { AppChip, AppSkeletonList, AppState } from "../ui/primitives";
+import { AppSkeletonList, AppState } from "../ui/primitives";
 
 /** Accusative, because both phrases of the design govern it: «Событие в четверг», «маршрут на субботу». */
 export const WEEKDAY_ACCUSATIVE: readonly string[] = ["воскресенье", "понедельник", "вторник", "среду", "четверг", "пятницу", "субботу"];
@@ -85,7 +88,7 @@ export function WeGroupFaces({ members }: { members: Friend[] }) {
     <span className="app-we-faces" role="img" aria-label={members.map((member) => member.name).join(", ")}>
       {members.map((member) => (
         <span key={member.id} className="app-we-face">
-          {member.name.charAt(0)}
+          {(member.name ?? "?").trim().charAt(0).toUpperCase() || "?"}
         </span>
       ))}
     </span>
@@ -141,8 +144,9 @@ interface WeGroupCreateFormProps {
 }
 
 export function WeGroupCreateForm({ draft, friends, saving, failed, onChange, onSubmit }: WeGroupCreateFormProps) {
+  const [picking, setPicking] = useState(false);
   const errors = createDraftErrors(draft);
-  const toggle = (id: string) => onChange({ ...draft, memberIds: draft.memberIds.includes(id) ? draft.memberIds.filter((item) => item !== id) : [...draft.memberIds, id] });
+  const picked = friends.filter((friend) => draft.memberIds.includes(friend.id));
   return (
     <form
       className="app-we-form"
@@ -154,18 +158,46 @@ export function WeGroupCreateForm({ draft, friends, saving, failed, onChange, on
       <span className="app-we-form-label">Название</span>
       <input className="app-we-form-input" type="text" aria-label="Название группы" placeholder="Двор на Чистых" value={draft.title} onChange={(event) => onChange({ ...draft, title: event.target.value })} />
       <span className="app-we-form-label">Кто в компании</span>
-      <div className="app-we-form-chips" role="group" aria-label="Участники">
-        {friends.map((friend) => (
-          <AppChip key={friend.id} pressed={draft.memberIds.includes(friend.id)} onClick={() => toggle(friend.id)}>
-            {friend.name}
-          </AppChip>
-        ))}
-      </div>
+      {picked.length > 0 && (
+        <ul className="app-we-form-people" aria-label="Участники">
+          {picked.map((friend) => (
+            <li key={friend.id} className="app-we-form-person">
+              {friend.avatarUrl ? <img className="app-fpick-avatar" src={friend.avatarUrl} alt="" /> : <PersonAvatar id={friend.id} name={friend.name} size={36} />}
+              <span className="app-fpick-name">
+                {friend.name}
+                <span className="app-fpick-handle">@{friendHandle(friend)}</span>
+              </span>
+              <button type="button" className="app-we-form-drop" aria-label={`Убрать ${friend.name}`} onClick={() => onChange({ ...draft, memberIds: draft.memberIds.filter((id) => id !== friend.id) })}>
+                <ActionIcon name="close" size={14} strokeWidth={2.4} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button type="button" className="app-poll-more" onClick={() => setPicking(true)}>
+        <ActionIcon name="plus" size={16} strokeWidth={2.8} />
+        {picked.length === 0 ? "Выбрать участников" : "Изменить участников"}
+      </button>
       {failed && <AppState error>Не удалось создать группу.</AppState>}
       <button type="submit" className="app-we-form-submit" disabled={saving || errors.length > 0}>
         {saving ? "Создаём…" : "Создать группу"}
       </button>
       {errors.length > 0 && <span className="app-we-form-why">{errors[0]}</span>}
+      {picking && (
+        <FriendPicker
+          title="Кто в компании"
+          hint="Имя, ник и аватар — как при приглашении друзей."
+          friends={friends}
+          selectedIds={draft.memberIds}
+          multiple
+          confirmLabel="Готово"
+          onConfirm={(ids) => {
+            onChange({ ...draft, memberIds: ids });
+            setPicking(false);
+          }}
+          onClose={() => setPicking(false)}
+        />
+      )}
     </form>
   );
 }

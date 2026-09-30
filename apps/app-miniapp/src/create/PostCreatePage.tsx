@@ -215,10 +215,10 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
           )}
 
           <div className="app-post-compose-row app-post-compose-row--place">
-            <span className="app-post-compose-row-text">
+            <button type="button" className="app-post-compose-row-text" onClick={() => setPlaceMode("map")}>
               <span className="app-post-compose-row-title">{whereLine === "" ? "Место" : whereLine}</span>
               <span className="app-post-compose-row-note">{whereLine === "" ? "На карте или вписать адрес" : "Адрес"}</span>
-            </span>
+            </button>
             <PlaceModeButtons onPick={setPlaceMode} />
           </div>
           <button type="button" className="app-post-compose-row app-post-compose-row--button" aria-expanded={taggingOpen} onClick={() => setTaggingOpen(true)}>
