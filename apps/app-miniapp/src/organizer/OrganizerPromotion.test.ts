@@ -16,8 +16,7 @@ describe("promoToolBlock", () => {
     expect(promoToolBlock("campaign", { ...EMPTY_PROMO_DRAFT, name: "Осень", budget: "15000" })).toBeNull();
   });
 
-  it("requires an event, a code with a 1–100 discount, and a mailing text", () => {
-    expect(promoToolBlock("feed", EMPTY_PROMO_DRAFT)).toBe("Укажите событие");
+  it("requires a code with a 1–100 discount, and a mailing text", () => {
     expect(promoToolBlock("code", { ...EMPTY_PROMO_DRAFT, code: "ОСЕНЬ", discount: "0" })).toBe("Скидка — от 1 до 100%");
     expect(promoToolBlock("code", { ...EMPTY_PROMO_DRAFT, code: "ОСЕНЬ", discount: "20" })).toBeNull();
     expect(promoToolBlock("mail", EMPTY_PROMO_DRAFT)).toBe("Напишите текст рассылки");
@@ -168,31 +167,11 @@ describe("OrganizerPromotion", () => {
     expect(host.textContent).toContain("Мои кампании");
     expect(host.textContent).toContain("Активные");
     expect(host.textContent).toContain("Запланированные");
-    expect(host.textContent).toContain("Публикация о вечере джаза");
-    expect(host.textContent).toContain("Опубликована");
-    expect(host.textContent).toContain("124 перехода");
+    expect(host.textContent).not.toContain("Публикация о вечере джаза");
+    expect(host.textContent).not.toContain("Публикация в ленте");
     expect(host.textContent).toContain("JAZZ20");
     expect(host.textContent).toContain("Скидка 20%");
     expect(host.textContent).toContain("12 оплаченных заказов");
-    expect(host.textContent).not.toContain("Список промокодов");
-
-    await act(async () => {
-      root.unmount();
-    });
-    host.remove();
-  });
-
-  it("still opens a publication from the campaigns list", async () => {
-    const { host, root } = await mount(createElement(OrganizerPromotion));
-
-    await act(async () => {
-      buttonNamed(host, "Публикация о вечере джаза").click();
-    });
-
-    expect(host.textContent).toContain("Публикация в ленте");
-    expect(host.textContent).toContain("Рассказать о событии");
-    expect(host.textContent).toContain("Опубликовать");
-    expect(host.textContent).not.toContain("Мои кампании");
     expect(host.textContent).not.toContain("Список промокодов");
 
     await act(async () => {
@@ -211,6 +190,9 @@ describe("OrganizerPromotion", () => {
     expect(html).toContain("Запланированные");
     expect(html).not.toContain("Инструменты");
     expect(html).not.toContain("Рекламная кампания");
+    expect(html).not.toContain("Публикация в ленте");
+    expect(html).not.toContain("Публикация о вечере джаза");
+    expect(html).not.toContain("Рассказать о событии");
     expect(html).not.toContain("Продвигайте свои события и привлекайте больше гостей");
     for (const card of home) {
       expect(card).toBeDefined();
@@ -221,9 +203,9 @@ describe("OrganizerPromotion", () => {
       expect(html).toContain(campaign.title);
       expect(html).toContain(campaign.meta);
     }
-    expect(html).toContain("Опубликована");
+    expect(html).not.toContain("Опубликована");
     expect(html).toContain("Скидка 20%");
-    expect(html).toContain("/covers/promo-jazz.jpg");
+    expect(html).not.toContain("/covers/promo-jazz.jpg");
     expect(html).not.toContain("Список промокодов");
   });
 

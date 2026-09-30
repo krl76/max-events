@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Organizer «Продвижение» tab — the cabinet mock: launch rows, campaigns, the promo-code list and the new-code form.
-// SCOPE: The home screen, the feed form, the promo-code screens and the mailing screens. Code rows, mailing rows and the create forms follow the cabinet mocks. A created code or mailing stays for the cabinet session, including when the tab remounts.
+// SCOPE: The home screen, the promo-code screens and the mailing screens. Code rows, mailing rows and the create forms follow the cabinet mocks. A created code or mailing stays for the cabinet session, including when the tab remounts.
 // DEPENDS: react, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -14,7 +14,7 @@ import { EMPTY_MAILING_DRAFT, MailingCreate, MailingListScreen, MailingResults, 
 import { useOrganizerNativeBack } from "./organizer-native-back";
 
 export type PromoPane = "active" | "scheduled";
-export type PromoTool = "campaign" | "feed" | "code" | "mail";
+export type PromoTool = "campaign" | "code" | "mail";
 
 interface PromoToolCard {
   id: PromoTool;
@@ -26,19 +26,18 @@ interface PromoToolCard {
 }
 
 export const PROMO_TOOL_CARDS: PromoToolCard[] = [
-  { id: "feed", icon: "megaphone", tone: "blue", title: "Публикация в ленте", text: "Рассказать о событии", action: "Опубликовать" },
   { id: "mail", icon: "mail", tone: "blue", title: "Рассылка", text: "Сообщение участникам", action: "Создать рассылку" },
   { id: "code", icon: "percent", tone: "violet", title: "Промокод", text: "Скидка на билеты", action: "Создать" },
   { id: "campaign", icon: "target", tone: "blue", title: "Рекламная кампания", text: "Запустите таргетированную рекламу на вашу аудиторию", action: "Запустить" },
 ];
 
 /** Rows on the promotion home screen, in the order the mock draws them. */
-export const PROMO_HOME_TOOLS: PromoTool[] = ["feed", "mail", "code"];
+export const PROMO_HOME_TOOLS: PromoTool[] = ["mail", "code"];
 
 export interface PromoCampaignCard {
   id: string;
   phase: PromoPane;
-  tool: "feed" | "code" | "mail";
+  tool: "code" | "mail";
   title: string;
   note: string | null;
   status: string | null;
@@ -51,19 +50,6 @@ export interface PromoCampaignCard {
 }
 
 export const PROMO_CAMPAIGNS: PromoCampaignCard[] = [
-  {
-    id: "jazz-post",
-    phase: "active",
-    tool: "feed",
-    title: "Публикация о вечере джаза",
-    note: null,
-    status: "Опубликована",
-    meta: "124 перехода",
-    cover: "/covers/promo-jazz.jpg",
-    eventTitle: "Вечер джаза",
-    code: "",
-    discount: "",
-  },
   {
     id: "jazz20",
     phase: "active",
@@ -167,7 +153,6 @@ export function promoToolBlock(tool: PromoTool, draft: PromoDraft): string | nul
     if (draft.name.trim() === "") return "Укажите название кампании";
     if (!/^\d+$/.test(draft.budget.replace(/\s/g, "")) || Number(draft.budget.replace(/\s/g, "")) <= 0) return "Бюджет — целое число рублей";
   }
-  if (tool === "feed" && draft.eventTitle.trim() === "") return "Укажите событие";
   if (tool === "code") {
     if (draft.code.trim() === "") return "Укажите код";
     const discount = Number(draft.discount);
@@ -181,7 +166,6 @@ export function promoToolBlock(tool: PromoTool, draft: PromoDraft): string | nul
 
 export function promoToolNotice(tool: PromoTool, draft: PromoDraft): string {
   if (tool === "campaign") return `Кампания «${draft.name.trim()}» запущена`;
-  if (tool === "feed") return `«${draft.eventTitle.trim()}» опубликовано в ленте`;
   if (tool === "code") return `Промокод ${draft.code.trim().toUpperCase()} создан`;
   return "Рассылка создана";
 }
@@ -248,12 +232,6 @@ function ToolForm({ tool, draft, block, onChange, onSubmit, onBack }: { tool: Pr
             <input className="app-fin-field-input" inputMode="numeric" value={draft.budget} placeholder="15000" onChange={(change) => onChange({ budget: change.target.value })} />
           </label>
         </>
-      )}
-      {tool === "feed" && (
-        <label className="app-fin-field">
-          <span className="app-fin-field-label">Событие</span>
-          <input className="app-fin-field-input" value={draft.eventTitle} placeholder="Вечер джаза на Патриарших" onChange={(change) => onChange({ eventTitle: change.target.value })} />
-        </label>
       )}
       {block !== null && <p className="app-fin-block">{block}</p>}
       <button type="button" className="app-promo-submit" onClick={onSubmit}>
