@@ -77,6 +77,18 @@ describe("buildDemoData", () => {
     expect(data.lists.filter((row) => row.preset !== null).length).toBeGreaterThan(1);
   });
 
+  it("leaves a real MAX login empty when personal fill is off", () => {
+    const data = buildDemoData({ now, scale: "normal", ownerUserId, devUserId, personal: false });
+    expect(data.friendships.every((row) => row.userId !== devUserId && row.friendUserId !== devUserId)).toBe(true);
+    expect(data.bookings.every((row) => row.userId !== devUserId)).toBe(true);
+    expect(data.lists.every((row) => row.userId !== devUserId)).toBe(true);
+    expect(data.feedPosts.every((row) => row.authorUserId !== devUserId)).toBe(true);
+    expect(data.checkIns.every((row) => row.userId !== devUserId)).toBe(true);
+    expect(data.cityWalks).toHaveLength(0);
+    expect(data.stories.every((row) => row.audience === "city")).toBe(true);
+    expect(data.feedPosts.filter((row) => row.eventId !== null).every((row) => row.audience === "city")).toBe(true);
+  });
+
   it("scales the tables the viewer does not own with the demo scale", () => {
     const small = buildDemoData({ now, scale: "small", ownerUserId, devUserId });
     const big = buildDemoData({ now, scale: "big", ownerUserId, devUserId });

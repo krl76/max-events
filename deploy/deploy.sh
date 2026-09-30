@@ -40,11 +40,14 @@ if [ "${SEED_DEMO:-}" = "1" ]; then
   # нет (миграции живут рядом и работают именно потому, что зовут bun). Bun исполняет TypeScript сам.
   # Сид не обязан быть фатальным: стенд без демо-данных беднее, но рабочий, а упавший деплой — нет.
   docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.prod.yml exec -T \
-    -e SEED_DEMO_ALLOW_REMOTE=1 -e SEED_DEMO_SCALE="${SEED_DEMO_SCALE:-normal}" -e SEED_DEMO_RESET="${SEED_DEMO_RESET:-}" \
+    -e SEED_DEMO_ALLOW_REMOTE=1 -e SEED_DEMO_SCALE="${SEED_DEMO_SCALE:-normal}" -e SEED_DEMO_RESET="${SEED_DEMO_RESET:-}" -e SEED_DEMO_PERSONAL="${SEED_DEMO_PERSONAL:-}" \
     backend bun src/database/seed-demo-cli.ts || echo "!! demo seed failed, stack stays up"
 fi
 
 echo "==> Nginx"
+# MAX sends X-Max-Bot-Api-Secret. Default nginx drops header names with underscores,
+# so the webhook looks unsigned and answers 404. conf.d is in http{} on Debian.
+printf '%s\n' 'underscores_in_headers on;' > /etc/nginx/conf.d/max-events-underscores.conf
 # Live vhosts keep certbot TLS, so they are not overwritten. Missing hashed
 # chunks must 404: try_files /index.html turns a deleted Vite file into HTML
 # and every lazy screen shows «Не удалось открыть экран».

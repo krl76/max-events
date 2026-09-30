@@ -222,7 +222,7 @@ const VIEWER_WE_GROUP_TITLES = ["Мы: субботние вылазки", "Мы
 
 // --- Pure generation ---------------------------------------------------------
 
-export type DemoBuildConfig = { now: Date; scale: DemoScale; ownerUserId: string; devUserId: string };
+export type DemoBuildConfig = { now: Date; scale: DemoScale; ownerUserId: string; devUserId: string; /** When false, no lists/friends/tickets are attached to the signed-in MAX account. */ personal?: boolean };
 
 export type DemoData = {
   users: UserEntity[];
@@ -680,6 +680,7 @@ export function buildUserAchievements(checkIns: CheckInEntity[], events: EventEn
 export function buildDemoData(config: DemoBuildConfig): DemoData {
   fakerRU.seed(42);
   const { now, ownerUserId, devUserId } = config;
+  const personal = config.personal !== false;
   const c = DEMO_COUNTS[config.scale];
 
   // users + profiles: named people with matching sex, voice and avatar.
@@ -732,13 +733,15 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   };
   users.forEach((user, i) => {
     if (i % 2 === 1) addFriendship(ownerUserId, user.id);
-    if (i % 3 === 0) addFriendship(devUserId, user.id);
+    if (personal && i % 3 === 0) addFriendship(devUserId, user.id);
     addFriendship(user.id, users[(i + 1) % users.length]!.id);
     addFriendship(user.id, users[(i + 4) % users.length]!.id);
   });
-  for (const spec of [...AUTHORED_STORIES, ...AUTHORED_POSTS]) {
-    const author = userBySlug.get(spec.authorSlug);
-    if (author) addFriendship(devUserId, author.id);
+  if (personal) {
+    for (const spec of [...AUTHORED_STORIES, ...AUTHORED_POSTS]) {
+      const author = userBySlug.get(spec.authorSlug);
+      if (author) addFriendship(devUserId, author.id);
+    }
   }
 
   // places: each real venue once, at its own coordinates. No «№2» copies.
@@ -938,7 +941,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       text: spec.text ?? "",
       sticker: stickerEvent ? { eventId: stickerEvent.id, title: stickerEvent.title, subtitle: stickerEvent.city, seatsLeft: stickerEvent.capacity === null ? null : Math.max(0, stickerEvent.capacity - stickerEvent.bookedCount) } : null,
       poll: spec.poll ? { question: spec.poll.question, options: [...spec.poll.options] } : null,
-      audience: "friends",
+      audience: "city",
       objects: [],
       createdAt: new Date(now.getTime() - spec.hoursAgo * HOUR_MS),
     });
@@ -953,7 +956,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       text: "",
       sticker: null,
       poll: null,
-      audience: "friends",
+      audience: "city",
       objects: [],
       createdAt: new Date(now.getTime() - ((i % 8) + 1) * HOUR_MS),
     });
@@ -981,7 +984,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
         const friend = userBySlug.get(slug);
         return friend ? [friend.id] : [];
       }),
-      audience: "friends",
+      audience: "city",
       allowJoin: event !== undefined && event.startsAt.getTime() > now.getTime(),
       published: true,
       createdAt,
@@ -1258,9 +1261,34 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     }
   }
 
-  // Зритель — тот, кто реально вошёл на стенд. Его срез строится последним: он опирается на уже
-  // сгенерированных людей, площадки и события, и без него личные экраны показывают пустоту.
-  const viewer = buildViewerSlice({ now, viewerId: devUserId, users, organizers, places, pastEvents, futureEvents });
+  // Зритель — тот, кто реально вошёл на стенд. На проде личный срез выключен: живой MAX-аккаунт
+  // должен открыться пустым, а витрина города живёт за счёт каста.
+  const viewer = personal
+    ? buildViewerSlice({ now, viewerId: devUserId, users, organizers, places, pastEvents, futureEvents })
+    : {
+        lists: [],
+        listItems: [],
+        plans: [],
+        planParticipants: [],
+        planExpenses: [],
+        votes: [],
+        voteOptions: [],
+        voteParticipants: [],
+        voteBallots: [],
+        weGroups: [],
+        weGroupMembers: [],
+        weGroupItems: [],
+        gatherings: [],
+        gatheringInvitees: [],
+        microEvents: [],
+        microEventParticipants: [],
+        subscriptions: [],
+        bookings: [],
+        checkIns: [],
+        reviews: [],
+        participations: [],
+        feedPosts: [],
+      };
   lists.push(...viewer.lists);
   listItems.push(...viewer.listItems);
   plans.push(...viewer.plans);
@@ -1284,7 +1312,8 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   participations.push(...viewer.participations);
   feedPosts.push(...viewer.feedPosts);
 
-  const cityWalks: CityWalkEntity[] = VIEWER_WALKS.map((draft) => {
+  const cityWalks: CityWalkEntity[] = personal
+    ? VIEWER_WALKS.map((draft) => {
     const id = uuid();
     const createdAt = shiftDays(now, -int(2, 14), 12);
     const stops = draft.stops.map((stop, index) => {
@@ -1315,7 +1344,8 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
       createdAt: createdAt.toISOString(),
     };
     return { id, userId: devUserId, city: draft.city, payload, createdAt };
-  });
+  })
+    : [];
 
   const weGroupPhotos: WeGroupPhotoEntity[] = [];
   for (const group of weGroups) {
@@ -1346,7 +1376,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   const likePairs = new Set<string>();
   for (let attempt = 0; feedLikes.length < c.feedLikes && attempt < c.feedLikes * 20; attempt += 1) {
     const post = pick(feedPosts);
-    const userId = attempt % 6 === 0 ? devUserId : pick(users).id;
+    const userId = personal && attempt % 6 === 0 ? devUserId : pick(users).id;
     const key = `${post.id}:${userId}`;
     if (likePairs.has(key)) continue;
     likePairs.add(key);
@@ -1375,7 +1405,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     if (post) commentOn(post, author.id, spec.text);
   }
   for (let i = 0; feedComments.length < c.feedComments && feedPosts.length > 0 && i < c.feedComments * 40; i += 1) {
-    commentOn(feedPosts[i % feedPosts.length]!, i % 5 === 0 ? devUserId : pick(users).id, pick(COMMENT_TEXTS));
+    commentOn(feedPosts[i % feedPosts.length]!, personal && i % 5 === 0 ? devUserId : pick(users).id, pick(COMMENT_TEXTS));
   }
 
   // Лист ожидания (21): несколько будущих событий добираются до потолка, очередь за ними — FIFO по
@@ -1399,12 +1429,12 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     waitlistEntries.push({ id: uuid(), userId: user.id, eventId: event.id, status: "waiting" as WaitlistStatus, offeredUntil: null, referralCode: null, createdAt, updatedAt: createdAt });
   }
   const queueEvent = waitlistEvents[0];
-  if (queueEvent) {
+  if (personal && queueEvent) {
     const createdAt = shiftDays(now, -3, 14);
     waitlistEntries.push({ id: uuid(), userId: devUserId, eventId: queueEvent.id, status: "waiting" as WaitlistStatus, offeredUntil: null, referralCode: null, createdAt, updatedAt: createdAt });
   }
   const offerEvent = waitlistEvents[1];
-  if (offerEvent) {
+  if (personal && offerEvent) {
     // Приглашение висит первым в очереди: иначе «место освободилось» приходило бы не тому. Дедлайн
     // взят с запасом в двое суток — короткое окно планировщик погасил бы через час после сида.
     const createdAt = shiftDays(now, -12, 10);
@@ -1420,7 +1450,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     const pool = reportTargets[targetType];
     if (pool.length === 0) continue;
     const targetId = pick(pool);
-    const userId = attempt % 4 === 0 ? devUserId : pick(users).id;
+    const userId = personal && attempt % 4 === 0 ? devUserId : pick(users).id;
     const key = `${userId}:${targetType}:${targetId}`;
     if (reportPairs.has(key)) continue;
     reportPairs.add(key);
@@ -1526,6 +1556,8 @@ export type DemoSeedOptions = {
   now?: Date;
   /** Drop generated and user-made catalog content, then insert a fresh demo. Accounts stay. */
   reset?: boolean;
+  /** Fill the signed-in stand account (kku). Off on production so a real MAX login stays empty. */
+  personal?: boolean;
 };
 
 /** Content tables a reset may empty. Accounts, profiles and organizations stay so a login still works. */
@@ -1717,7 +1749,7 @@ async function fillOrganizerCabinet(dataSource: DataSource, now: Date): Promise<
   const orgs = await dataSource.getRepository(OrganizationEntity).find();
   if (orgs.length === 0) return 0;
   const places = await dataSource.getRepository(PlaceEntity).find();
-  const guests = (await dataSource.getRepository(UserEntity).find()).filter((user) => user.maxUserId.startsWith(String(DEMO_USER_ID_BASE).slice(0, 6)) || user.username === "seaG7");
+  const guests = (await dataSource.getRepository(UserEntity).find()).filter((user) => user.maxUserId.startsWith(String(DEMO_USER_ID_BASE).slice(0, 6)));
   const eventsRepo = dataSource.getRepository(EventEntity);
   const bookingsRepo = dataSource.getRepository(BookingEntity);
   const reviewsRepo = dataSource.getRepository(ReviewEntity);
@@ -1904,8 +1936,9 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
   const now = options.now ?? new Date();
   const usersRepo = dataSource.getRepository(UserEntity);
   const owner = await ensureDemoUser(usersRepo, options.ownerMaxUserId, { firstName: "Smoke", lastName: "Runner", username: "max_events_smoke" });
-  const dev = await ensureDemoUser(usersRepo, options.devMaxUserId, { firstName: "Михаил", lastName: null, username: "seaG7" });
-  const data = buildDemoData({ now, scale: options.scale, ownerUserId: owner.id, devUserId: dev.id });
+  const personal = options.personal !== false;
+  const dev = personal ? await ensureDemoUser(usersRepo, options.devMaxUserId, { firstName: "Михаил", lastName: null, username: "seaG7" }) : owner;
+  const data = buildDemoData({ now, scale: options.scale, ownerUserId: owner.id, devUserId: dev.id, personal });
 
   // Люди идут первыми: у площадки есть organizerUserId со внешним ключом на users, и на пустой базе
   // вставка площадок до людей падает по FK_places_organizer. Раньше порядок сходил с рук только

@@ -12,6 +12,7 @@ COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-max-events}"
 SEED_DEMO="${SEED_DEMO:-}"
 SEED_DEMO_SCALE="${SEED_DEMO_SCALE:-}"
 SEED_DEMO_RESET="${SEED_DEMO_RESET:-}"
+SEED_DEMO_PERSONAL="${SEED_DEMO_PERSONAL:-}"
 
 cd "$DEPLOY_ROOT" || exit 1
 rm -f "/tmp/${DEPLOY_SLUG}-deploy.done" "/tmp/${DEPLOY_SLUG}-deploy.log"
@@ -23,6 +24,7 @@ setsid env \
   SEED_DEMO="$SEED_DEMO" \
   SEED_DEMO_SCALE="$SEED_DEMO_SCALE" \
   SEED_DEMO_RESET="$SEED_DEMO_RESET" \
+  SEED_DEMO_PERSONAL="$SEED_DEMO_PERSONAL" \
   bash -c 'bash "$DEPLOY_ROOT/deploy/deploy.sh" > "/tmp/${DEPLOY_SLUG}-deploy.log" 2>&1; echo $? > "/tmp/${DEPLOY_SLUG}-deploy.done"' \
   < /dev/null > /dev/null 2>&1 &
 echo "deploy launched (detached) slug=$DEPLOY_SLUG port=$HOST_PORT"

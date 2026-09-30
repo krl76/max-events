@@ -114,9 +114,10 @@ jobs:
           SEED_DEMO: ${{ (github.event.inputs.reset_demo == 'true' || github.ref_name == 'dev-events') && '1' || '' }}
           SEED_DEMO_RESET: ${{ github.event.inputs.reset_demo == 'true' && '1' || '' }}
           SEED_DEMO_SCALE: ${{ github.event.inputs.reset_demo == 'true' && 'big' || '' }}
+          SEED_DEMO_PERSONAL: ${{ github.ref_name == 'main' && github.event.inputs.reset_demo == 'true' && '0' || '1' }}
         run: |
           set -e
-          ssh deploy "DEPLOY_ROOT='$DEPLOY_ROOT' DEPLOY_SLUG='$DEPLOY_SLUG' HOST_PORT='$HOST_PORT' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' SEED_DEMO='$SEED_DEMO' SEED_DEMO_RESET='$SEED_DEMO_RESET' SEED_DEMO_SCALE='$SEED_DEMO_SCALE' bash '$DEPLOY_ROOT/deploy/ci-run.sh'"
+          ssh deploy "DEPLOY_ROOT='$DEPLOY_ROOT' DEPLOY_SLUG='$DEPLOY_SLUG' HOST_PORT='$HOST_PORT' COMPOSE_PROJECT_NAME='$COMPOSE_PROJECT_NAME' SEED_DEMO='$SEED_DEMO' SEED_DEMO_RESET='$SEED_DEMO_RESET' SEED_DEMO_SCALE='$SEED_DEMO_SCALE' SEED_DEMO_PERSONAL='$SEED_DEMO_PERSONAL' bash '$DEPLOY_ROOT/deploy/ci-run.sh'"
           echo "Waiting for remote build ($DEPLOY_SLUG)..."
           for i in $(seq 1 180); do
             sleep 10

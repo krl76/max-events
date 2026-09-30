@@ -23,7 +23,8 @@ export async function runDemoSeedCli() {
   await AppDataSource.initialize();
   try {
     const reset = process.env.SEED_DEMO_RESET === "1";
-    const result = await seedDemoDatabase(AppDataSource, { scale, ownerMaxUserId, devMaxUserId: DEV_INITDATA_MAX_ID, reset });
+    const personal = process.env.SEED_DEMO_PERSONAL !== "0";
+    const result = await seedDemoDatabase(AppDataSource, { scale, ownerMaxUserId, devMaxUserId: DEV_INITDATA_MAX_ID, reset, personal });
     const counters = Object.entries(result.inserted)
       .map(([table, count]) => `${table}=${count}`)
       .join(" ");
