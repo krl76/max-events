@@ -42,5 +42,65 @@ describe("OrganizerProfileView", () => {
     expect(html).toContain("Команда");
     expect(html).toContain("Жалобы");
     expect(html).not.toContain("Продвижение");
+    expect(html).not.toContain('aria-label="Назад"');
+  });
+
+  it("puts a back control on a screen opened from the profile", () => {
+    const reviews = renderToStaticMarkup(
+      createElement(OrganizerProfileView, {
+        name: "max-events",
+        about: "",
+        avatarUrl: null,
+        coverUrl: null,
+        events: [],
+        places: [],
+        subscriptions: [],
+        followers: [],
+        rating: null,
+        reviews: [],
+        pane: "reviews",
+        list: null,
+        failed: false,
+        onPane: noop,
+        onList: noop,
+        onSettings: noop,
+        onPickAvatar: noop,
+        onPickCover: noop,
+        onResetAvatar: noop,
+        onResetCover: noop,
+      }),
+    );
+    expect(reviews).toContain('aria-label="Назад"');
+    expect(reviews).toContain("Отзывы гостей");
+    expect(reviews).toContain("Гости оставляют отзыв после события, на котором были.");
+    expect(reviews).not.toContain("app-me-shortcut");
+
+    const followers = renderToStaticMarkup(
+      createElement(OrganizerProfileView, {
+        name: "max-events",
+        about: "",
+        avatarUrl: null,
+        coverUrl: null,
+        events: [],
+        places: [],
+        subscriptions: [],
+        followers: [],
+        rating: null,
+        reviews: [],
+        pane: "home",
+        list: "followers",
+        failed: false,
+        onPane: noop,
+        onList: noop,
+        onSettings: noop,
+        onPickAvatar: noop,
+        onPickCover: noop,
+        onResetAvatar: noop,
+        onResetCover: noop,
+      }),
+    );
+    expect(followers).toContain('aria-label="Назад"');
+    expect(followers).toContain("Подписчики");
+    expect(followers).toContain("Подписчиков пока нет.");
   });
 });

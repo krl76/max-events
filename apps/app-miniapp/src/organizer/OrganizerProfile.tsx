@@ -50,6 +50,16 @@ function writeMedia(organizationId: string, media: OrgMedia) {
   localStorage.setItem(MEDIA_KEY + organizationId, JSON.stringify(media));
 }
 
+/** Title of a screen opened from the profile home. Null on the home itself, which the tab bar already leaves. */
+export function profileDestinationTitle(pane: OrganizerProfilePane, list: OrganizerProfileList): string | null {
+  if (list === "subscriptions") return "Подписки";
+  if (list === "followers") return "Подписчики";
+  if (pane === "reviews") return "Отзывы гостей";
+  if (pane === "team") return "Команда";
+  if (pane === "complaints") return "Жалобы";
+  return null;
+}
+
 const PROFILE_SHORTCUTS: ReadonlyArray<{ id: OrganizerProfilePane | "settings"; label: string; icon: ActionIconName }> = [
   { id: "settings", label: "Настройки", icon: "settings" },
   { id: "reviews", label: "Отзывы", icon: "star" },
@@ -75,16 +85,29 @@ function ReviewCard({ row }: { row: OrganizerProfileReview }) {
 
 export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, subscriptions, followers, rating, reviews, pane, list, failed, onPane, onList, onSettings, onPickAvatar, onPickCover, onResetAvatar, onResetCover }: { name: string; about: string; avatarUrl: string | null; coverUrl: string | null; events: OrganizerEvent[]; places: OrganizerPlace[]; subscriptions: Subscription[] | null; followers: Friend[] | null; rating: OrganizerRating | null; reviews: OrganizerProfileReview[]; pane: OrganizerProfilePane; list: OrganizerProfileList; failed: boolean; onPane: (pane: OrganizerProfilePane) => void; onList: (list: OrganizerProfileList) => void; onSettings: () => void; onPickAvatar: () => void; onPickCover: () => void; onResetAvatar: () => void; onResetCover: () => void }) {
   const [mediaMenu, setMediaMenu] = useState<"avatar" | "cover" | null>(null);
-  useOrganizerNativeBack(pane !== "home" || list !== null, () => {
+  const destination = profileDestinationTitle(pane, list);
+  const goBack = () => {
     if (list !== null) onList(null);
     else onPane("home");
-  });
+  };
+  useOrganizerNativeBack(destination !== null, goBack);
   const initial = name.trim().slice(0, 1).toUpperCase() || "О";
   const customAvatar = isCustomProfileAvatar(avatarUrl);
   const customCover = coverUrl !== null;
   const dismiss = useCallback(() => setMediaMenu(null), []);
   return (
     <section className="app-me app-me--user" aria-label="Профиль организации">
+      {destination !== null && (
+        <header className="app-pcodes-bar app-me-backbar">
+          <button type="button" className="app-pcodes-iconbtn" aria-label="Назад" onClick={goBack}>
+            <span className="app-pcodes-back-icon">
+              <ActionIcon name="chevron" size={22} strokeWidth={2.1} />
+            </span>
+          </button>
+          <h2 className="app-pcodes-title">{destination}</h2>
+          <span className="app-pcodes-iconbtn" aria-hidden="true" />
+        </header>
+      )}
       <header className="app-me-head">
         <div className="app-me-hero">
           {coverUrl !== null ? <img className="app-me-hero-cover" src={showPhoto(coverUrl) ?? coverUrl} alt="" /> : null}
@@ -187,24 +210,9 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, subscri
             {list === "followers" && followers !== null && followers.length === 0 && <AppState>Подписчиков пока нет.</AppState>}
           </div>
         )}
-        {list === null && pane === "team" && (
-          <>
-            <h2 className="app-me-name">Команда</h2>
-            <AppState>Сотрудников пока нет.</AppState>
-          </>
-        )}
-        {list === null && pane === "complaints" && (
-          <>
-            <h2 className="app-me-name">Жалобы</h2>
-            <AppState>Открытых жалоб нет.</AppState>
-          </>
-        )}
-        {list === null && pane === "reviews" && (
-          <>
-            <h2 className="app-me-name">Отзывы гостей</h2>
-            {reviews.length === 0 ? <AppState>Гости оставляют отзыв после события, на котором были.</AppState> : reviews.map((row) => <ReviewCard key={row.id} row={row} />)}
-          </>
-        )}
+        {list === null && pane === "team" && <AppState>Сотрудников пока нет.</AppState>}
+        {list === null && pane === "complaints" && <AppState>Открытых жалоб нет.</AppState>}
+        {list === null && pane === "reviews" && (reviews.length === 0 ? <AppState>Гости оставляют отзыв после события, на котором были.</AppState> : reviews.map((row) => <ReviewCard key={row.id} row={row} />))}
         {list === null && pane === "home" && (
           <>
             {rating !== null && (
