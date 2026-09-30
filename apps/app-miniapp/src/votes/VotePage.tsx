@@ -23,7 +23,8 @@ import { useEffect, useState } from "react";
 import { ApiError, apiClient, type VoteScreen } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
-import { openExternalLink } from "../max/bridge";
+import { announceShare, getWebApp, openExternalLink, shareResult } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
@@ -95,9 +96,10 @@ interface VoteViewProps {
   onClose: () => void;
   onChat: (link: string) => void;
   onOpenEvent: (eventId: string) => void;
+  onShare?: () => void;
 }
 
-export function VoteView({ state, ownId, myChoice, voting, closing, revoting, failed, onVote, onRevote, onClose, onChat, onOpenEvent }: VoteViewProps) {
+export function VoteView({ state, ownId, myChoice, voting, closing, revoting, failed, onVote, onRevote, onClose, onChat, onOpenEvent, onShare }: VoteViewProps) {
   if (state.status !== "ready") {
     return (
       <section className="app-poll" aria-label="Голосование">
@@ -132,6 +134,11 @@ export function VoteView({ state, ownId, myChoice, voting, closing, revoting, fa
       <div className="app-we-people">
         <VoteFaces vote={vote} />
         <span className="app-we-people-text">{voteProgressLabel(vote.votedUserIds.length, vote.voters.length)}</span>
+        {onShare !== undefined && (
+          <button type="button" className="app-we-chat" onClick={onShare}>
+            Поделиться
+          </button>
+        )}
         {vote.chatLink !== null && (
           <button type="button" className="app-we-chat" onClick={() => onChat(vote.chatLink!)}>
             <span className="app-we-chat-mark" aria-hidden="true">
@@ -296,5 +303,11 @@ export function VotePage({ id }: { id: string }) {
     );
   };
 
-  return <VoteView state={state} ownId={ownId} myChoice={myChoice} voting={voting} closing={closing} revoting={revoting} failed={failed} onBack={back} onVote={vote} onRevote={() => setRevoting(true)} onClose={close} onChat={openExternalLink} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} />;
+  const share = () => {
+    if (state.status !== "ready") return;
+    const payload = sharePayload(`Голосование «${state.vote.title}» в Афише MAX`, `vote-${state.vote.id}`);
+    void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
+  };
+
+  return <VoteView state={state} ownId={ownId} myChoice={myChoice} voting={voting} closing={closing} revoting={revoting} failed={failed} onBack={back} onVote={vote} onRevote={() => setRevoting(true)} onClose={close} onChat={openExternalLink} onOpenEvent={(eventId) => navigate({ name: "event", id: eventId })} onShare={share} />;
 }

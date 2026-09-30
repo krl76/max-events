@@ -19,6 +19,8 @@ import type { CreatePlanExpenseWrite } from "@max-events/api-contracts";
 import { ApiError, apiClient, type MicroEventCard } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { PersonAvatar } from "../friends/avatar";
+import { announceShare, getWebApp, shareResult } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { BudgetSection } from "../plans/BudgetSection";
 import { microCtaState, microTime } from "./MicroEventsPage";
 import { useRoute } from "../routing/router";
@@ -95,9 +97,10 @@ interface MicroEventViewProps {
   onLeave: () => void;
   onRetry: () => void;
   expenses?: ReactNode;
+  onShare?: () => void;
 }
 
-export function MicroEventView({ state, viewerId, busy = false, now = new Date(), actionError = null, onOpenPlace, onOpenPin, onJoin, onLeave, onRetry, expenses = null }: MicroEventViewProps) {
+export function MicroEventView({ state, viewerId, busy = false, now = new Date(), actionError = null, onOpenPlace, onOpenPin, onJoin, onLeave, onRetry, expenses = null, onShare }: MicroEventViewProps) {
   const card = state.status === "ready" ? state.card : null;
   const joined = card !== null && viewerId !== null && card.event.participantIds.includes(viewerId);
   const cta = card === null ? null : microCtaState(card.event, joined);
@@ -110,6 +113,11 @@ export function MicroEventView({ state, viewerId, busy = false, now = new Date()
     <section className="app-micro-card">
       <div className="app-micro-topbar">
         <h1 className="app-micro-topbar-title">Микро-событие</h1>
+        {card !== null && onShare !== undefined && (
+          <button type="button" className="app-we-chat" onClick={onShare}>
+            Поделиться
+          </button>
+        )}
       </div>
       {actionError !== null && (
         <p className="app-cal-reminder" role="alert">
@@ -244,6 +252,11 @@ export function MicroEventPage({ id }: { id: string }) {
       onJoin={() => viewerId !== null && act(apiClient.joinMicroEvent(id, viewerId))}
       onLeave={() => viewerId !== null && act(apiClient.leaveMicroEvent(id, viewerId))}
       onRetry={load}
+      onShare={() => {
+        if (state.status !== "ready") return;
+        const payload = sharePayload(`Сбор «${state.card.event.title}» в Афише MAX`, `micro-${state.card.event.id}`);
+        void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
+      }}
       expenses={
         joined ? (
           <details className="app-plan-expenses">

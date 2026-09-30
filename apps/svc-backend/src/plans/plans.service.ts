@@ -356,7 +356,7 @@ export class PlansService {
 
   async get(userId: string, planId: string, origin: GeoOrigin | null = null): Promise<PlanCard> {
     const plan = await this.requireActivePlan(planId);
-    if (!(await this.canView(userId, plan))) throw new ForbiddenException("Cannot view another user's plan");
+    await this.admit(userId, plan);
     const event = await this.events.findOneBy({ id: plan.eventId });
     if (!event) throw new NotFoundException("Event not found");
     return this.toCard(plan, event, origin);
@@ -542,7 +542,7 @@ export class PlansService {
 
   async getBudget(actorId: string, planId: string): Promise<PlanBudget> {
     const plan = await this.requireActivePlan(planId);
-    if (!(await this.canView(actorId, plan))) throw new ForbiddenException("Cannot view another user's plan");
+    await this.admit(actorId, plan);
     const rows = await this.expenses.find({ where: { planId }, order: { createdAt: "ASC", id: "ASC" } });
     return budgetFromExpenses(rows, await this.spendPartyIds(plan));
   }
@@ -569,6 +569,16 @@ export class PlansService {
     if (plan.hostUserId === userId) return true;
     const rows = await this.participants.find({ where: { planId: plan.id } });
     return rows.some((row) => row.userId === userId);
+  }
+
+  /** Opening a shared plan-{id} link is the invite: the viewer joins as confirmed. */
+  private async admit(userId: string, plan: PlanEntity): Promise<void> {
+    if (await this.canView(userId, plan)) return;
+    try {
+      await this.participants.save(this.participants.create({ planId: plan.id, userId, status: "confirmed", reminderSentAt: null, leaveNowSentAt: null, friendLeftBroadcastAt: null, pollSentAt: null }));
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+    }
   }
 
   /**

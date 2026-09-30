@@ -41,12 +41,12 @@ function render(over: { title?: string; selectedEvents?: string[]; selectedFrien
 const ids = (count: number) => Array.from({ length: count }, (_, index) => `event-${index}`);
 
 describe("voteCreateBlockers", () => {
-  it("holds the launch until there is a question, 2..10 options and at least one friend", () => {
+  it("holds the launch until there is a question and 2..10 options", () => {
     expect(voteCreateBlockers("Куда идем?", ids(3), ["f1"])).toEqual([]);
     expect(voteCreateBlockers("  ", ids(3), ["f1"])).toContain("Задай вопрос голосования");
     expect(voteCreateBlockers("Куда идем?", ids(1), ["f1"])).toContain(`Выбери хотя бы ${VOTE_MIN_OPTIONS} варианта`);
     expect(voteCreateBlockers("Куда идем?", ids(11), ["f1"])).toContain(`Вариантов не больше ${VOTE_MAX_OPTIONS}`);
-    expect(voteCreateBlockers("Куда идем?", ids(3), [])).toContain("Позови хотя бы одного друга");
+    expect(voteCreateBlockers("Куда идем?", ids(3), [])).toEqual([]);
   });
 
   it("accepts exactly the edges of the 2..10 range", () => {
@@ -54,7 +54,7 @@ describe("voteCreateBlockers", () => {
     expect(voteCreateReady("Куда идем?", ids(10), ["f1"])).toBe(true);
     expect(voteCreateReady("Куда идем?", ids(1), ["f1"])).toBe(false);
     expect(voteCreateReady("Куда идем?", ids(11), ["f1"])).toBe(false);
-    expect(voteCreateReady("Куда идем?", ids(2), [])).toBe(false);
+    expect(voteCreateReady("Куда идем?", ids(2), [])).toBe(true);
   });
 
   it("names the first unmet condition first, in the order the form is filled", () => {
@@ -79,7 +79,7 @@ describe("counters and the MAX note", () => {
     expect(voteInviteNote(2)).toContain("двоим");
     expect(voteInviteNote(9)).toContain("всем 9");
     expect(voteInviteNote(1)).toContain("приглашение уйдёт");
-    expect(voteInviteNote(0)).toContain("осталось выбрать, кто голосует");
+    expect(voteInviteNote(0)).toContain("отправь ссылку в чат MAX");
   });
 });
 
@@ -116,14 +116,13 @@ describe("VoteCreateView", () => {
     expect(html).not.toContain(EVENTS[1].title);
   });
 
-  it("keeps the launch inactive with the reason next to it, and enables it once the conditions are met", () => {
-    const blocked = render({ selectedFriends: [] });
+  it("keeps the launch inactive without enough options, and enables it once the question and options are set", () => {
+    const blocked = render({ selectedEvents: [EVENTS[0].id] });
     expect(blocked).toContain("disabled");
-    expect(blocked).toContain("Позови хотя бы одного друга");
+    expect(blocked).toContain(`Выбери хотя бы ${VOTE_MIN_OPTIONS} варианта`);
 
-    const ready = render({ selectedFriends: [FRIENDS[0].id] });
+    const ready = render({ selectedFriends: [] });
     expect(ready).not.toContain("disabled");
-    expect(ready).not.toContain("Позови хотя бы одного друга");
     expect(ready).toContain("Запустить голосование");
   });
 

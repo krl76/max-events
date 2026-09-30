@@ -245,7 +245,17 @@ describe("ListsService", () => {
     expect(screen.items[0].addedBy?.id).toBe(otherUserId);
     const left = await service.leave(otherUserId, created.id);
     expect(left.id).toBe(created.id);
-    await expect(service.get(otherUserId, created.id)).rejects.toBeInstanceOf(ForbiddenException);
+    const rejoined = await service.get(otherUserId, created.id);
+    expect(rejoined.participants.map((row) => row.id)).toContain(otherUserId);
+  });
+
+  it("admits a stranger who opens a custom list and keeps another person's preset closed", async () => {
+    const { service } = createService({ friendIds: [] });
+    const created = await service.create(userId, "Общий");
+    const joined = await service.get(otherUserId, created.id);
+    expect(joined.participants.map((row) => row.id)).toContain(otherUserId);
+    const want = (await service.list(userId)).find((row) => row.list.preset === "want_to_go")!;
+    await expect(service.get(otherUserId, want.list.id)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it("refuses inviting a stranger, inviting onto a preset, and the owner leaving", async () => {

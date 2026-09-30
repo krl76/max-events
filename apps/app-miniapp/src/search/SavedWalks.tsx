@@ -3,10 +3,12 @@ import type { CityWalk } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { ApiError } from "../api/endpoints/transport";
 import { pluralRu } from "../catalog/format";
+import { announceShare, getWebApp, shareResult } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { AppChip } from "../ui/primitives";
-import { WalkStopMedia, walkStopBlurb } from "./WalkResult";
+import { WalkStopMedia, walkShareText, walkStopBlurb } from "./WalkResult";
 
 function defaultListCityWalks(): Promise<CityWalk[]> {
   return apiClient.listCityWalks();
@@ -67,7 +69,7 @@ export function SavedWalkList({ walks, onOpen }: { readonly walks: readonly City
   );
 }
 
-export function SavedWalkView({ walk, onToggle, onMap, onPlace }: { readonly walk: CityWalk; readonly onToggle: (order: number, done: boolean) => void; readonly onMap?: () => void; readonly onPlace?: (id: string) => void }) {
+export function SavedWalkView({ walk, onToggle, onMap, onPlace, onShare }: { readonly walk: CityWalk; readonly onToggle: (order: number, done: boolean) => void; readonly onMap?: () => void; readonly onPlace?: (id: string) => void; readonly onShare?: () => void }) {
   return (
     <section className="app-walk">
       <header className="app-walk-head">
@@ -98,12 +100,20 @@ export function SavedWalkView({ walk, onToggle, onMap, onPlace }: { readonly wal
           );
         })}
       </ol>
-      {onMap !== undefined ? (
+      {onMap !== undefined || onShare !== undefined ? (
         <div className="app-walk-dock">
-          <button type="button" className="app-walk-saved" onClick={onMap}>
-            <span>Маршрут</span>
-            <ActionIcon name="pin" size={18} />
-          </button>
+          {onMap !== undefined ? (
+            <button type="button" className="app-walk-saved" onClick={onMap}>
+              <span>Маршрут</span>
+              <ActionIcon name="pin" size={18} />
+            </button>
+          ) : null}
+          {onShare !== undefined ? (
+            <button type="button" className="app-walk-saved" onClick={onShare}>
+              <span>Отправить в MAX</span>
+              <ActionIcon name="share" size={18} />
+            </button>
+          ) : null}
         </div>
       ) : null}
     </section>
@@ -219,5 +229,16 @@ export function SavedWalkPage({ id, load = defaultLoadCityWalk, setDone = defaul
     );
   }
 
-  return <SavedWalkView walk={walk} onToggle={(order, done) => void onToggle(order, done)} onMap={() => navigate({ name: "map", walkId: id })} onPlace={(placeId) => navigate({ name: "place", id: placeId })} />;
+  return (
+    <SavedWalkView
+      walk={walk}
+      onToggle={(order, done) => void onToggle(order, done)}
+      onMap={() => navigate({ name: "map", walkId: id })}
+      onPlace={(placeId) => navigate({ name: "place", id: placeId })}
+      onShare={() => {
+        const payload = sharePayload(walkShareText(walk), `walk-${walk.id}`);
+        void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
+      }}
+    />
+  );
 }

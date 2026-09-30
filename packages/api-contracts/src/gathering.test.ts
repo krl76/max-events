@@ -110,10 +110,11 @@ describe("GatheringSchema", () => {
 });
 
 describe("CreateGatheringSchema", () => {
-  it("requires an event, at least one friend, and a timestamp", () => {
+  it("requires an event and a timestamp, and lets the host share with nobody invited yet", () => {
     const payload = { eventId: event.id, friendIds: [friend.id], proposedMeetingAt: "2026-09-20T18:30:00+03:00" };
     expect(CreateGatheringSchema.parse(payload)).toEqual(payload);
-    expect(CreateGatheringSchema.safeParse({ ...payload, friendIds: [] }).success).toBe(false);
+    expect(CreateGatheringSchema.parse({ eventId: event.id, proposedMeetingAt: payload.proposedMeetingAt }).friendIds).toEqual([]);
+    expect(CreateGatheringSchema.safeParse({ ...payload, friendIds: [] }).success).toBe(true);
     expect(CreateGatheringSchema.safeParse({ ...payload, proposedMeetingAt: "tonight" }).success).toBe(false);
   });
 });

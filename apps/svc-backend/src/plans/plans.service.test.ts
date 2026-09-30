@@ -71,12 +71,14 @@ describe("PlansService", () => {
     expect(plain.distanceMeters).toBe(0);
   });
 
-  it("lets an invitee confirm and forbids a stranger", async () => {
+  it("lets an invitee confirm and admits a stranger who opens the shared link", async () => {
     const { service } = createService();
     const created = await service.create(hostId, { eventId, participantIds: [dimaId], meetingPoint: "у метро", meetingAt });
     const confirmed = await service.respond(dimaId, created.plan.id, "confirmed");
     expect(confirmed.plan.participants[0].status).toBe("confirmed");
-    await expect(service.get("00000000-0000-4000-8000-0000000000ff", created.plan.id)).rejects.toBeInstanceOf(ForbiddenException);
+    const strangerId = "00000000-0000-4000-8000-0000000000ff";
+    const joined = await service.get(strangerId, created.plan.id);
+    expect(joined.plan.participants.some((row) => row.friend.id === strangerId && row.status === "confirmed")).toBe(true);
   });
 
   it("rejects inviting a non-friend and a missing event", async () => {

@@ -496,7 +496,7 @@ export function CalendarPage({ tab = "month", inviteToken, embedded = false }: {
           <CalendarView state={state} now={new Date()} onCancel={cancel} onExplore={() => navigate({ name: "home" })} onExport={state.status === "ready" ? () => exportCalendarIcs(state.entries) : undefined} onOpen={(eventId) => navigate({ name: "event", id: eventId })} onRate={(eventId) => navigate({ name: "after-event", eventId })} onRepeat={(eventId) => navigate({ name: "event", id: eventId })} />
         </>
       )}
-      {picking && <FriendPicker friends={invitable} title="Кого позвать в календарь" hint="Он увидит твои планы, ты — его." confirmLabel="Открыть календарь" emptyText="Все друзья уже в этом календаре." multiple busy={inviting} onConfirm={invite} onClose={() => setPicking(false)} />}
+      {picking && <FriendPicker friends={invitable} title="Кого позвать в календарь" hint="Он увидит твои планы, ты — его." confirmLabel="Открыть календарь" emptyText="Все друзья уже в этом календаре." multiple busy={inviting} onConfirm={invite} onClose={() => setPicking(false)} onInvite={() => { share(); setPicking(false); }} />}
     </>
   );
 }

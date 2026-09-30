@@ -7,10 +7,10 @@
 //
 // START_MODULE_MAP
 // - MOCK_VOTE_ID - seeded deep-link demo vote (the demo user is a participant; seeded winner)
-// - MOCK_FOREIGN_VOTE_ID - seeded vote the demo user can neither view nor vote on (403 parity)
+// - MOCK_FOREIGN_VOTE_ID - seeded vote the demo user did not host; opening the link joins them
 // - resetMockVotes - restore the two seeded votes (test isolation)
 // - createMockVote - in-memory vote with a sent chat card (chatLink set, successful MaxBot parity); participants must be friends of the demo host, events must exist (mock POST /votes, backend VotesService parity)
-// - getMockVote - mock GET /votes/:id (404 unknown, 403 neither host nor participant); myBallotEventId comes from the demo user's stored ballot (backend #324 parity)
+// - getMockVote - mock GET /votes/:id (404 unknown; opening a shared vote joins the viewer); myBallotEventId comes from the demo user's stored ballot (backend #324 parity)
 // - castMockBallot - mock POST /votes/:id/ballots: one ballot per user, a repeated ballot replaces the previous one; winner = max votes then option position, null without ballots (backend parity); "closed" once the host finished the vote
 // - closeMockVote - mock POST /votes/:id/close: host only, idempotent; the leader becomes the winner and no more ballots are taken (no backend transition exists yet)
 // - resetMockWeGroups - restore seeded groups and plan expenses (test isolation)
@@ -50,7 +50,7 @@ interface MockVoteRow {
 /** Seeded deep-link demo vote (hosted by Анна, the demo user is a participant; winner seeded with two ballots). */
 export const MOCK_VOTE_ID = "d7000000-0000-4000-8000-000000000001";
 
-/** Seeded vote the demo user can neither view nor vote on (403 parity). */
+/** Seeded vote the demo user did not host; opening the link joins them. */
 export const MOCK_FOREIGN_VOTE_ID = "d7000000-0000-4000-8000-000000000002";
 
 const mockVotes = new Map<string, MockVoteRow>();
@@ -174,11 +174,14 @@ export function createMockVote(payload: CreateVoteWrite): VoteScreen | "invalid"
   return mockVoteDto(row);
 }
 
-/** Reads a vote for the demo user: unknown -> "unknown", neither host nor participant -> "forbidden". */
+/** Reads a vote for the demo user: unknown -> "unknown". Opening a shared vote joins the viewer. */
 export function getMockVote(id: string): VoteScreen | "unknown" | "forbidden" {
   const row = mockVotes.get(id);
   if (!row) return "unknown";
-  if (row.hostUserId !== mockDemoUser.id && !row.participantIds.includes(mockDemoUser.id)) return "forbidden";
+  if (row.hostUserId !== mockDemoUser.id && !row.participantIds.includes(mockDemoUser.id)) {
+    row.participantIds = [...row.participantIds, mockDemoUser.id];
+    row.updatedAt = new Date().toISOString();
+  }
   return mockVoteDto(row);
 }
 
@@ -186,7 +189,9 @@ export function getMockVote(id: string): VoteScreen | "unknown" | "forbidden" {
 export function castMockBallot(id: string, eventId: string): VoteScreen | "unknown" | "forbidden" | "invalid" | "closed" {
   const row = mockVotes.get(id);
   if (!row) return "unknown";
-  if (row.hostUserId !== mockDemoUser.id && !row.participantIds.includes(mockDemoUser.id)) return "forbidden";
+  if (row.hostUserId !== mockDemoUser.id && !row.participantIds.includes(mockDemoUser.id)) {
+    row.participantIds = [...row.participantIds, mockDemoUser.id];
+  }
   if (row.closedAt !== null) return "closed";
   if (!row.options.some((option) => option.eventId === eventId)) return "invalid";
   const existing = row.ballots.find((ballot) => ballot.userId === mockDemoUser.id);

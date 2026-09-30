@@ -69,6 +69,11 @@ describe("routeFromStartParam", () => {
     expect(routeFromStartParam("vote-d7000000-0000-4000-8000-000000000001")).toEqual({ name: "vote", id: "d7000000-0000-4000-8000-000000000001" });
   });
 
+  it("opens a saved walk from a walk-* deep link", () => {
+    expect(routeFromStartParam("walk-w1")).toEqual({ name: "walk-saved", id: "w1" });
+    expect(routeFromStartParam("walk-")).toEqual({ name: "home" });
+  });
+
   it("falls back to home when the vote id is empty", () => {
     expect(routeFromStartParam("vote-")).toEqual({ name: "home" });
   });

@@ -59,7 +59,7 @@ export type Gathering = z.infer<typeof GatheringSchema>;
 
 export const CreateGatheringSchema = z.object({
   eventId: IdSchema,
-  friendIds: z.array(IdSchema).min(1),
+  friendIds: z.array(IdSchema).default([]),
   proposedMeetingAt: TimestampSchema,
 });
 export type CreateGathering = z.infer<typeof CreateGatheringSchema>;

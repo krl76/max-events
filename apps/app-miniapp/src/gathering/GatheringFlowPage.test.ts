@@ -75,15 +75,17 @@ describe("GatheringFlowView", () => {
     expect(html).not.toContain("app-gathering-friend");
   });
 
-  it("disables the launch CTA without a selected friend or a meeting time", () => {
+  it("disables the launch CTA without a meeting time and lets the host start without friends", () => {
     const noFriends = viewHtml(readyState(), { meetingAt: "2026-09-19T19:00" });
     const noTime = viewHtml(readyState(), { selected: [friends[0].friend.id] });
     const launchable = viewHtml(readyState(), { selected: [friends[0].friend.id], meetingAt: "2026-09-19T19:00" });
+    const emptyGraph = viewHtml(readyState({ friends: [] }), { meetingAt: "2026-09-19T19:00" });
 
     expect(noFriends).toContain("Выбрать людей");
-    expect(noFriends).toContain("disabled");
     expect(noTime).toContain("disabled");
     expect(launchable).not.toContain("disabled");
+    expect(emptyGraph).toContain("Запустить сбор");
+    expect(emptyGraph).toContain("Пригласить в MAX");
   });
 
   it("defaults the meeting time to the event start and opens the same calendar as other create screens", () => {

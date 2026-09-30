@@ -226,7 +226,7 @@ export function resetMockGatherings(): void {
 /** Creates an in-memory gathering: known event, known friends, valid proposed time, deterministic per-fixture responses. */
 export function createMockGathering(payload: CreateGathering): Gathering | null {
   const event = mockEvents.find((item) => item.id === payload.eventId);
-  if (!event || payload.friendIds.length === 0 || !payload.friendIds.every((id) => mockFriendIds.includes(id))) return null;
+  if (!event || !payload.friendIds.every((id) => mockFriendIds.includes(id))) return null;
   if (!TimestampSchema.safeParse(payload.proposedMeetingAt).success) return null;
   const now = new Date().toISOString();
   mockGatheringSeq += 1;

@@ -26,11 +26,13 @@ describe("vote mock endpoints", () => {
     expect(vote.participants.length).toBeGreaterThan(0);
   });
 
-  it("answers 404 for an unknown vote and 403 for a vote the demo user is not part of", async () => {
+  it("answers 404 for an unknown vote and joins a vote the demo user opens by link", async () => {
     restore = installMockApi();
 
     await expect(client().getVote("d7000000-0000-4000-8000-000000000099")).rejects.toMatchObject({ name: "ApiError", status: 404 });
-    await expect(client().getVote(MOCK_FOREIGN_VOTE_ID)).rejects.toMatchObject({ name: "ApiError", status: 403 });
+    const joined = await client().getVote(MOCK_FOREIGN_VOTE_ID);
+    expect(joined.id).toBe(MOCK_FOREIGN_VOTE_ID);
+    expect(joined.participants.length).toBeGreaterThan(0);
   });
 
   it("creates a vote with a sent chat card and reads it back via the typed client", async () => {
@@ -77,12 +79,13 @@ describe("vote mock endpoints", () => {
     expect(afterSecond.options.reduce((sum, option) => sum + option.votes, 0)).toBe(before.options.reduce((sum, option) => sum + option.votes, 0) + 1);
   });
 
-  it("rejects ballots for an unknown option and for a foreign vote", async () => {
+  it("rejects ballots for an unknown option and joins a foreign vote by voting", async () => {
     restore = installMockApi();
     const api = client();
 
     await expect(api.castBallot(MOCK_VOTE_ID, mockEvents[3].id)).rejects.toMatchObject({ status: 400 });
-    await expect(api.castBallot(MOCK_FOREIGN_VOTE_ID, mockEvents[0].id)).rejects.toMatchObject({ status: 403 });
+    const joined = await api.castBallot(MOCK_FOREIGN_VOTE_ID, mockEvents[0].id);
+    expect(joined.myBallotEventId).toBe(mockEvents[0].id);
     await expect(api.castBallot("d7000000-0000-4000-8000-000000000099", mockEvents[0].id)).rejects.toMatchObject({ status: 404 });
   });
 });

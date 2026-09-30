@@ -264,7 +264,13 @@ export class ListsService {
     if (!list) throw new NotFoundException("List not found");
     if (list.userId === userId) return list;
     const membership = await this.members.findOneBy({ listId, userId });
-    if (!membership) throw new ForbiddenException("Cannot access another user's list");
+    if (membership) return list;
+    if (list.preset !== null) throw new ForbiddenException("Cannot access another user's list");
+    try {
+      await this.members.save(this.members.create({ listId, userId }));
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+    }
     return list;
   }
 

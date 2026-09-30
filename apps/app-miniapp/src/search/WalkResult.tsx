@@ -75,7 +75,11 @@ function StopTitle({ stop, onPlace }: { readonly stop: CityWalkStop; readonly on
   );
 }
 
-export function WalkResult({ city, walk, now, onAnother, onPlace, onSaved, onMap }: { readonly city: string; readonly walk: CityWalk; readonly now: number; readonly onAnother: () => void; readonly onPlace: (id: string) => void; readonly onSaved?: () => void; readonly onMap?: () => void }) {
+export function walkShareText(walk: CityWalk): string {
+  return `Прогулка по городу ${walk.city} в Афише MAX`;
+}
+
+export function WalkResult({ city, walk, now, onAnother, onPlace, onSaved, onMap, onShare }: { readonly city: string; readonly walk: CityWalk; readonly now: number; readonly onAnother: () => void; readonly onPlace: (id: string) => void; readonly onSaved?: () => void; readonly onMap?: () => void; readonly onShare?: () => void }) {
   const count = walk.stops.length;
   const travel = walk.legs.reduce((sum, leg) => sum + leg.travelMinutes, 0);
   return (
@@ -127,7 +131,7 @@ export function WalkResult({ city, walk, now, onAnother, onPlace, onSaved, onMap
         <AppButton className="app-walk-another" stretched onClick={onAnother}>
           Хочу новую прогулку
         </AppButton>
-        {onSaved !== undefined || onMap !== undefined ? (
+        {onSaved !== undefined || onMap !== undefined || onShare !== undefined ? (
           <div className="app-walk-dock-row">
             {onSaved !== undefined ? (
               <button type="button" className="app-walk-dock-btn" onClick={onSaved}>
@@ -139,6 +143,12 @@ export function WalkResult({ city, walk, now, onAnother, onPlace, onSaved, onMap
               <button type="button" className="app-walk-dock-btn" onClick={onMap}>
                 <ActionIcon name="pin" size={16} />
                 <span>Маршрут</span>
+              </button>
+            ) : null}
+            {onShare !== undefined ? (
+              <button type="button" className="app-walk-dock-btn" onClick={onShare}>
+                <ActionIcon name="share" size={16} />
+                <span>Отправить в MAX</span>
               </button>
             ) : null}
           </div>

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 32 «Создание голосования»: название, варианты чекбоксами с счётчиком «выбрано 3 из 10», ряд друзей-аватаров, плашка про чат в MAX и кнопка запуска, неактивная пока условия не выполнены.
-// SCOPE: VoteCreateView (presentational) + VoteCreateSection (embedded in the whereto wizard) + VoteCreatePage (маршрут vote-new, из группы приходит её id); ограничения 2..10 вариантов и минимум один друг проверяются здесь и повторяются контрактом CreateVoteWriteSchema.
+// SCOPE: VoteCreateView (presentational) + VoteCreateSection (embedded in the whereto wizard) + VoteCreatePage (маршрут vote-new, из группы приходит её id); ограничения 2..10 вариантов проверяются здесь и повторяются контрактом CreateVoteWriteSchema.
 // DEPENDS: ../api/client.js (apiClient, VoteScreen), ../auth/AuthContext.js (useAuth), ./format.js (voteOptionMeta), ../catalog/format.js (pluralRu), ../routing/router.js, @max-events/api-contracts (Event, Friend), ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
@@ -8,7 +8,7 @@
 // START_MODULE_MAP
 // - VOTE_MIN_OPTIONS - two: a vote with one option is not a vote (CreateVoteWriteSchema parity)
 // - VOTE_MAX_OPTIONS - ten: the ceiling the design counts up to and the contract enforces
-// - voteCreateReady - create form validity: non-empty title, 2..10 events, >=1 friend
+// - voteCreateReady - create form validity: non-empty title, 2..10 events
 // - voteCreateBlockers - ru reasons the launch button is inactive, in the order the form should be filled
 // - voteOptionsCounter - «выбрано 3 из 10»
 // - voteFriendsCounter - «4 друга»
@@ -44,12 +44,11 @@ export function voteCreateReady(title: string, eventIds: string[], friendIds: st
  * caption — «От 2 до 10 событий, друзья из списка» — and a button that refuses without saying why is
  * the thing that caption exists to prevent.
  */
-export function voteCreateBlockers(title: string, eventIds: string[], friendIds: string[]): string[] {
+export function voteCreateBlockers(title: string, eventIds: string[], _friendIds: string[] = []): string[] {
   const blockers: string[] = [];
   if (title.trim() === "") blockers.push("Задай вопрос голосования");
   if (eventIds.length < VOTE_MIN_OPTIONS) blockers.push(`Выбери хотя бы ${VOTE_MIN_OPTIONS} варианта`);
   if (eventIds.length > VOTE_MAX_OPTIONS) blockers.push(`Вариантов не больше ${VOTE_MAX_OPTIONS}`);
-  if (friendIds.length === 0) blockers.push("Позови хотя бы одного друга");
   return blockers;
 }
 
@@ -65,7 +64,7 @@ export function voteFriendsCounter(count: number): string {
 const COLLECTIVE_DATIVE_RU: readonly string[] = ["", "", "двоим", "троим", "четверым", "пятерым", "шестерым", "семерым"];
 
 export function voteInviteNote(count: number): string {
-  if (count === 0) return "При создании откроется чат в MAX — осталось выбрать, кто голосует.";
+  if (count === 0) return "После запуска отправь ссылку в чат MAX — по ней откроют голосование.";
   if (count === 1) return "При создании откроется чат в MAX, приглашение уйдёт выбранному другу.";
   return `При создании откроется чат в MAX, приглашения уйдут всем ${COLLECTIVE_DATIVE_RU[count] ?? count}.`;
 }

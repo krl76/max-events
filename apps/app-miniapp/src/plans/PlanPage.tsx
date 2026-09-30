@@ -21,7 +21,7 @@ import { useEffect, useState } from "react";
 import type { Friend, PlanBudget, PlanCancelScope, PlanCard, PlanParticipantStatus } from "@max-events/api-contracts";
 import { ApiError, apiClient, isEndpointMissing, type PlanTimeline } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
-import { FriendsInviteButton, useInviteFriends } from "../friends/invite";
+import { FriendsInviteButton } from "../friends/invite";
 import { openChatLink, shareResult, webApp } from "../max/bridge";
 import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
@@ -92,7 +92,6 @@ interface PlanViewProps {
 }
 
 export function PlanView({ state, timeline, budget, onOpenEvent = () => {}, onAsk = () => {}, onChat = () => {}, onShare = () => {}, onCalendar = () => {}, notice = null, editingParty = false, onEditParty = () => {}, invitable = [], onInvite = () => {}, viewerId = null, cancelling = false, cancelFailed = false, onCancelStart = () => {}, onCancelDismiss = () => {}, onCancel = () => {} }: PlanViewProps) {
-  const inviteFriends = useInviteFriends();
   if (state.status === "loading")
     return (
       <div className="app-plan" aria-busy="true">
@@ -150,7 +149,7 @@ export function PlanView({ state, timeline, budget, onOpenEvent = () => {}, onAs
               (invitable.length === 0 ? (
                 <div className="app-plan-invite-empty">
                   <p className="app-plan-repeat">Звать больше некого — все друзья уже в плане.</p>
-                  <FriendsInviteButton onClick={inviteFriends} />
+                  <FriendsInviteButton onClick={onShare} />
                 </div>
               ) : (
                 <ul className="app-plan-participants" aria-label="Кого позвать">

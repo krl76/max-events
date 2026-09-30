@@ -17,7 +17,9 @@ import { useEffect, useState } from "react";
 import { apiClient } from "../api/client";
 import type { Gathering, InviteeResponse } from "@max-events/api-contracts";
 import { useAuth } from "../auth/AuthContext";
-import { openExternalLink } from "../max/bridge";
+import { FriendsInviteButton } from "../friends/invite";
+import { announceShare, getWebApp, openExternalLink, shareResult } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { AppButton, AppTitle, AppState } from "../ui/primitives";
 
 export const INVITEE_RESPONSE_LABELS: Record<InviteeResponse, string> = { accepted: "идёт", considering: "ждёт ответа", busy: "не идёт" };
@@ -44,9 +46,10 @@ interface GatheringStatusViewProps {
   responding?: boolean;
   failed?: boolean;
   onRespond?: (response: InviteeResponse) => void;
+  onShare?: () => void;
 }
 
-export function GatheringStatusView({ state, myUserId = null, responding = false, failed = false, onRespond = () => {} }: GatheringStatusViewProps) {
+export function GatheringStatusView({ state, myUserId = null, responding = false, failed = false, onRespond = () => {}, onShare }: GatheringStatusViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить сбор.</AppState>;
   const myResponse = myUserId === null ? undefined : state.gathering.invitees.find((invitee) => invitee.friend.id === myUserId)?.response;
@@ -66,6 +69,7 @@ export function GatheringStatusView({ state, myUserId = null, responding = false
         </div>
       )}
       {failed && <AppState error>Не удалось отправить ответ.</AppState>}
+      {onShare !== undefined && <FriendsInviteButton onClick={onShare} />}
       {state.gathering.chatLink !== null && (
         <AppButton tone="secondary" onClick={() => openExternalLink(state.gathering.chatLink!)}>
           В чат сбора
@@ -121,5 +125,11 @@ export function GatheringStatusPage({ id }: { id: string }) {
     );
   };
 
-  return <GatheringStatusView state={state} myUserId={myUserId} responding={responding} failed={failed} onRespond={respond} />;
+  const share = () => {
+    if (state.status !== "ready") return;
+    const payload = sharePayload(`Сбор к «${state.gathering.event.title}» в Афише MAX`, `gathering-${state.gathering.id}`);
+    void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
+  };
+
+  return <GatheringStatusView state={state} myUserId={myUserId} responding={responding} failed={failed} onRespond={respond} onShare={share} />;
 }

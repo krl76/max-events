@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { Repository } from "typeorm";
 import type { Friend } from "@max-events/api-contracts";
@@ -69,7 +69,7 @@ function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
 }
 
 function createService(options: { bookings?: BookingEntity[]; botChat?: { chatId: number; link: string } | null } = {}) {
-  const users = [user(hostId, "1", "Демо"), user(dimaId, "2", "Дима"), user(katyaId, "3", "Катя")];
+  const users = [user(hostId, "1", "Демо"), user(dimaId, "2", "Дима"), user(katyaId, "3", "Катя"), user("00000000-0000-4000-8000-0000000000ff", "9", "Гость")];
   const events = [eventRow(eventId, "Джаз", "2026-09-20T16:00:00.000Z", "2026-09-20T18:00:00.000Z"), eventRow(otherEventId, "Матч", "2026-09-20T16:30:00.000Z", "2026-09-20T17:30:00.000Z")];
   const gatherings = createStoreRepo<GatheringEntity>();
   const invitees = createStoreRepo<GatheringInviteeEntity>();
@@ -131,7 +131,15 @@ describe("GatheringsService", () => {
     expect(answered.invitees.find((row) => row.friend.id === dimaId)?.response).toBe("accepted");
     expect(invitees.store.find((row) => row.userId === dimaId)?.respondedAt).toBeInstanceOf(Date);
     await expect(service.get(katyaId, created.id)).resolves.toMatchObject({ id: created.id });
-    await expect(service.get("00000000-0000-4000-8000-0000000000ff", created.id)).rejects.toBeInstanceOf(ForbiddenException);
+    const strangerId = "00000000-0000-4000-8000-0000000000ff";
+    const joined = await service.get(strangerId, created.id);
+    expect(joined.invitees.some((row) => row.friend.id === strangerId && row.response === "accepted")).toBe(true);
+  });
+
+  it("creates a gathering with nobody invited so the host can share the link", async () => {
+    const { service } = createService();
+    const created = await service.create(hostId, { eventId, friendIds: [], proposedMeetingAt: "2026-09-20T15:30:00.000Z" });
+    expect(created.invitees).toHaveLength(0);
   });
 
   it("rejects inviting a non-friend or a missing event", async () => {

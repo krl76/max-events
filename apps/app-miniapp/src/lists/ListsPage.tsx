@@ -51,7 +51,9 @@ export function participantsLabel(participants: Friend[]): string {
 
 /** A personal list is not a «совместная коллекция»; the noun follows who the list belongs to. */
 export function listShareText(list: List, cards: ListItemCard[], shared: boolean): string {
-  return `${shared ? "Совместная коллекция" : "Список"} «${list.title}»: ${cards.map((card) => listCardTitle(card)).join(", ")}`;
+  const head = `${shared ? "Совместная коллекция" : "Список"} «${list.title}»`;
+  if (cards.length === 0) return head;
+  return `${head}: ${cards.map((card) => listCardTitle(card)).join(", ")}`;
 }
 
 /** A card names an event, a place or a post; the contract promises exactly one of them. */
@@ -435,12 +437,10 @@ export function ListPage({ id }: { id: string }) {
     <section className="app-list-screen" aria-label={screen.list.title}>
       <div className="app-list-bar">
         <h1 className="app-list-bar-title">{screen.list.title}</h1>
-        {/* An empty list would share as «Список «С детьми»: » — a colon with nothing after it. */}
         <button
           type="button"
           className="app-list-bar-round"
           aria-label="Отправить в чат"
-          disabled={screen.items.length === 0}
           onClick={() => {
             const payload = sharePayload(listShareText(screen.list, screen.items, shared), `list-${screen.list.id}`);
             shareResult(webApp, payload.text, payload.link).then(setChannel);

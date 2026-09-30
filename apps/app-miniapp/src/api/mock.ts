@@ -10,7 +10,7 @@
 // - LIST_PRESET_TITLES - ru titles of the six preset lists (mock seeds them as List.title)
 // - MOCK_ASSIST_RATE_LIMIT - assist rate limit (backend AssistRateLimiter parity: 20 hits / 10 min)
 // - MOCK_EARLY_ACCESS_EVENT_ID - fixture event whose booking opens in the future (early access, #202)
-// - MOCK_FOREIGN_VOTE_ID - seeded vote the demo user can neither view nor vote on (403 parity)
+// - MOCK_FOREIGN_VOTE_ID - seeded vote the demo user did not host; opening the link joins them
 // - MOCK_GATHERING_ID - seeded deep-link demo gathering (hosted by a friend; the demo user is an invitee so the response flow is reachable in mock mode)
 // - MOCK_MODERATOR_USER_ID - the demo user, standing in for MODERATOR_MAX_USER_IDS
 // - MOCK_NOW - the fixed demo "now" (noon of MOCK_TODAY) the nearby timeline buckets and leisure window are computed from

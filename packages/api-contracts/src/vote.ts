@@ -53,7 +53,7 @@ export type Vote = z.infer<typeof VoteSchema>;
 export const CreateVoteWriteSchema = z.object({
   title: z.string().trim().min(1).max(200).default("Куда идем в пятницу?"),
   eventIds: z.array(IdSchema).min(2).max(10).refine(uniqueIds, { message: "duplicate event ids" }),
-  participantIds: z.array(IdSchema).min(1).refine(uniqueIds, { message: "duplicate participant ids" }),
+  participantIds: z.array(IdSchema).default([]).refine(uniqueIds, { message: "duplicate participant ids" }),
 });
 export type CreateVoteWrite = z.infer<typeof CreateVoteWriteSchema>;
 

@@ -90,7 +90,7 @@ export function GatheringFlowView({ state, selected, meetingAt, submitting, fail
         Когда встречаемся
         <WhenField title="Когда встречаемся" label="Выбрать" value={meetingAt} onChange={onMeetingAt} />
       </div>
-      <AppButton disabled={selected.length === 0 || meetingAt === "" || submitting} onClick={onLaunch} stretched>
+      <AppButton disabled={meetingAt === "" || submitting} onClick={onLaunch} stretched>
         {submitting ? "Запускаем…" : "Запустить сбор"}
       </AppButton>
       {failed && <AppState error>Не удалось запустить сбор.</AppState>}

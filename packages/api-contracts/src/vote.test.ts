@@ -37,13 +37,14 @@ describe("VoteSchema", () => {
 });
 
 describe("CreateVoteWriteSchema", () => {
-  it("defaults the Friday title and requires two unique events plus a participant", () => {
+  it("defaults the Friday title and requires two unique events", () => {
     const parsed = CreateVoteWriteSchema.parse({ eventIds: [eventA, eventB], participantIds: [friendId] });
     expect(parsed.title).toBe("Куда идем в пятницу?");
     expect(parsed.eventIds).toEqual([eventA, eventB]);
+    expect(CreateVoteWriteSchema.parse({ eventIds: [eventA, eventB] }).participantIds).toEqual([]);
     expect(CreateVoteWriteSchema.safeParse({ eventIds: [eventA], participantIds: [friendId] }).success).toBe(false);
     expect(CreateVoteWriteSchema.safeParse({ eventIds: [eventA, eventA], participantIds: [friendId] }).success).toBe(false);
-    expect(CreateVoteWriteSchema.safeParse({ eventIds: [eventA, eventB], participantIds: [] }).success).toBe(false);
+    expect(CreateVoteWriteSchema.safeParse({ eventIds: [eventA, eventB], participantIds: [] }).success).toBe(true);
   });
 });
 

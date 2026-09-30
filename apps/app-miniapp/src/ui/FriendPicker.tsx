@@ -63,15 +63,18 @@ export interface FriendPickerProps {
   busy?: boolean;
   onConfirm: (friendIds: string[]) => void;
   onClose: () => void;
+  /** Empty-graph CTA. Defaults to a friends invite; pass the current thing's share when one exists. */
+  onInvite?: () => void;
 }
 
-export function FriendPicker({ friends, title = "Выбери друга", hint = null, confirmLabel = "Добавить", emptyText = "Друзей пока нет.", multiple = false, selectedIds, busy = false, onConfirm, onClose }: FriendPickerProps) {
+export function FriendPicker({ friends, title = "Выбери друга", hint = null, confirmLabel = "Добавить", emptyText = "Друзей пока нет.", multiple = false, selectedIds, busy = false, onConfirm, onClose, onInvite }: FriendPickerProps) {
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<string[]>(() => (selectedIds ? [...selectedIds] : []));
   const sheet = useRef<HTMLDivElement | null>(null);
   const search = useRef<HTMLInputElement | null>(null);
   const swipe = useSheetSwipe(onClose);
   const inviteFriends = useInviteFriends();
+  const invite = onInvite ?? inviteFriends;
 
   // Фокус уезжает в окно на открытии и возвращается на открывашку на закрытии. Без возврата
   // клавиатура и экранный диктор оказываются в начале страницы — окно как будто отбросило их назад.
@@ -119,7 +122,7 @@ export function FriendPicker({ friends, title = "Выбери друга", hint 
         {shown.length === 0 ? (
           <div className="app-fpick-empty-block">
             <p className="app-fpick-empty">{query.trim() === "" ? emptyText : "Никого не нашлось."}</p>
-            {query.trim() === "" && <FriendsInviteButton onClick={inviteFriends} />}
+            {query.trim() === "" && <FriendsInviteButton onClick={invite} />}
           </div>
         ) : (
           <ul className="app-fpick-list">

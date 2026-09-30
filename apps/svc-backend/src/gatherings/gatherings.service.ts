@@ -17,7 +17,7 @@
 
 import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { QueryFailedError, Repository } from "typeorm";
 import type { CreateGathering, FriendAvailability, Gathering, InviteeResponse } from "@max-events/api-contracts";
 import { BookingEntity } from "../bookings/booking.entity";
 import { toEventDto } from "../events/events.service";
@@ -141,10 +141,8 @@ export class GatheringsService {
   async get(userId: string, gatheringId: string): Promise<Gathering> {
     const gathering = await this.gatherings.findOneBy({ id: gatheringId });
     if (!gathering) throw new NotFoundException("Gathering not found");
+    await this.admit(userId, gathering);
     const invitees = await this.invitees.find({ where: { gatheringId } });
-    if (gathering.hostUserId !== userId && !invitees.some((row) => row.userId === userId)) {
-      throw new ForbiddenException("Cannot view another user's gathering");
-    }
     const event = await this.events.findOneBy({ id: gathering.eventId });
     if (!event) throw new NotFoundException("Event not found");
     return this.toDto(gathering, event, invitees);
@@ -153,6 +151,7 @@ export class GatheringsService {
   async respond(userId: string, gatheringId: string, response: InviteeResponse): Promise<Gathering> {
     const gathering = await this.gatherings.findOneBy({ id: gatheringId });
     if (!gathering) throw new NotFoundException("Gathering not found");
+    await this.admit(userId, gathering);
     const invitee = (await this.invitees.find({ where: { gatheringId } })).find((row) => row.userId === userId);
     if (!invitee) throw new ForbiddenException("Cannot respond to this gathering");
     invitee.response = response;
@@ -196,6 +195,18 @@ export class GatheringsService {
     return result;
   }
 
+  /** Opening a shared gathering-{id} link is the invite: the viewer joins as accepted. */
+  private async admit(userId: string, gathering: GatheringEntity): Promise<void> {
+    if (gathering.hostUserId === userId) return;
+    const rows = await this.invitees.find({ where: { gatheringId: gathering.id } });
+    if (rows.some((row) => row.userId === userId)) return;
+    try {
+      await this.invitees.save(this.invitees.create({ gatheringId: gathering.id, userId, response: "accepted", respondedAt: new Date(), reminderSentAt: null }));
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+    }
+  }
+
   private async toDto(gathering: GatheringEntity, event: EventEntity, inviteeRows?: GatheringInviteeEntity[]): Promise<Gathering> {
     const rows = inviteeRows ?? (await this.invitees.find({ where: { gatheringId: gathering.id } }));
     const users = await this.users.find();
@@ -214,4 +225,8 @@ export class GatheringsService {
       updatedAt: gathering.updatedAt.toISOString(),
     };
   }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return error instanceof QueryFailedError && error.driverError?.code === "23505";
 }

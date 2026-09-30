@@ -27,7 +27,7 @@ export type WikidataLookup = (city: string, interests: readonly string[]) => Pro
 export type WalkStore = {
   save(row: CityWalkEntity): Promise<CityWalkEntity>;
   find(options: { where: { userId: string }; order: { createdAt: "DESC" } }): Promise<CityWalkEntity[]>;
-  findOne(options: { where: { id: string; userId: string } }): Promise<CityWalkEntity | null>;
+  findOne(options: { where: { id: string; userId?: string } }): Promise<CityWalkEntity | null>;
 };
 
 export type ListedPlace = {
@@ -120,8 +120,8 @@ export class WalksService {
     return [...rows].sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime()).map((row) => row.payload);
   }
 
-  async get(userId: string, id: string): Promise<CityWalk> {
-    const row = await this.walks.findOne({ where: { id, userId } });
+  async get(_userId: string, id: string): Promise<CityWalk> {
+    const row = await this.walks.findOne({ where: { id } });
     if (row === null) throw new NotFoundException();
     return row.payload;
   }

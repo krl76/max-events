@@ -33,10 +33,10 @@ describe("createMockGathering", () => {
     expect(gathering!.proposedMeetingAt).toBe(MEETING_AT);
   });
 
-  it("rejects unknown events, unknown friends, empty invite lists and invalid timestamps", () => {
+  it("rejects unknown events, unknown friends and invalid timestamps, and allows an empty invite list", () => {
     expect(createMockGathering({ eventId: "c0000000-0000-4000-8000-000000000000", friendIds: [mockFriendIds[0]], proposedMeetingAt: MEETING_AT })).toBeNull();
     expect(createMockGathering({ eventId: mockEvents[0].id, friendIds: ["a0000000-0000-4000-8000-0000000000ff"], proposedMeetingAt: MEETING_AT })).toBeNull();
-    expect(createMockGathering({ eventId: mockEvents[0].id, friendIds: [], proposedMeetingAt: MEETING_AT })).toBeNull();
+    expect(createMockGathering({ eventId: mockEvents[0].id, friendIds: [], proposedMeetingAt: MEETING_AT })).not.toBeNull();
     expect(createMockGathering({ eventId: mockEvents[0].id, friendIds: [mockFriendIds[0]], proposedMeetingAt: "завтра вечером" })).toBeNull();
   });
 

@@ -111,6 +111,7 @@ const START_PARAM_PREFIXES = [
   ["booking-", "slot-ticket"],
   ["post-", "post"],
   ["user-", "user"],
+  ["walk-", "walk-saved"],
 ] as const satisfies ReadonlyArray<readonly [string, Route["name"]]>;
 
 /** Browser stand: ?startapp= or ?start= carries the same payload MAX puts in start_param. */

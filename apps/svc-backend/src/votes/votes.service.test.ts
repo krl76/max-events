@@ -80,7 +80,7 @@ function createService() {
   const participants = createStoreRepo<VoteParticipantEntity>();
   const ballots = createStoreRepo<VoteBallotEntity>();
   const events = createStoreRepo<EventEntity>([eventRow(jazzId, "Джаз"), eventRow(concertId, "Концерт"), eventRow(draftId, "Черновик", false)]);
-  const users = createStoreRepo<UserEntity>([{ id: hostId, maxUserId: "1", firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity, { id: dimaId, maxUserId: "2", firstName: "Дима", lastName: null, avatarUrl: null } as UserEntity, { id: katyaId, maxUserId: "3", firstName: "Катя", lastName: null, avatarUrl: null } as UserEntity]);
+  const users = createStoreRepo<UserEntity>([{ id: hostId, maxUserId: "1", firstName: "Саша", lastName: null, avatarUrl: null } as UserEntity, { id: dimaId, maxUserId: "2", firstName: "Дима", lastName: null, avatarUrl: null } as UserEntity, { id: katyaId, maxUserId: "3", firstName: "Катя", lastName: null, avatarUrl: null } as UserEntity, { id: strangerId, maxUserId: "9", firstName: "Гость", lastName: null, avatarUrl: null } as UserEntity]);
   const friends = {
     friendIds: async () => new Set([dimaId, katyaId]),
     list: async () =>
@@ -154,12 +154,21 @@ describe("VotesService", () => {
     await expect(service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, concertId], participantIds: [strangerId] })).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, draftId], participantIds: [dimaId] })).rejects.toBeInstanceOf(NotFoundException);
     const created = await service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, concertId], participantIds: [dimaId] });
-    await expect(service.get(strangerId, created.id)).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(service.castBallot(strangerId, created.id, jazzId)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(await service.list(strangerId)).toEqual([]);
+    const joined = await service.get(strangerId, created.id);
+    expect(joined.participants.some((row) => row.id === strangerId)).toBe(true);
+    const ballot = await service.castBallot(strangerId, created.id, jazzId);
+    expect(ballot.myBallotEventId).toBe(jazzId);
     await expect(service.castBallot(dimaId, created.id, draftId)).rejects.toBeInstanceOf(BadRequestException);
     const listed = await service.list(dimaId);
     expect(listed).toHaveLength(1);
-    expect(await service.list(strangerId)).toEqual([]);
+    expect(await service.list(strangerId)).toHaveLength(1);
+  });
+
+  it("creates a vote with nobody invited so the host can share the link", async () => {
+    const { service } = createService();
+    const created = await service.create(hostId, { title: "Куда идем в пятницу?", eventIds: [jazzId, concertId], participantIds: [] });
+    expect(created.participants).toHaveLength(0);
   });
 
   it("returns the viewer's own ballot and never someone else's", async () => {

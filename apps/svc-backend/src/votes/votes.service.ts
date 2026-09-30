@@ -98,7 +98,7 @@ export class VotesService {
 
   async get(userId: string, voteId: string): Promise<Vote> {
     const vote = await this.requireVote(voteId);
-    if (!(await this.canView(userId, vote))) throw new ForbiddenException("Cannot view another user's vote");
+    await this.admit(userId, vote);
     return this.toVote(vote, userId);
   }
 
@@ -116,7 +116,7 @@ export class VotesService {
   async castBallot(userId: string, voteId: string, eventId: string): Promise<Vote> {
     const vote = await this.requireVote(voteId);
     if (vote.status === "closed") throw new ForbiddenException("This poll is closed");
-    if (!(await this.canView(userId, vote))) throw new ForbiddenException("Cannot vote on this poll");
+    await this.admit(userId, vote);
     const option = (await this.options.find({ where: { voteId } })).find((row) => row.eventId === eventId);
     if (!option) throw new BadRequestException("Invalid vote payload");
     const existing = await this.findBallot(voteId, userId);
@@ -152,6 +152,16 @@ export class VotesService {
     if (vote.hostUserId === userId) return true;
     const rows = await this.participants.find({ where: { voteId: vote.id } });
     return rows.some((row) => row.userId === userId);
+  }
+
+  /** Opening a shared vote-{id} link is the invite: the viewer joins as a participant. */
+  private async admit(userId: string, vote: VoteEntity): Promise<void> {
+    if (await this.canView(userId, vote)) return;
+    try {
+      await this.participants.save(this.participants.create({ voteId: vote.id, userId }));
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+    }
   }
 
   private async toVote(vote: VoteEntity, viewerId: string): Promise<Vote> {

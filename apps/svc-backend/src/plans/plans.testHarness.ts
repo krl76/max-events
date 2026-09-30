@@ -120,7 +120,7 @@ export function createStoreRepo<T extends { id?: string }>(initial: T[] = []) {
 }
 
 export function createService(options: { chatLink?: string | null } = {}) {
-  const users = [user(hostId, "1", "Демо"), user(dimaId, "2", "Дима"), user(katyaId, "3", "Катя")];
+  const users = [user(hostId, "1", "Демо"), user(dimaId, "2", "Дима"), user(katyaId, "3", "Катя"), user("00000000-0000-4000-8000-0000000000ff", "9", "Гость")];
   const place = { id: placeId, title: "Метро", address: "Крымский Вал", city: "Москва", category: "park", published: true, latitude: 55.747, longitude: 37.584, createdAt: now, updatedAt: now } as PlaceEntity;
   const food = {
     id: "00000000-0000-4000-8000-0000000000a3",

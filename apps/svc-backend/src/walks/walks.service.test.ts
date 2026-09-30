@@ -38,8 +38,8 @@ class MemoryStore implements WalkStore {
     return this.rows.filter((row) => row.userId === options.where.userId);
   }
 
-  async findOne(options: { where: { id: string; userId: string } }): Promise<CityWalkEntity | null> {
-    return this.rows.find((row) => row.id === options.where.id && row.userId === options.where.userId) ?? null;
+  async findOne(options: { where: { id: string; userId?: string } }): Promise<CityWalkEntity | null> {
+    return this.rows.find((row) => row.id === options.where.id && (options.where.userId === undefined || row.userId === options.where.userId)) ?? null;
   }
 }
 
@@ -83,12 +83,12 @@ describe("WalksService", () => {
     expect(walk.stops.map((stop) => stop.title)).toEqual(expect.arrayContaining(["Парк Горького", "Нескучный сад"]));
   });
 
-  it("does not return another user's walk", async () => {
+  it("lets anyone with the id read a walk, and only the owner mark stops", async () => {
     const store = new MemoryStore();
     const lookup: WikidataLookup = async () => [];
     const walks = service(store, [place(parkA, "Парк Горького"), place(parkB, "Нескучный сад")], { rankCandidateIds: async (items) => items.map((item) => item.id) }, lookup);
     const saved = await walks.compose(userA, write);
-    await expect(walks.get(userB, saved.id)).rejects.toBeInstanceOf(NotFoundException);
+    expect(await walks.get(userB, saved.id)).toEqual(saved);
     expect(await walks.list(userB)).toEqual([]);
     expect(await walks.list(userA)).toEqual([saved]);
   });

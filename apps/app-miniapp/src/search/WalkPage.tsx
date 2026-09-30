@@ -3,10 +3,12 @@ import type { AssistDayResponse, CityWalk, ComposeCityWalkWrite } from "@max-eve
 import { apiClient } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { genitiveCity, prepositionalCity } from "../geo/city-case";
+import { announceShare, getWebApp, shareResult } from "../max/bridge";
+import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
 import { AppButton, AppState } from "../ui/primitives";
 import { EMPTY_WALK_CHOICE, walkComposeReady, WalkWizard, type WalkChoice } from "./WalkWizard";
-import { WalkResult, walkErrorText, walkStopKeys } from "./WalkResult";
+import { WalkResult, walkErrorText, walkShareText, walkStopKeys } from "./WalkResult";
 
 const WAIT_SKELETONS: readonly number[] = [0, 1, 2, 3];
 
@@ -200,7 +202,21 @@ export function WalkPage({ city, compose = (body) => apiClient.composeCityWalk(b
   }
 
   if (phase === "ready" && walk !== null) {
-    return <WalkResult city={city} walk={walk} now={now} onAnother={onAnother} onPlace={(id) => navigate({ name: "place", id })} onSaved={() => navigate({ name: "walks" })} onMap={() => navigate({ name: "map", walkId: walk.id })} />;
+    return (
+      <WalkResult
+        city={city}
+        walk={walk}
+        now={now}
+        onAnother={onAnother}
+        onPlace={(id) => navigate({ name: "place", id })}
+        onSaved={() => navigate({ name: "walks" })}
+        onMap={() => navigate({ name: "map", walkId: walk.id })}
+        onShare={() => {
+          const payload = sharePayload(walkShareText(walk), `walk-${walk.id}`);
+          void shareResult(getWebApp(), payload.text, payload.link).then(announceShare);
+        }}
+      />
+    );
   }
 
   return (
