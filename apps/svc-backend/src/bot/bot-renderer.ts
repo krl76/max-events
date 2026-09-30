@@ -9,7 +9,7 @@
 // - BotMedia - public origin + bot name; absoluteCover/heroUrl/bannerUrl/coverUrls turn stored paths into URLs MAX can fetch
 // - CATEGORY_LABELS - ru labels per event category, same words the mini-app shows
 // - eventCard - one event as a markdown block: title, category, when, price, optional context labels
-// - welcomeMessage - first hello: what the bot does and the two ways in (app / menu); no Назад
+// - welcomeMessage - first hello: open the mini-app (onboarding lives there), then chat + slash-command hint; no Назад
 // - menuMessage - the main keyboard: today, where-to, plans, bookings, help, open app, Назад
 // - todayMessage - TodayService digest: summary counters + top cards with their context labels
 // - wheretoQuestion - one step of the guided picker with its answer buttons
@@ -201,7 +201,13 @@ export function withBack(keyboard: BotKeyboard, payload: BotPayload = { id: "sta
 
 export function welcomeMessage(media: BotMedia, firstName: string | null): BotMessageBody {
   const name = firstName ? `, ${firstName}` : "";
-  const text = [`# Привет${name}`, "", "Найду, куда сходить сегодня, и запишу прямо в чате.", "", "> События, места и друзья рядом с тобой"].join("\n");
+  const text = [
+    `# Привет${name}`,
+    "",
+    "Открой афишу в приложении — онбординг уже там.",
+    "",
+    "Здесь подберу событие словами и запишу в чат. Набери **/** — появятся команды.",
+  ].join("\n");
   const keyboard: BotKeyboard = [[openApp(media, "Открыть афишу в приложении", null)], ...menuKeyboard(media)];
   return botRich(text, { keyboard, markdown: true });
 }
@@ -212,7 +218,20 @@ export function menuMessage(media: BotMedia): BotMessageBody {
 }
 
 export function helpMessage(media: BotMedia): BotMessageBody {
-  const text = ["# Что умеет бот", "", "• **Что сегодня** — сколько событий рядом, сколько подходит тебе и на сколько идут друзья.", "• **Куда пойти** — компания, настроение, бюджет; пять вариантов и запись в один тап.", "• **Поиск словами** — напиши «джаз вечером до 3000» или «куда сходить с детьми в субботу».", "• **Мои планы** и **Мои брони** — что запланировано и когда встречаемся.", "• **Запись и лист ожидания** — без приложения; если мест нет, поставлю в очередь и напишу, когда освободится.", "• **Напоминания** — перед стартом пришлю сообщение с временем и местом.", "", "Карта, афиша целиком, планы с друзьями, голосования и достижения — кнопка «Открыть приложение»."].join("\n");
+  const text = [
+    "# Что умеет бот",
+    "",
+    "• **Приложение** — карта, друзья, онбординг: кнопка «Открыть афишу в приложении».",
+    "• **Команды** — набери **/** в поле ввода: /start, /today, /whereto, /plans, /bookings, /help.",
+    "• **Что сегодня** — сколько событий рядом, сколько подходит тебе и на сколько идут друзья.",
+    "• **Куда пойти** — компания, настроение, бюджет; пять вариантов и запись в один тап.",
+    "• **Поиск словами** — напиши «джаз вечером до 3000» или «куда сходить с детьми в субботу».",
+    "• **Мои планы** и **Мои брони** — что запланировано и когда встречаемся.",
+    "• **Запись и лист ожидания** — без приложения; если мест нет, поставлю в очередь и напишу, когда освободится.",
+    "• **Напоминания** — перед стартом пришлю сообщение с временем и местом.",
+    "",
+    "Карта, афиша целиком, планы с друзьями, голосования и достижения — кнопка «Открыть приложение».",
+  ].join("\n");
   return botRich(text, { keyboard: withBack(menuKeyboard(media)), markdown: true });
 }
 

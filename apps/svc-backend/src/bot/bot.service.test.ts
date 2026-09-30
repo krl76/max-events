@@ -91,6 +91,7 @@ describe("isMenuWord / commandOf", () => {
   });
 
   it("publishes a command menu within MAX's per-command limits", () => {
+    expect(BOT_COMMANDS.map((command) => command.name)).toEqual(["start", "today", "whereto", "plans", "bookings", "help", "menu"]);
     expect(BOT_COMMANDS.every((command) => command.name.length <= 64 && command.description.length <= 128)).toBe(true);
     expect(BOT_COMMANDS.length).toBeLessThanOrEqual(32);
   });
@@ -152,6 +153,13 @@ describe("BotService.handleInbound", () => {
     const { service, sent } = createHarness();
     await service.handleInbound(textInbound("джаз вечером до 3000"));
     expect(sent[0]?.body.text).toContain("Нашел 1 вариант");
+  });
+
+  it("routes /help to the help card, not the greeting menu", async () => {
+    const { service, sent } = createHarness();
+    await service.handleInbound(textInbound("/help"));
+    expect(sent[0]?.body.text).toContain("Что умеет бот");
+    expect(sent[0]?.body.text).toContain("/today");
   });
 
   it("routes /today and /plans commands to their screens instead of an NL search", async () => {

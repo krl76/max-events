@@ -111,6 +111,8 @@ describe("welcomeMessage", () => {
   it("greets by first name and both ways in, without a photo so the keyboard answers at once", () => {
     const body = welcomeMessage(media, "Михаил");
     expect(body.text).toContain("Михаил");
+    expect(body.text).toContain("Открой афишу в приложении");
+    expect(body.text).toContain("Набери **/**");
     expect(body.format).toBe("markdown");
     expect(imageOf(body)).toBeNull();
     const opens = openAppPayloads(keyboardOf(body));
