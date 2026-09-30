@@ -65,8 +65,9 @@ const FriendSuggestionSchema: ZodSchema<FriendSuggestion> = {
     const friend = FriendSchema.safeParse(raw.friend);
     if (!friend.success) return { success: false as const, error: friend.error };
     if (raw.hint !== null && typeof raw.hint !== "string") return { success: false as const, error: "invalid friend suggestion hint" };
-    if (typeof raw.followed !== "boolean") return { success: false as const, error: "invalid friend suggestion follow state" };
-    return { success: true as const, data: { friend: friend.data, hint: raw.hint, followed: raw.followed } };
+    const followed = raw.followed === true || raw.following === true;
+    if (raw.followed !== true && raw.followed !== false && raw.following !== true && raw.following !== false) return { success: false as const, error: "invalid friend suggestion follow state" };
+    return { success: true as const, data: { friend: friend.data, hint: raw.hint, followed } };
   },
 };
 
@@ -107,9 +108,10 @@ export interface FriendsSync {
 const FriendsSyncSchema: ZodSchema<FriendsSync> = {
   safeParse(data: unknown) {
     if (typeof data !== "object" || data === null) return { success: false as const, error: "expected a friends sync stamp" };
-    const { syncedAt } = data as { syncedAt?: unknown };
-    if (syncedAt !== null && typeof syncedAt !== "string") return { success: false as const, error: "invalid friends sync stamp" };
-    return { success: true as const, data: { syncedAt } };
+    const raw = data as { syncedAt?: unknown; lastSyncedAt?: unknown };
+    const syncedAt = raw.syncedAt ?? raw.lastSyncedAt;
+    if (syncedAt !== null && syncedAt !== undefined && typeof syncedAt !== "string") return { success: false as const, error: "invalid friends sync stamp" };
+    return { success: true as const, data: { syncedAt: typeof syncedAt === "string" ? syncedAt : null } };
   },
 };
 
@@ -254,6 +256,11 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
     /** Undo «Добавить»: both directed edges go away, the viewer's follow of them goes away. */
     removeFriend(userId: string): Promise<Friend[]> {
       return this.request(`/friends/${encodeURIComponent(userId)}`, FriendSchema.array(), { method: "DELETE" });
+    }
+
+    /** A person who already opened the mini-app, by MAX id or @username. */
+    findFriendByMaxId(maxUserId: string): Promise<Friend> {
+      return this.request(`/friends/find?maxUserId=${encodeURIComponent(maxUserId)}`, FriendSchema);
     }
 
     /** People the viewer marked close. Adding someone is limited to followers; this list is whoever is marked now. */

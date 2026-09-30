@@ -13,7 +13,7 @@ import { CreatePlanExpenseWriteSchema, GatheringResponseWriteSchema, IdSchema } 
 import { type CreateGathering, type CreateMicroEvent } from "../client";
 import { MOCK_PEOPLE_CENTER, mockEvents, parseBookingBody, parseMockOrigin } from "./fixtures";
 import { mockCloseFriendsOf } from "./profile.routes";
-import { addMockFriend, addMockMicroEventExpense, createMockGathering, createMockMicroEvent, discoverySummary, followMockFriends, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, listMockFriends, microEventCard, microEvents, mockGatherings, mockMicroEventBudget, peopleSuggest, removeMockFriend, respondMockGathering, syncMockFriends } from "./social";
+import { acceptMockFriendInvite, addMockFriend, addMockMicroEventExpense, createMockGathering, createMockMicroEvent, discoverySummary, findMockFriendByMaxId, followMockFriends, friendActivityByFriend, friendAvailability, friendPlaceLayer, friendRoute, friendSuggestions, friendsSyncState, joinMockMicroEvent, leaveMockMicroEvent, listMockFriends, microEventCard, microEvents, mockGatherings, mockMicroEventBudget, peopleSuggest, removeMockFriend, respondMockGathering, syncMockFriends } from "./social";
 
 export function socialRoutes(url: URL, init: RequestInit | undefined): Response | null {
   if (url.pathname === "/api/friends/activity") {
@@ -25,8 +25,20 @@ export function socialRoutes(url: URL, init: RequestInit | undefined): Response 
   if (url.pathname === "/api/friends/suggestions") {
     return Response.json(friendSuggestions());
   }
+  if (url.pathname === "/api/friends/find") {
+    const query = url.searchParams.get("maxUserId") ?? "";
+    if (query.trim() === "") return new Response(null, { status: 400 });
+    const found = findMockFriendByMaxId(query);
+    return found === null ? new Response(null, { status: 404 }) : Response.json(found);
+  }
   if (url.pathname === "/api/friends/close") {
     return Response.json(mockCloseFriendsOf());
+  }
+  if (url.pathname === "/api/friends/invite-accept" && init?.method === "POST") {
+    const payload = parseBookingBody(init) as { userId?: unknown } | undefined;
+    if (typeof payload !== "object" || payload === null || typeof payload.userId !== "string") return new Response(null, { status: 400 });
+    const followed = acceptMockFriendInvite(payload.userId);
+    return followed === "unknown" ? new Response(null, { status: 404 }) : Response.json(followed);
   }
   if (url.pathname === "/api/friends/follows" && init?.method === "PUT") {
     const payload = parseBookingBody(init) as { userIds?: unknown } | undefined;

@@ -63,13 +63,14 @@ describe("activeFriends", () => {
 });
 
 describe("FriendsView", () => {
-  const view = (value: FriendsState) => renderToStaticMarkup(createElement(FriendsView, { state: value, now: NOW, onOpenFriend: noop, onOpenDiscovery: noop, onOpenPeople: noop, onInvite: noop, onRetry: noop }));
+  const view = (value: FriendsState) => renderToStaticMarkup(createElement(FriendsView, { state: value, now: NOW, onOpenFriend: noop, onOpenDiscovery: noop, onOpenPeople: noop, onInvite: noop, onFind: noop, onRetry: noop }));
 
   it("renders the counter topbar without a contacts sync row", () => {
     const html = view(state());
 
     expect(html).toContain("Друзья");
     expect(html).toContain(`>${mockFriends.length}<`);
+    expect(html).toContain("Найти друга");
     expect(html).not.toContain("Контакты MAX");
     expect(html).toContain("Места, где друзья уже были");
   });

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: HTTP surface for friend graph sync, activity feed, and per-event friend summary.
-// SCOPE: POST /friends/sync, POST/DELETE /friends/:userId, GET /friends, GET /friends/close, GET /friends/activity, GET /friends/suggestions, GET /friends/sync, PUT /friends/follows, GET /users/:id/following, GET /users/:id/followers, GET/PUT /users/:id/close, GET /events/:eventId/friends; CurrentUser identity.
+// SCOPE: POST /friends/sync, GET /friends/find, POST /friends/invite-accept, POST/DELETE /friends/:userId, GET /friends, GET /friends/close, GET /friends/activity, GET /friends/suggestions, GET /friends/sync, PUT /friends/follows, GET /users/:id/following, GET /users/:id/followers, GET/PUT /users/:id/close, GET /events/:eventId/friends; CurrentUser identity.
 // DEPENDS: @nestjs/common, @max-events/api-contracts, ../auth/auth.guard, ./friends.service
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -11,8 +11,8 @@
 // - EventFriendsController - /events/:eventId/friends summary
 // END_MODULE_MAP
 
-import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Post, Put } from "@nestjs/common";
-import { ReplaceFollowsWriteSchema, type EventFriendsSummary, type Friend, type FriendActivityByFriend, type FriendSuggestion, type FriendsSyncStatus } from "@max-events/api-contracts";
+import { BadRequestException, Body, Controller, Delete, Get, Inject, NotFoundException, Param, ParseUUIDPipe, Post, Put, Query } from "@nestjs/common";
+import { AcceptFriendInviteWriteSchema, ReplaceFollowsWriteSchema, type EventFriendsSummary, type Friend, type FriendActivityByFriend, type FriendSuggestion, type FriendsSyncStatus } from "@max-events/api-contracts";
 import { CurrentUser } from "../auth/auth.guard";
 import { UserEntity } from "../users/user.entity";
 import { FriendsService } from "./friends.service";
@@ -24,6 +24,14 @@ export class FriendsController {
   @Get()
   async list(@CurrentUser() user: UserEntity): Promise<Friend[]> {
     return this.friends.list(user.id);
+  }
+
+  @Get("find")
+  async find(@Query("maxUserId") maxUserId?: string): Promise<Friend> {
+    if (maxUserId === undefined || maxUserId.trim() === "") throw new BadRequestException("Invalid MAX id");
+    const found = await this.friends.findByMaxId(maxUserId);
+    if (!found) throw new NotFoundException("User not found");
+    return found;
   }
 
   @Get("close")
@@ -56,6 +64,13 @@ export class FriendsController {
     const parsed = ReplaceFollowsWriteSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException("Invalid follows payload");
     return this.friends.replaceFollows(user.id, parsed.data.userIds);
+  }
+
+  @Post("invite-accept")
+  async acceptInvite(@CurrentUser() user: UserEntity, @Body() body: unknown): Promise<string[]> {
+    const parsed = AcceptFriendInviteWriteSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException("Invalid invite payload");
+    return this.friends.acceptInvite(user.id, parsed.data.userId);
   }
 
   @Post(":userId")

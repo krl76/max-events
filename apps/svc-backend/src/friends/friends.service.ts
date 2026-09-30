@@ -21,6 +21,7 @@ import { MaxBotClient } from "../max-bot/max-bot.client";
 import { ParticipationEntity } from "../participations/participation.entity";
 import { SubscriptionEntity } from "../subscriptions/subscription.entity";
 import { UserEntity } from "../users/user.entity";
+import { photoUrlFromMax } from "../users/users.service";
 import { FriendshipEntity } from "./friendship.entity";
 
 @Injectable()
@@ -211,6 +212,12 @@ export class FriendsService {
     return this.list(userId);
   }
 
+  /** Opening a `user-` invite link adds both people as friends and follows. */
+  async acceptInvite(viewerId: string, otherId: string): Promise<string[]> {
+    await this.add(viewerId, otherId);
+    return (await this.following(viewerId)).map((row) => row.id);
+  }
+
   private async ensureEdge(userId: string, friendUserId: string): Promise<void> {
     const existing = await this.friendships.findOneBy({ userId, friendUserId });
     if (existing) return;
@@ -269,6 +276,15 @@ export class FriendsService {
     return nonempty;
   }
 
+  /** A person who already opened the mini-app, looked up by MAX id or @username. */
+  async findByMaxId(query: string): Promise<Friend | null> {
+    const needle = query.trim().replace(/^@/, "");
+    if (needle.length === 0 || needle.length > 64) throw new BadRequestException("Invalid MAX id");
+    const rows = await this.users.find();
+    const match = rows.find((row) => row.maxUserId === needle || row.username?.toLowerCase() === needle.toLowerCase());
+    return match ? toFriendDto(match) : null;
+  }
+
   async eventFriends(userId: string, eventId: string): Promise<EventFriendsSummary> {
     const event = await this.events.findOneBy({ id: eventId });
     if (!event) throw new NotFoundException("Event not found");
@@ -292,7 +308,8 @@ export function toFriendDto(user: UserEntity): Friend {
   return {
     id: user.id,
     name: user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: photoUrlFromMax(user.avatarUrl),
     ...(user.username ? { username: user.username } : {}),
+    maxUserId: user.maxUserId,
   };
 }

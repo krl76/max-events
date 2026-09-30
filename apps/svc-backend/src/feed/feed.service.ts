@@ -313,8 +313,12 @@ export class FeedService {
           const commentAuthor = userById.get(row.authorUserId);
           return commentAuthor ? [{ id: row.id, author: toFriendDto(commentAuthor), text: row.text, parentId: row.parentId ?? null }] : [];
         });
-      const photoUrls = post.photoUrls && post.photoUrls.length > 0 ? post.photoUrls : post.photoUrl ? [post.photoUrl] : [];
-      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId ?? null, text: post.text, photoUrl: photoUrls[0] ?? null, photoUrls, placeId: post.placeId ?? null, locationLabel: post.locationLabel ?? null, taggedFriendIds: post.taggedFriendIds ?? [], audience: post.audience ?? "friends", allowJoin: post.allowJoin ?? false, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), likedByFriends, comments, repostOf: null as FeedRepost | null, repostOfPostId: post.repostOfPostId ?? null }];
+      const photoUrls = (post.photoUrls && post.photoUrls.length > 0 ? post.photoUrls : post.photoUrl ? [post.photoUrl] : []).flatMap((url) => {
+        const photo = publicFeedPhoto(url);
+        return photo ? [photo] : [];
+      });
+      const location = post.locationLabel?.trim() || null;
+      return [{ id: post.id, author: toFriendDto(author), eventId: post.eventId ?? null, text: post.text, photoUrl: photoUrls[0] ?? null, photoUrls, placeId: post.placeId ?? null, locationLabel: location, taggedFriendIds: post.taggedFriendIds ?? [], audience: post.audience ?? "friends", allowJoin: post.allowJoin ?? false, likesCount: likes.length, likedByMe: likes.some((row) => row.userId === viewerId), likedByFriends, comments, repostOf: null as FeedRepost | null, repostOfPostId: post.repostOfPostId ?? null }];
     });
     return this.withReposts(built);
   }
@@ -331,8 +335,8 @@ export class FeedService {
       const sourceId = post.repostOfPostId;
       const source = sourceId ? originalById.get(sourceId) : undefined;
       const author = source ? authorById.get(source.authorUserId) : undefined;
-      const rest: FeedPost = { ...post, repostOf: source && author ? { postId: source.id, author: toFriendDto(author), text: source.text, photoUrl: source.photoUrl } : null };
-      return rest;
+      const { repostOfPostId: _sourceId, ...rest } = post;
+      return { ...rest, repostOf: source && author ? { postId: source.id, author: toFriendDto(author), text: source.text, photoUrl: publicFeedPhoto(source.photoUrl) } : null };
     });
   }
 }
@@ -349,6 +353,15 @@ function countParticipations(rows: ParticipationEntity[], viewerId: string): Map
     map.set(row.eventId, bucket);
   }
   return map;
+}
+
+function publicFeedPhoto(url: string | null | undefined): string | null {
+  if (url == null) return null;
+  const value = url.trim();
+  if (value.startsWith("data:image/") || value.startsWith("https://") || /^\/(?:covers|onboarding|api\/(?:media|uploads))\//.test(value)) return value;
+  if (value.startsWith("http://")) return `https://${value.slice("http://".length)}`;
+  if (value.startsWith("//")) return `https:${value}`;
+  return null;
 }
 
 function toFriendCard(post: FeedPost, event: EventEntity | null, place: Place | null, bucket: ParticipationBucket | undefined, waitlist: number, now: Date, createdAt: Date | undefined, friendsGoing: number | null, goingByMe: boolean, likedByFriends: Friend[]): FeedCard {

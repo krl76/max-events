@@ -115,6 +115,16 @@ export function withContactNick(person: Friend): Friend {
   return username === undefined ? person : { ...person, username };
 }
 
+/** Mock GET /friends/find: a contact by @nick, or 404. */
+export function findMockFriendByMaxId(query: string): Friend | null {
+  const needle = query.trim().replace(/^@/, "").toLowerCase();
+  if (needle.length === 0) return null;
+  const index = MOCK_CONTACT_NICKS.findIndex((nick) => nick === needle);
+  if (index < 0) return null;
+  const person = mockOnboardingContacts[index];
+  return person === undefined ? null : withContactNick(person);
+}
+
 /** The макет hint under each name; the backend has nothing to compute it from, so it is fixture text by position. */
 const MOCK_CONTACT_HINTS: readonly string[] = ["12 общих планов", "8 общих чатов", "была на джазе", "играет в падел", "5 общих планов", "из чата «Двор»", "ходит на лекции", "из чата «Падел»", "3 общих плана", "из чата «Работа»", "волонтёрит", "из чата «Дача»"];
 
@@ -166,6 +176,14 @@ export function followMockFriends(userIds: string[]): string[] | "unknown" {
   if (!userIds.every((id) => mockOnboardingContacts.some((contact) => contact.id === id))) return "unknown";
   mockFollowedIds = new Set<string>(userIds);
   return mockOnboardingContacts.filter((contact) => mockFollowedIds.has(contact.id)).map((contact) => contact.id);
+}
+
+/** Mutual add from a `user-` invite: the opener follows the sender. */
+export function acceptMockFriendInvite(userId: string): string[] | "unknown" {
+  const known = mockOnboardingContacts.some((contact) => contact.id === userId) || mockFriends.some((person) => person.id === userId);
+  if (!known) return "unknown";
+  mockFollowedIds.add(userId);
+  return [...mockFollowedIds];
 }
 
 /** The people the viewer follows, in contact order — the «подписки» half of the profile counters. */

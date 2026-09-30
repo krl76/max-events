@@ -23,9 +23,9 @@ export function toEventDto(event: EventEntity, options?: { promoted?: boolean })
     placeId: event.placeId,
     startsAt: event.startsAt.toISOString(),
     endsAt: event.endsAt ? event.endsAt.toISOString() : null,
-    isPaid: event.isPaid,
-    priceRub: event.priceRub,
-    paymentUrl: event.paymentUrl,
+    isPaid: event.isPaid && event.paymentUrl !== null,
+    priceRub: event.isPaid && event.paymentUrl !== null ? event.priceRub : null,
+    paymentUrl: event.isPaid ? event.paymentUrl : null,
     capacity: event.capacity,
     chatLink: event.chatLink,
     promoted: options?.promoted === true,
@@ -37,6 +37,6 @@ export function toEventDto(event: EventEntity, options?: { promoted?: boolean })
     popularity: event.popularity ?? 0,
     remainingSeats: event.capacity === null ? null : Math.max(0, event.capacity - event.bookedCount),
     hitOfTheWeek: options?.promoted === true,
-    pushkinCard: event.category === "afisha" && event.isPaid,
+    pushkinCard: event.category === "afisha" && event.isPaid && event.paymentUrl !== null,
   };
 }

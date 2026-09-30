@@ -8,9 +8,10 @@
 
 import "reflect-metadata";
 import { json, urlencoded } from "express";
-import { NestFactory } from "@nestjs/core";
+import { NestFactory, HttpAdapterHost } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
+import { RequestLoggingFilter } from "./http/request-logging.filter";
 
 async function bootstrap() {
   // Photos travel as data URLs until they are stored. The default 100kb parser rejects them.
@@ -26,6 +27,8 @@ async function bootstrap() {
   app.use(urlencoded({ extended: true, limit: "12mb" }));
   app.setGlobalPrefix("api");
   app.enableCors();
+  const { httpAdapter } = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new RequestLoggingFilter(httpAdapter));
   await app.listen(Number(process.env.PORT ?? 3100));
 }
 

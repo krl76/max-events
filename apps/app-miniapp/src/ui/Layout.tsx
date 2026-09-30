@@ -332,7 +332,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <main
         key={navSeq}
         ref={scroller}
-        className={`app-content app-screen--${_transition}${routeIsFlush(route) ? " app-content--flush" : ""}${routeIsFullscreen(route) ? " app-content--full" : ""}`}
+        className={`app-content app-screen--${_transition} app-screen--shown${routeIsFlush(route) ? " app-content--flush" : ""}${routeIsFullscreen(route) ? " app-content--full" : ""}`}
         onScroll={(event) => {
           if (!event.isTrusted || !acceptScroll.current) return;
           const top = event.currentTarget.scrollTop;
@@ -347,6 +347,11 @@ export function Layout({ children }: { children: ReactNode }) {
         <p className="app-share-notice" role="status">
           {notice}
         </p>
+      )}
+      {routeIsFullscreen(route) && routeHasBack(route) && getWebApp()?.BackButton === undefined && (
+        <button type="button" className="app-shell-back" aria-label="Назад" onClick={() => back()}>
+          <ActionIcon name="close" size={18} />
+        </button>
       )}
       {!routeIsFullscreen(route) && route.name !== "nearby" && (
         <nav className="app-tabbar">

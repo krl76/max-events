@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EventFriendsSummarySchema, FriendActivityByEventSchema, FriendActivityByFriendSchema, FriendActivitySchema, FriendSchema, FriendSuggestionSchema, FriendsSyncStatusSchema } from "./friends.js";
+import { AcceptFriendInviteWriteSchema, EventFriendsSummarySchema, FriendActivityByEventSchema, FriendActivityByFriendSchema, FriendActivitySchema, FriendSchema, FriendSuggestionSchema, FriendsSyncStatusSchema } from "./friends.js";
 import type { Event } from "./event.js";
 
 const friend = {
@@ -29,6 +29,13 @@ const event: Event = {
   coverUrl: null,
 };
 
+describe("AcceptFriendInviteWriteSchema", () => {
+  it("takes the inviter id", () => {
+    expect(AcceptFriendInviteWriteSchema.parse({ userId: friend.id })).toEqual({ userId: friend.id });
+    expect(AcceptFriendInviteWriteSchema.safeParse({}).success).toBe(false);
+  });
+});
+
 describe("FriendSuggestionSchema and FriendsSyncStatusSchema", () => {
   it("accepts an onboarding suggestion and a sync status envelope", () => {
     expect(FriendSuggestionSchema.parse({ friend, hint: "пользуется Афишей", following: false })).toMatchObject({ following: false, hint: "пользуется Афишей" });
@@ -39,6 +46,11 @@ describe("FriendSuggestionSchema and FriendsSyncStatusSchema", () => {
 describe("FriendSchema", () => {
   it("accepts a friend with a nullable avatar", () => {
     expect(FriendSchema.parse(friend)).toEqual(friend);
+  });
+
+  it("keeps an http MAX photo and drops junk instead of failing the whole list", () => {
+    expect(FriendSchema.parse({ ...friend, avatarUrl: "http://cdn.max.ru/a.jpg" }).avatarUrl).toBe("http://cdn.max.ru/a.jpg");
+    expect(FriendSchema.parse({ ...friend, avatarUrl: "javascript:alert(1)" }).avatarUrl).toBeNull();
   });
 
   it("rejects an empty name", () => {
