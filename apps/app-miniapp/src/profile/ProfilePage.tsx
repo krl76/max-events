@@ -286,10 +286,10 @@ function GuestSheet({ title, actions, onClose }: { title: string; actions: { id:
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  return (
+  const node = (
     <div className="app-me-pop" role="dialog" aria-modal="true" aria-labelledby="app-me-guest-sheet-title">
       <button type="button" className="app-me-pop-scrim" aria-label="Закрыть" onClick={onClose} />
-      <div className="app-me-pop-card">
+      <div className="app-me-pop-card" onClick={stopClick}>
         <p id="app-me-guest-sheet-title" className="app-me-pop-title">
           {title}
         </p>
@@ -304,6 +304,8 @@ function GuestSheet({ title, actions, onClose }: { title: string; actions: { id:
       </div>
     </div>
   );
+  const host = typeof document === "undefined" ? null : (document.querySelector(".app-root") ?? document.body);
+  return host === null ? node : createPortal(node, host);
 }
 
 function ProfileGuestActions({
