@@ -2,12 +2,12 @@
 FROM oven/bun:1.3.14-debian AS build
 WORKDIR /app
 
-COPY package.json bun.lock turbo.json tsconfig.base.json ./
+COPY package.json bun.lock tsconfig.base.json ./
 COPY packages/api-contracts/package.json packages/api-contracts/tsconfig.json packages/api-contracts/tsconfig.build.json packages/api-contracts/
 COPY apps/svc-backend/package.json apps/svc-backend/
 COPY apps/app-miniapp/package.json apps/app-miniapp/
-COPY apps/presentation/package.json apps/presentation/
 
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN bun install --frozen-lockfile --filter @max-events/api-contracts --filter app-miniapp
 
 COPY packages/api-contracts/src packages/api-contracts/src

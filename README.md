@@ -34,7 +34,7 @@ MAX Events — персональный досуговый ассистент в
 | Мини-приложение | `apps/app-miniapp` | React / Vite / Ionic, MAX Bridge |
 | Backend API | `apps/svc-backend` | NestJS, TypeORM, чат-бот |
 | Контракты | `packages/api-contracts` | Zod-схемы API |
-| Локальный стек | `docker-compose.yml` | Postgres, Redis, API, nginx с мини-приложением |
+| Локальный стек | `Dockerfile`, `docker-compose.yml` | Postgres, Redis, API, nginx с мини-приложением |
 
 ```
 MAX (клиент)
@@ -107,6 +107,7 @@ docker compose up --build
 ## Зависимости
 
 - Docker Engine и Compose v2 — запуск всего локального стека.
+- Сборка из исходников: корневой `Dockerfile` (цели `backend`, `backend-local`, `miniapp`), `docker-compose.yml`, `.dockerignore`, `.env.example` без рабочих секретов. Отдельные Dockerfile сервисов — в `deploy/`.
 - Образы: `postgres:16-alpine`, `redis:7-alpine`, `nginx:1.27-alpine`, `oven/bun:1.3.14-debian`.
 - Языки и пакеты зафиксированы в `bun.lock` (`packageManager`: `bun@1.3.14`). Backend: NestJS 11, TypeORM, pg, ioredis, zod. Мини-приложение: React 19, Vite, Ionic, MapLibre, Leaflet.
 - Клиент MAX — для основного сценария (бот и мини-приложение внутри мессенджера).
