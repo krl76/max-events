@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Organizer «Продвижение» tab — the cabinet mock: launch rows, campaigns, the promo-code list and the new-code form.
-// SCOPE: The home screen, the feed and mailing forms, and the promo-code screens opened from «Промокод». Code rows and the create form follow the cabinet mocks.
+// SCOPE: The home screen, the feed and mailing forms, and the promo-code screens opened from «Промокод». Code rows and the create form follow the cabinet mocks. A code created on the form stays on the promo-code list and in active campaigns for the cabinet session, including when the tab remounts.
 // DEPENDS: react, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -123,6 +123,17 @@ export const PROMO_CODE_ROWS: PromoCodeRow[] = [
   { id: "jazz", phase: "active", code: "JAZZ10", detail: "Скидка 10% · до 30.09.2025", uses: "16 использований", delta: "+8%" },
 ];
 
+/** Created codes outlive the promotion tab: switching cabinet sections unmounts this screen. */
+const sessionRows: PromoCodeRow[] = [];
+const sessionCampaigns: PromoCampaignCard[] = [];
+let sessionSeq = 0;
+
+export function resetPromoSession(): void {
+  sessionRows.splice(0, sessionRows.length);
+  sessionCampaigns.splice(0, sessionCampaigns.length);
+  sessionSeq = 0;
+}
+
 const DISCOUNT_KINDS = ["Процент", "Фиксированная сумма"] as const;
 const PROMO_EVENTS = ["Вечер джаза", "Органный вечер в соборе", "Стендап в Stand Up Store"] as const;
 const LIMIT_MODES = ["Без ограничений", "50", "100", "500"] as const;
@@ -149,6 +160,38 @@ export function promoToolNotice(tool: PromoTool, draft: PromoDraft): string {
   if (tool === "feed") return `«${draft.eventTitle.trim()}» опубликовано в ленте`;
   if (tool === "code") return `Промокод ${draft.code.trim().toUpperCase()} создан`;
   return "Рассылка создана";
+}
+
+/** A just-created code, shaped like the cabinet rows: active, unused, and visible in both lists. */
+export function createdPromoCode(draft: PromoDraft, id: string): { row: PromoCodeRow; campaign: PromoCampaignCard } {
+  const code = draft.code.trim().toUpperCase();
+  const amount = draft.discountKind === "Процент" ? `${draft.discount}%` : `${draft.discount} ₽`;
+  const discountLabel = `Скидка ${amount}`;
+  const period = draft.period.trim();
+  const until = period === "" ? "" : period.toLowerCase().startsWith("до ") ? period : `до ${period}`;
+  return {
+    row: {
+      id,
+      phase: "active",
+      code,
+      detail: until === "" ? discountLabel : `${discountLabel} · ${until}`,
+      uses: "0 использований",
+      delta: "+0%",
+    },
+    campaign: {
+      id,
+      phase: "active",
+      tool: "code",
+      title: code,
+      note: discountLabel,
+      status: null,
+      meta: "0 оплаченных заказов",
+      cover: null,
+      eventTitle: draft.eventTitle,
+      code,
+      discount: draft.discount,
+    },
+  };
 }
 
 function ToolForm({ tool, draft, block, onChange, onSubmit, onBack }: { tool: PromoTool; draft: PromoDraft; block: string | null; onChange: (patch: Partial<PromoDraft>) => void; onSubmit: () => void; onBack: () => void }) {
@@ -212,9 +255,9 @@ function ToolForm({ tool, draft, block, onChange, onSubmit, onBack }: { tool: Pr
   );
 }
 
-export function PromoCodesScreen({ onBack, onCreate }: { onBack: () => void; onCreate: () => void }) {
+export function PromoCodesScreen({ rows = PROMO_CODE_ROWS, onBack, onCreate }: { rows?: PromoCodeRow[]; onBack: () => void; onCreate: () => void }) {
   const [phase, setPhase] = useState<PromoCodePhase>("active");
-  const rows = PROMO_CODE_ROWS.filter((row) => row.phase === phase);
+  const visibleRows = rows.filter((row) => row.phase === phase);
   useOrganizerNativeBack(true, onBack);
   return (
     <section className="app-cab app-promo app-pcodes" aria-label="Промокоды">
@@ -249,11 +292,11 @@ export function PromoCodesScreen({ onBack, onCreate }: { onBack: () => void; onC
         </button>
       </div>
       <h2 className="app-pcodes-list-title">Список промокодов</h2>
-      {rows.length === 0 ? (
+      {visibleRows.length === 0 ? (
         <p className="app-promo-empty">Нет архивных промокодов</p>
       ) : (
         <div className="app-promo-list">
-          {rows.map((row) => (
+          {visibleRows.map((row) => (
             <article key={row.id} className="app-pcodes-card">
               <span className="app-pcodes-mark" aria-hidden="true">
                 <ActionIcon name="percent" size={22} strokeWidth={2.2} />
@@ -413,7 +456,9 @@ export function OrganizerPromotion() {
   const [draft, setDraft] = useState<PromoDraft>(EMPTY_PROMO_DRAFT);
   const [block, setBlock] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const visible = PROMO_CAMPAIGNS.filter((card) => card.phase === pane);
+  const [codeRows, setCodeRows] = useState<PromoCodeRow[]>(() => [...sessionRows, ...PROMO_CODE_ROWS]);
+  const [campaigns, setCampaigns] = useState<PromoCampaignCard[]>(() => [...sessionCampaigns, ...PROMO_CAMPAIGNS]);
+  const visible = campaigns.filter((card) => card.phase === pane);
 
   const openTool = (next: PromoTool, patch: Partial<PromoDraft> = {}) => {
     setBlock(null);
@@ -439,12 +484,20 @@ export function OrganizerPromotion() {
       setBlock(reason);
       return;
     }
-    setDraft(EMPTY_PROMO_DRAFT);
-    setBlock(null);
     if (codes === "form") {
+      sessionSeq += 1;
+      const entry = createdPromoCode(draft, `code-${sessionSeq}`);
+      sessionRows.unshift(entry.row);
+      sessionCampaigns.unshift(entry.campaign);
+      setCodeRows((current) => [entry.row, ...current]);
+      setCampaigns((current) => [entry.campaign, ...current]);
+      setDraft(EMPTY_PROMO_DRAFT);
+      setBlock(null);
       setCodes("list");
       return;
     }
+    setDraft(EMPTY_PROMO_DRAFT);
+    setBlock(null);
     setNotice(promoToolNotice(active, draft));
     setTool(null);
   };
@@ -468,7 +521,7 @@ export function OrganizerPromotion() {
   }
 
   if (codes === "list") {
-    return <PromoCodesScreen onBack={() => setCodes(null)} onCreate={openCodeForm} />;
+    return <PromoCodesScreen rows={codeRows} onBack={() => setCodes(null)} onCreate={openCodeForm} />;
   }
 
   if (tool !== null) {
@@ -526,12 +579,7 @@ export function OrganizerPromotion() {
       ) : (
         <div className="app-promo-list">
           {visible.map((card) => (
-            <button
-              key={card.id}
-              type="button"
-              className="app-promo-camp"
-              onClick={() => openTool(card.tool, { eventTitle: card.eventTitle, code: card.code, discount: card.discount })}
-            >
+            <button key={card.id} type="button" className="app-promo-camp" onClick={() => openTool(card.tool, { eventTitle: card.eventTitle, code: card.code, discount: card.discount })}>
               {card.cover !== null ? (
                 <img className="app-promo-camp-cover" src={card.cover} alt="" />
               ) : (
