@@ -29370,8 +29370,8 @@ button.app-pcodes-iconbtn {
 .app-pcodes-menu {
   background: #ffffff;
   border: 1px solid #e4ebf5;
-  border-radius: 16px;
-  box-shadow: 0 16px 36px rgba(22, 36, 78, 0.16);
+  border-radius: 18px;
+  box-shadow: 0 14px 32px rgba(22, 36, 78, 0.14);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -29379,6 +29379,7 @@ button.app-pcodes-iconbtn {
   left: 0;
   max-width: calc(100vw - 32px);
   min-width: 100%;
+  overflow: hidden;
   padding: 6px;
   position: absolute;
   top: calc(100% + 6px);
@@ -29400,7 +29401,7 @@ button.app-pcodes-iconbtn {
   font: inherit;
   font-size: 16px;
   font-weight: 700;
-  min-height: 44px;
+  min-height: 42px;
   padding: 10px 14px;
   text-align: left;
   white-space: nowrap;
@@ -29409,12 +29410,13 @@ button.app-pcodes-iconbtn {
 
 .app-pcodes-option--on,
 .app-pcodes-option--on:hover {
-  background: #2f6bff;
-  color: #ffffff;
+  background: #e8f0ff;
+  color: #1a56f0;
+  font-weight: 800;
 }
 
 .app-pcodes-option:hover {
-  background: #f3f6fb;
+  background: #f4f7fc;
 }
 
 .app-pcodes-select-btn:focus-visible,
