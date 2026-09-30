@@ -29454,6 +29454,12 @@ button.app-pcodes-iconbtn {
   width: 100%;
 }
 
+.app-pcodes-input::placeholder,
+.app-pcodes-control input::placeholder {
+  color: #a9b6ce;
+  font-weight: 600;
+}
+
 .app-pcodes-control {
   align-items: center;
   display: flex;

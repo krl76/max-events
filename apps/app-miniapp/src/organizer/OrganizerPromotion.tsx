@@ -408,7 +408,7 @@ export function PromoCodeCreate({ draft, block, onChange, onSubmit, onBack }: { 
       </header>
       <label className="app-pcodes-field">
         <span>Название промокода</span>
-        <input className="app-pcodes-input" autoComplete="off" value={draft.code} onChange={(change) => onChange({ code: change.target.value })} />
+        <input className="app-pcodes-input" autoComplete="off" placeholder="Придумайте название" value={draft.code} onChange={(change) => onChange({ code: change.target.value })} />
       </label>
       <div className="app-pcodes-pair">
         <div className="app-pcodes-field">
@@ -417,7 +417,7 @@ export function PromoCodeCreate({ draft, block, onChange, onSubmit, onBack }: { 
         </div>
         <label className="app-pcodes-field">
           <span>{amountLabel}</span>
-          <input className="app-pcodes-input" inputMode="numeric" autoComplete="off" value={draft.discount} onChange={(change) => onChange({ discount: change.target.value })} />
+          <input className="app-pcodes-input" inputMode="numeric" autoComplete="off" placeholder={draft.discountKind === "Процент" ? "Например, 20" : "Например, 500"} value={draft.discount} onChange={(change) => onChange({ discount: change.target.value })} />
         </label>
       </div>
       <div className="app-pcodes-field">

@@ -196,6 +196,8 @@ describe("OrganizerPromotion", () => {
     expect(form).not.toContain("<select");
     expect(form).toContain("Тип скидки");
     expect(form).toContain("Размер скидки, %");
+    expect(form).toContain('placeholder="Придумайте название"');
+    expect(form).toContain('placeholder="Например, 20"');
     expect(form).toContain("Процент");
     expect(form).toContain("Выберите событие");
     expect(form).toContain("Без ограничений");
