@@ -53,7 +53,14 @@ const PROFILE_TABS: ReadonlyArray<{ id: OrganizerProfileTab; label: string; icon
   { id: "places", label: "Места", icon: "pin" },
 ];
 
-export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events, places, subscriptions, followers, rating, tab, list, failed, onTab, onList, onOpenEvent, onOpenEvents, onSettings, onPickAvatar, onPickCover, onResetAvatar, onResetCover }: { name: string; about: string; avatarUrl: string | null; coverUrl: string | null; events: OrganizerEvent[]; places: OrganizerPlace[]; subscriptions: Subscription[] | null; followers: Friend[] | null; rating: OrganizerRating | null; tab: OrganizerProfileTab; list: OrganizerProfileList; failed: boolean; onTab: (tab: OrganizerProfileTab) => void; onList: (list: OrganizerProfileList) => void; onOpenEvent: (event: OrganizerEvent) => void; onOpenEvents: () => void; onSettings: () => void; onPickAvatar: () => void; onPickCover: () => void; onResetAvatar: () => void; onResetCover: () => void }) {
+const PROFILE_SHORTCUTS: ReadonlyArray<{ id: "settings" | "events" | "places" | "promo"; label: string; icon: "settings" | "calendar" | "pin" | "megaphone" }> = [
+  { id: "settings", label: "Настройки", icon: "settings" },
+  { id: "events", label: "События", icon: "calendar" },
+  { id: "places", label: "Места", icon: "pin" },
+  { id: "promo", label: "Продвижение", icon: "megaphone" },
+];
+
+export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events, places, subscriptions, followers, rating, tab, list, failed, onTab, onList, onOpenEvent, onOpenEvents, onOpenPlaces, onOpenPromo, onSettings, onPickAvatar, onPickCover, onResetAvatar, onResetCover }: { name: string; about: string; avatarUrl: string | null; coverUrl: string | null; events: OrganizerEvent[]; places: OrganizerPlace[]; subscriptions: Subscription[] | null; followers: Friend[] | null; rating: OrganizerRating | null; tab: OrganizerProfileTab; list: OrganizerProfileList; failed: boolean; onTab: (tab: OrganizerProfileTab) => void; onList: (list: OrganizerProfileList) => void; onOpenEvent: (event: OrganizerEvent) => void; onOpenEvents: () => void; onOpenPlaces: () => void; onOpenPromo: () => void; onSettings: () => void; onPickAvatar: () => void; onPickCover: () => void; onResetAvatar: () => void; onResetCover: () => void }) {
   const [mediaMenu, setMediaMenu] = useState<"avatar" | "cover" | null>(null);
   useOrganizerNativeBack(list !== null, () => onList(null));
   const published = events.filter((item) => !item.draft);
@@ -85,8 +92,44 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events,
         <button type="button" className="app-me-avatar-ring" aria-label="Сменить аватар" aria-haspopup="dialog" onClick={() => setMediaMenu("avatar")}>
           <span className="app-me-avatar">{avatarUrl === null ? initial : <img alt="" src={showPhoto(avatarUrl) ?? avatarUrl} />}</span>
         </button>
-        {mediaMenu === "avatar" && <ProfileMediaDialog title="Фото организации" custom={customAvatar} onPick={() => { onPickAvatar(); dismiss(); }} onReset={customAvatar ? () => { onResetAvatar(); dismiss(); } : undefined} onClose={dismiss} />}
-        {mediaMenu === "cover" && <ProfileMediaDialog title="Шапка профиля" custom={customCover} onPick={() => { onPickCover(); dismiss(); }} onReset={customCover ? () => { onResetCover(); dismiss(); } : undefined} onClose={dismiss} />}
+        {mediaMenu === "avatar" && (
+          <ProfileMediaDialog
+            title="Фото организации"
+            custom={customAvatar}
+            onPick={() => {
+              onPickAvatar();
+              dismiss();
+            }}
+            onReset={
+              customAvatar
+                ? () => {
+                    onResetAvatar();
+                    dismiss();
+                  }
+                : undefined
+            }
+            onClose={dismiss}
+          />
+        )}
+        {mediaMenu === "cover" && (
+          <ProfileMediaDialog
+            title="Шапка профиля"
+            custom={customCover}
+            onPick={() => {
+              onPickCover();
+              dismiss();
+            }}
+            onReset={
+              customCover
+                ? () => {
+                    onResetCover();
+                    dismiss();
+                  }
+                : undefined
+            }
+            onClose={dismiss}
+          />
+        )}
         <h1 className="app-me-name">{name}</h1>
         {(subscriptions !== null || followers !== null) && (
           <p className="app-me-follows">
@@ -133,20 +176,15 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events,
           <>
             <div className="app-me-dashboard" aria-label="Разделы профиля">
               <section className="app-me-card app-me-shortcuts">
-                <button type="button" className="app-me-shortcut" onClick={onSettings}>
-                  <span className="app-me-shortcut-icon" aria-hidden="true">
-                    <ActionIcon name="settings" size={18} strokeWidth={2.1} />
-                  </span>
-                  <span className="app-me-shortcut-label">Настройки</span>
-                  <ActionIcon name="chevron" size={16} />
-                </button>
-                <button type="button" className="app-me-shortcut" onClick={onOpenEvents}>
-                  <span className="app-me-shortcut-icon" aria-hidden="true">
-                    <ActionIcon name="calendar" size={18} strokeWidth={2.1} />
-                  </span>
-                  <span className="app-me-shortcut-label">События</span>
-                  <ActionIcon name="chevron" size={16} />
-                </button>
+                {PROFILE_SHORTCUTS.map((row) => (
+                  <button key={row.id} type="button" className="app-me-shortcut" onClick={row.id === "settings" ? onSettings : row.id === "events" ? onOpenEvents : row.id === "places" ? onOpenPlaces : onOpenPromo}>
+                    <span className="app-me-shortcut-icon" aria-hidden="true">
+                      <ActionIcon name={row.icon} size={18} strokeWidth={2.1} />
+                    </span>
+                    <span className="app-me-shortcut-label">{row.label}</span>
+                    <ActionIcon name="chevron" size={16} />
+                  </button>
+                ))}
               </section>
               {rating !== null && (
                 <button type="button" className="app-me-card app-me-ach" onClick={onSettings}>
@@ -160,12 +198,7 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events,
                 </button>
               )}
             </div>
-            <div
-              className="app-me-tabs"
-              role="tablist"
-              aria-label="Что показывать"
-              style={{ ["--me-tabs" as string]: 2, ["--me-tab" as string]: tab === "places" ? 1 : 0 }}
-            >
+            <div className="app-me-tabs" role="tablist" aria-label="Что показывать" style={{ ["--me-tabs" as string]: 2, ["--me-tab" as string]: tab === "places" ? 1 : 0 }}>
               <span className="app-me-tab-pill" aria-hidden="true" />
               {PROFILE_TABS.map((candidate) => (
                 <button key={candidate.id} type="button" role="tab" aria-selected={tab === candidate.id} className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onTab(candidate.id)}>
@@ -205,7 +238,7 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events,
   );
 }
 
-export function OrganizerProfile({ organizationId, organizationName, onOpenEvent, onOpenEvents, onSettings }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onOpenEvents: () => void; onSettings: () => void }) {
+export function OrganizerProfile({ organizationId, organizationName, onOpenEvent, onOpenEvents, onOpenPlaces, onOpenPromo, onSettings }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onOpenEvents: () => void; onOpenPlaces: () => void; onOpenPromo: () => void; onSettings: () => void }) {
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [places, setPlaces] = useState<OrganizerPlace[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[] | null>(null);
@@ -324,6 +357,8 @@ export function OrganizerProfile({ organizationId, organizationName, onOpenEvent
         onList={setList}
         onOpenEvent={onOpenEvent}
         onOpenEvents={onOpenEvents}
+        onOpenPlaces={onOpenPlaces}
+        onOpenPromo={onOpenPromo}
         onSettings={onSettings}
         onPickAvatar={() => avatarRef.current?.click()}
         onPickCover={() => coverRef.current?.click()}

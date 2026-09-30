@@ -13,15 +13,21 @@ import { useEffect, useState } from "react";
 import type { OrganizerActivity, OrganizerSetup } from "../api/client";
 import { apiClient } from "../api/client";
 import { SettingsGroup, SettingsPicker } from "../profile/SettingsPage";
+import { ActionIcon } from "../ui/icons";
 import { AppButton, AppState } from "../ui/primitives";
 import { MyOrganizerRatingCard } from "./OrganizerAddons";
+import { ORGANIZER_BACK_COVER, useOrganizerNativeBack } from "./organizer-native-back";
 import { ORGANIZER_ACTIVITY_OPTIONS } from "./organizer-onboarding";
+
+type OrganizationPane = "home" | "team" | "complaints";
 
 export function OrganizerOrganization({ organizationId, organizationName, onLogout }: { organizationId: string; organizationName: string; onLogout: () => void }) {
   const [setup, setSetup] = useState<OrganizerSetup | null>(null);
   const [failed, setFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
+  const [pane, setPane] = useState<OrganizationPane>("home");
+  useOrganizerNativeBack(pane !== "home", () => setPane("home"), ORGANIZER_BACK_COVER + 1);
 
   useEffect(() => {
     let alive = true;
@@ -49,6 +55,26 @@ export function OrganizerOrganization({ organizationId, organizationName, onLogo
     setSetup({ ...setup, activities });
     save({ activities });
   };
+
+  if (pane === "team") {
+    return (
+      <section className="app-gathering" aria-label="Команда">
+        <h1 className="app-section-title">Команда</h1>
+        <p className="app-gathering-hint">Сейчас кабинет ведёт один аккаунт организации. Роли сотрудников появятся здесь.</p>
+        <AppState>Сотрудников пока нет.</AppState>
+      </section>
+    );
+  }
+
+  if (pane === "complaints") {
+    return (
+      <section className="app-gathering" aria-label="Жалобы">
+        <h1 className="app-section-title">Жалобы</h1>
+        <p className="app-gathering-hint">Жалобы гостей рассматривает модерация афиши. Если событие сняли, статус появится здесь. Разбирать жалобы в кабинете нельзя.</p>
+        <AppState>Открытых жалоб нет.</AppState>
+      </section>
+    );
+  }
 
   return (
     <section className="app-gathering" aria-label="Организация">
@@ -93,6 +119,22 @@ export function OrganizerOrganization({ organizationId, organizationName, onLogo
           {saveFailed && <AppState error>Не удалось сохранить. Ссылка должна начинаться с https://</AppState>}
         </>
       )}
+      <SettingsGroup title="Организация">
+        <button type="button" className="app-set-row" onClick={() => setPane("team")}>
+          <span className="app-set-row-text">
+            <span className="app-set-row-title">Команда</span>
+            <span className="app-set-row-hint">Один аккаунт ведёт кабинет</span>
+          </span>
+          <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+        </button>
+        <button type="button" className="app-set-row" onClick={() => setPane("complaints")}>
+          <span className="app-set-row-text">
+            <span className="app-set-row-title">Жалобы</span>
+            <span className="app-set-row-hint">Статус модерации, без разбора в кабинете</span>
+          </span>
+          <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+        </button>
+      </SettingsGroup>
       <MyOrganizerRatingCard organizationId={organizationId} />
       {confirmExit ? (
         <>

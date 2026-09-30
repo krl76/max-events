@@ -6,11 +6,26 @@
 // END_MODULE_CONTRACT
 
 import { useState } from "react";
+import type { OrganizerEvent } from "../api/client";
+import { SettingsGroup } from "../profile/SettingsPage";
 import { ActionIcon } from "../ui/icons";
+import { pictured } from "../ui/photos";
+import { AppMedia, AppState } from "../ui/primitives";
+import { CABINET_EVENTS, cabinetAsOrganizerEvent, cabinetFillRows, cabinetStats, defaultStatsRange, fillCaption, type CabinetFillRow } from "./cabinet-catalog";
 import { useOrganizerNativeBack } from "./organizer-native-back";
-import { CABINET_EVENTS, cabinetFillRows, cabinetStats, defaultStatsRange, type CabinetStats } from "./cabinet-catalog";
-import { formatRub } from "./OrganizerFinance";
 import { OrganizerStats } from "./OrganizerStats";
+
+function countLabel(value: number): string {
+  return value.toLocaleString("ru-RU").replace(/\s/g, "\u00a0");
+}
+
+function signedDelta(percent: number): string {
+  return `${percent > 0 ? "+" : ""}${percent}% к прошлому периоду`;
+}
+
+function weakFill(row: CabinetFillRow): boolean {
+  return row.capacity > 0 && row.fill < 40;
+}
 
 export type StatsWindow = 7 | 30 | 90;
 
@@ -165,81 +180,34 @@ export function axisTop(points: IncomePoint[]): number {
   return Math.max(10_000, Math.ceil(peak / 10_000) * 10_000);
 }
 
-function smoothLine(values: number[], max: number): string {
-  if (values.length === 0 || max <= 0) return "";
-  const pts = values.map((value, index) => ({
-    x: values.length === 1 ? 0 : (index / (values.length - 1)) * 100,
-    y: 100 - (Math.min(Math.max(value, 0), max) / max) * 100,
-  }));
-  let path = `M${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`;
-  for (let index = 0; index < pts.length - 1; index += 1) {
-    const p0 = pts[Math.max(index - 1, 0)];
-    const p1 = pts[index];
-    const p2 = pts[index + 1];
-    const p3 = pts[Math.min(index + 2, pts.length - 1)];
-    path += ` C${(p1.x + (p2.x - p0.x) / 6).toFixed(2)} ${(p1.y + (p2.y - p0.y) / 6).toFixed(2)}, ${(p2.x - (p3.x - p1.x) / 6).toFixed(2)} ${(p2.y - (p3.y - p1.y) / 6).toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
-  }
-  return path;
-}
-
-function Delta({ value }: { value: number }) {
-  const up = value >= 0;
+function FillEventCard({ row, onOpen }: { row: CabinetFillRow; onOpen?: (event: OrganizerEvent) => void }) {
+  const event = cabinetAsOrganizerEvent(CABINET_EVENTS.find((item) => item.id === row.id) ?? CABINET_EVENTS[0]);
   return (
-    <span className={up ? "app-cab-delta" : "app-cab-delta app-cab-delta--down"}>
-      {up ? "↑" : "↓"} {up ? "+" : "−"}
-      {Math.abs(value)}%
-    </span>
-  );
-}
-
-function IncomeChart({ points }: { points: IncomePoint[] }) {
-  const max = axisTop(points);
-  const peak = chartPeak(points);
-  const index = points.indexOf(peak);
-  const left = Math.min(78, Math.max(22, points.length <= 1 ? 50 : (index / (points.length - 1)) * 100));
-  const line = smoothLine(
-    points.map((point) => point.value),
-    max,
-  );
-  const ticks = [max, Math.round((max * 3) / 4), Math.round(max / 2), Math.round(max / 4), 0];
-  return (
-    <div className="app-cab-plot-wrap">
-      <div className="app-cab-axis" aria-hidden="true">
-        {ticks.map((tick) => (
-          <span key={tick}>{tick.toLocaleString("ru-RU").replace(/\s/g, "\u00a0")}</span>
-        ))}
-      </div>
-      <div className="app-cab-plot">
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Динамика дохода">
-          <defs>
-            <linearGradient id="app-cab-income" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#7a6cf8" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#7a6cf8" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          {[0, 1, 2, 3, 4].map((row) => (
-            <line key={row} x1="0" x2="100" y1={row * 25} y2={row * 25} className="app-cab-grid" />
-          ))}
-          <path d={`${line} L100 100 L0 100 Z`} fill="url(#app-cab-income)" />
-          <path d={line} className="app-cab-line" />
-        </svg>
-        <span className="app-cab-tip" style={{ left: `${left}%` }}>
-          <b>{formatRub(peak.value)}</b>
-          <span>{peak.label}</span>
+    <button type="button" className="app-org-event" onClick={() => onOpen?.(event)}>
+      <AppMedia category={row.category} src={pictured(row.id, event.coverUrl)} className="app-org-event-media" />
+      <span className="app-org-event-body">
+        <span className="app-org-event-title">{row.title}</span>
+        <span className="app-org-event-meta">{fillCaption(row.booked, row.capacity, row.fill)}</span>
+        <span className="app-org-progress" aria-hidden="true">
+          <span className="app-org-progress-fill" style={{ width: `${row.fill}%` }} />
         </span>
-      </div>
-    </div>
+      </span>
+      {weakFill(row) && <span className="app-org-event-badge">Продвинуть</span>}
+    </button>
   );
 }
 
-export function OrganizerStatistics(_props: { onCreateEvent?: () => void }) {
+export function OrganizerStatistics({ onOpenEvent, onCheckIn, onShowDrafts }: { onCreateEvent?: () => void; onOpenEvent?: (event: OrganizerEvent) => void; onCheckIn?: (event: OrganizerEvent) => void; onShowDrafts?: () => void }) {
   const initial = defaultStatsRange();
   const [days, setDays] = useState<StatsWindow>(30);
   const [to] = useState(initial.to);
   const from = new Date(new Date(`${to}T12:00:00+03:00`).getTime() - days * 86_400_000).toISOString().slice(0, 10);
-  const [pane, setPane] = useState<"home" | "events" | "traffic" | "notices">("home");
-  const snapshot: CabinetStats = cabinetStats(CABINET_EVENTS, new Date(`${from}T00:00:00+03:00`), new Date(`${to}T23:59:59+03:00`));
+  const [pane, setPane] = useState<"home" | "fill" | "sources" | "notices">("home");
+  const snapshot = cabinetStats(CABINET_EVENTS, new Date(`${from}T00:00:00+03:00`), new Date(`${to}T23:59:59+03:00`));
   const fills = cabinetFillRows(CABINET_EVENTS, new Date(`${from}T00:00:00+03:00`), new Date(`${to}T23:59:59+03:00`));
+  const weak = fills.filter(weakFill).slice(0, 4);
+  const today = CABINET_EVENTS.find((item) => !item.draft && item.startsAt.slice(0, 10) === to);
+  const drafts = CABINET_EVENTS.filter((item) => item.draft).length;
   useOrganizerNativeBack(pane !== "home", () => setPane("home"));
 
   const periods = (
@@ -254,105 +222,126 @@ export function OrganizerStatistics(_props: { onCreateEvent?: () => void }) {
 
   if (pane === "notices") {
     return (
-      <section className="app-cab" aria-label="Уведомления">
-        <h1 className="app-cab-title">Уведомления</h1>
-        <ul className="app-cab-notices">
+      <section className="app-gathering" aria-label="Уведомления">
+        <h1 className="app-section-title">Уведомления</h1>
+        <SettingsGroup title="Кабинет">
           {STATS_NOTICES.map((item) => (
-            <li key={item.id}>
-              <span className="app-cab-notice-title">{item.title}</span>
-              <span className="app-cab-notice-when">{item.when}</span>
-            </li>
+            <div key={item.id} className="app-set-row">
+              <span className="app-set-row-text">
+                <span className="app-set-row-title">{item.title}</span>
+                <span className="app-set-row-hint">{item.when}</span>
+              </span>
+            </div>
           ))}
-        </ul>
+        </SettingsGroup>
       </section>
     );
   }
 
-  if (pane === "traffic") {
+  if (pane === "sources") {
     return (
-      <section className="app-cab" aria-label="Откуда записи">
-        <h1 className="app-cab-title">Откуда записи</h1>
+      <section className="app-gathering" aria-label="Источники регистраций">
+        <h1 className="app-section-title">Источники регистраций</h1>
         <OrganizerStats embedded />
       </section>
     );
   }
 
-  if (pane === "events") {
+  if (pane === "fill") {
     return (
-      <section className="app-cab" aria-label="События">
-        <h1 className="app-cab-title">События</h1>
+      <section className="app-gathering" aria-label="Заполняемость">
+        <h1 className="app-section-title">Заполняемость</h1>
+        <p className="app-gathering-hint">Сколько мест занято на каждом событии периода. Карточка открывает управление событием.</p>
         {periods}
         {fills.length === 0 ? (
-          <p className="app-fin-empty">За этот период событий нет.</p>
+          <AppState>За этот период опубликованных событий нет.</AppState>
         ) : (
-          <ul className="app-cab-rows">
+          <div className="app-org-events">
             {fills.map((row) => (
-              <li key={row.id}>
-                <span className="app-cab-row-top">
-                  <span className="app-cab-row-name">{row.title}</span>
-                  <span className="app-cab-row-share">{row.fill}%</span>
-                </span>
-                <span className="app-cab-row-money">
-                  {row.booked} из {row.capacity}
-                </span>
-                <span className="app-cab-bar" aria-hidden="true">
-                  <span className="app-cab-bar-fill app-cab-bar-fill--blue" style={{ width: `${row.fill}%` }} />
-                </span>
-              </li>
+              <FillEventCard key={row.id} row={row} onOpen={onOpenEvent} />
             ))}
-          </ul>
+          </div>
         )}
       </section>
     );
   }
 
   return (
-    <section className="app-cab" aria-label="Статистика">
-      <header className="app-cab-head">
-        <h1 className="app-fin-title">Статистика</h1>
-        <button type="button" className="app-cab-bell" aria-label="Уведомления" onClick={() => setPane("notices")}>
-          <ActionIcon name="bell" size={20} strokeWidth={2} />
+    <section className="app-gathering" aria-label="Статистика">
+      <div className="app-org-head">
+        <h1 className="app-section-title">Статистика</h1>
+        <button type="button" className="app-org-head-link" onClick={() => setPane("notices")}>
+          Уведомления
         </button>
-      </header>
+      </div>
       {periods}
-      <div className="app-cab-metrics">
-        <article className="app-cab-metric">
-          <span className="app-cab-metric-label">Записи</span>
-          <b>{snapshot.tickets.toLocaleString("ru-RU").replace(/\s/g, "\u00a0")}</b>
-          <Delta value={snapshot.ticketsDelta} />
-        </article>
-        <article className="app-cab-metric">
-          <span className="app-cab-metric-label">Заполняемость</span>
-          <b>{snapshot.conversion}%</b>
-          <Delta value={snapshot.conversionDelta} />
-        </article>
-        <article className="app-cab-metric">
-          <span className="app-cab-metric-label">События</span>
-          <b>{snapshot.events}</b>
-          <Delta value={snapshot.eventsDelta} />
-        </article>
-        <article className="app-cab-metric">
-          <span className="app-cab-metric-label">Средний чек</span>
-          <b>{formatRub(snapshot.averageRub)}</b>
-          <Delta value={snapshot.averageDelta} />
-        </article>
+      <div className="app-org-tiles">
+        <button type="button" className="app-org-tile" onClick={() => setPane("fill")}>
+          <span className="app-org-tile-label">Регистрации</span>
+          <span className="app-org-tile-big">{countLabel(snapshot.tickets)}</span>
+          <span className="app-org-tile-note">{signedDelta(snapshot.ticketsDelta)}</span>
+        </button>
+        <button type="button" className="app-org-tile" onClick={() => setPane("fill")}>
+          <span className="app-org-tile-label">Заполняемость</span>
+          <span className="app-org-tile-big">{snapshot.conversion}%</span>
+          <span className="app-org-tile-note">мест занято · {signedDelta(snapshot.conversionDelta)}</span>
+        </button>
+        <button type="button" className="app-org-tile" onClick={() => setPane("sources")}>
+          <span className="app-org-tile-label">Источники</span>
+          <span className="app-org-tile-big">3 канала</span>
+          <span className="app-org-tile-note">чаты MAX, лента, поиск</span>
+        </button>
+        <div className="app-org-tile">
+          <span className="app-org-tile-label">Событий в периоде</span>
+          <span className="app-org-tile-big">{snapshot.events}</span>
+          <span className="app-org-tile-note">{signedDelta(snapshot.eventsDelta)}</span>
+        </div>
       </div>
-      <div className="app-set-group">
-        <button type="button" className="app-set-row" onClick={() => setPane("events")}>
+      <SettingsGroup title="Разбор">
+        <button type="button" className="app-set-row" onClick={() => setPane("fill")}>
           <span className="app-set-row-text">
-            <span className="app-set-row-title">События</span>
-            <span className="app-set-row-hint">{fills.length === 0 ? "Нет событий за период" : `${fills[0].title} · ${fills[0].fill}%`}</span>
+            <span className="app-set-row-title">Заполняемость</span>
+            <span className="app-set-row-hint">{fills.length === 0 ? "Нет событий за период" : fillCaption(fills[0].booked, fills[0].capacity, fills[0].fill)}</span>
           </span>
           <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
         </button>
-        <button type="button" className="app-set-row" onClick={() => setPane("traffic")}>
+        <button type="button" className="app-set-row" onClick={() => setPane("sources")}>
           <span className="app-set-row-text">
-            <span className="app-set-row-title">Откуда записи</span>
-            <span className="app-set-row-hint">Чаты, лента, поиск</span>
+            <span className="app-set-row-title">Источники регистраций</span>
+            <span className="app-set-row-hint">Чаты MAX, лента и поиск</span>
           </span>
           <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
         </button>
-      </div>
+        {drafts > 0 && onShowDrafts !== undefined && (
+          <button type="button" className="app-set-row" onClick={onShowDrafts}>
+            <span className="app-set-row-text">
+              <span className="app-set-row-title">Черновики</span>
+              <span className="app-set-row-hint">{drafts} ещё не в афише</span>
+            </span>
+            <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+          </button>
+        )}
+      </SettingsGroup>
+      {weak.length > 0 && (
+        <>
+          <h2 className="app-section-title">Слабая заполняемость</h2>
+          <p className="app-gathering-hint">Меньше 40% мест. Карточка открывает событие: оттуда можно продвинуть его в ленте.</p>
+          <div className="app-org-events">
+            {weak.map((row) => (
+              <FillEventCard key={row.id} row={row} onOpen={onOpenEvent} />
+            ))}
+          </div>
+        </>
+      )}
+      {today !== undefined && onCheckIn !== undefined && (
+        <button type="button" className="app-org-event" onClick={() => onCheckIn(cabinetAsOrganizerEvent(today))}>
+          <AppMedia category={today.category} src={pictured(today.id, null)} className="app-org-event-media" />
+          <span className="app-org-event-body">
+            <span className="app-org-event-title">{today.title}</span>
+            <span className="app-org-event-meta">Сегодня · контроль входа</span>
+          </span>
+        </button>
+      )}
     </section>
   );
 }

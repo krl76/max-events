@@ -16942,7 +16942,8 @@ button.app-cal-peer-chip {
   padding: var(--app-space-screen) var(--app-space-screen) 0;
 }
 
-.app-org-form .app-org-tiles {
+.app-org-form .app-org-tiles,
+.app-gathering .app-org-tiles {
   padding: 0;
 }
 
@@ -23634,9 +23635,14 @@ button.app-story-viewer-author {
 
 .app-gathering .app-org-head,
 .app-gathering .app-org-day-body,
-.app-gathering .app-org-form {
+.app-gathering .app-org-form,
+.app-gathering .app-org-events {
   padding-left: 0;
   padding-right: 0;
+}
+
+.app-gathering .app-org-head {
+  padding-top: 0;
 }
 
 .app-org-pinmap {
@@ -29131,7 +29137,7 @@ label.app-field {
   align-self: flex-start;
   background: rgba(43, 198, 68, 0.15);
   border-radius: 999px;
-  color: #1abe43;
+  color: var(--app-text);
   font-size: 11px;
   font-weight: 800;
   margin-top: 4px;

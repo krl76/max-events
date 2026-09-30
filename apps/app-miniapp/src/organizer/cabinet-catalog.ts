@@ -104,13 +104,27 @@ export function cabinetInRange(events: CabinetEvent[], from: Date, to: Date): Ca
   });
 }
 
-export function cabinetFillRows(events: CabinetEvent[], from: Date, to: Date): Array<{ id: string; title: string; booked: number; capacity: number; fill: number }> {
+export interface CabinetFillRow {
+  id: string;
+  title: string;
+  booked: number;
+  capacity: number;
+  fill: number;
+  category: EventCategory;
+  startsAt: string;
+}
+
+export function fillCaption(booked: number, capacity: number, fill: number): string {
+  return `заполнено ${fill}% · ${booked} из ${capacity} мест`;
+}
+
+export function cabinetFillRows(events: CabinetEvent[], from: Date, to: Date): CabinetFillRow[] {
   return cabinetInRange(events, from, to)
     .filter((event) => !event.draft)
     .map((event) => {
       const booked = cabinetSold(event);
       const fill = event.capacity <= 0 ? 0 : Math.round((booked / event.capacity) * 100);
-      return { id: event.id, title: event.title, booked, capacity: event.capacity, fill };
+      return { id: event.id, title: event.title, booked, capacity: event.capacity, fill, category: event.category, startsAt: event.startsAt };
     })
     .sort((a, b) => a.fill - b.fill || a.title.localeCompare(b.title, "ru"));
 }

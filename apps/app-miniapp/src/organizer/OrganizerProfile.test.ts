@@ -25,6 +25,8 @@ describe("OrganizerProfileView", () => {
         onList: noop,
         onOpenEvent: noop,
         onOpenEvents: noop,
+        onOpenPlaces: noop,
+        onOpenPromo: noop,
         onSettings: noop,
         onPickAvatar: noop,
         onPickCover: noop,
@@ -40,5 +42,7 @@ describe("OrganizerProfileView", () => {
     expect(html).toContain("подписчиков");
     expect(html).toContain("Шапка");
     expect(html).toContain("Настройки");
+    expect(html).toContain("Места");
+    expect(html).toContain("Продвижение");
   });
 });
