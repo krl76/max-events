@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { DayRoute, OptimizeRoute, RouteStopWrite } from "@max-events/api-contracts";
-import { DayRoutePage, DayRouteView, formatLeg, MAX_ROUTE_STOPS, routeBuildLabel, routeTotalsLabel, savingsLabel, upcomingEventsForRoute, type DayRouteBuildState, type OptimizeState, type RouteStopOption } from "./DayRoutePage";
+import { DAY_ROUTE_PICK, DayRoutePage, DayRouteView, formatLeg, MAX_ROUTE_STOPS, routeBuildLabel, routePickHint, routeTotalsLabel, savingsLabel, upcomingEventsForRoute, walkMinutesBetween, type DayRouteBuildState, type OptimizeState, type RouteStopOption } from "./DayRoutePage";
 import { buildMockDayRoute, mockEvents, mockPlaces, optimizeMockDayRoute } from "../api/mock";
 
 const MOSCOW: [number, number] = [55.7522, 37.6156];
@@ -26,9 +26,11 @@ describe("route labels", () => {
   it("formats a leg with its mode, and a long taxi ride in hours", () => {
     expect(formatLeg({ fromTitle: "А", toTitle: "Б", travelMinutes: 15, distanceKm: 2.1, mode: "walk", transfers: 0, priceRub: null })).toBe("15 мин пешком · 2.1 км");
     expect(formatLeg({ fromTitle: "А", toTitle: "Б", travelMinutes: 1262, distanceKm: 631, mode: "taxi", transfers: 0, priceRub: 1 })).toBe("21 ч 2 мин на такси · 631.0 км");
-    expect(routeBuildLabel(0)).toBe("Выбери ещё 2 места");
-    expect(routeBuildLabel(1)).toBe("Выбери ещё 1 место");
-    expect(routeBuildLabel(2)).toBe("Готово");
+    expect(routePickHint(0)).toBe("Выберите ещё 3 места");
+    expect(routePickHint(1)).toBe("Выберите ещё 2 места");
+    expect(routePickHint(2)).toBe("Выберите ещё 1 место");
+    expect(routeBuildLabel(3)).toBe("Маршрут можно строить");
+    expect(walkMinutesBetween({ latitude: 55.75, longitude: 37.62 }, { latitude: 55.75, longitude: 37.62 })).toBe(1);
   });
 
   it("formats the totals line", () => {
@@ -47,14 +49,15 @@ describe("route labels", () => {
 describe("DayRouteView stop picker", () => {
   it("blocks the build below two selected stops", () => {
     const none = viewHtml();
-    expect(none).toContain("Выбери ещё 2 места");
-    expect(none).not.toContain("Закрыть");
+    expect(none).toContain("Выберите ещё 3 места");
+    expect(none).toContain("Далее");
+    expect(none).toContain("Рекомендуем вам");
+    expect(none).toContain("По интересам");
     expect(none.match(/<ion-button[^>]*disabled/g)).toHaveLength(1);
 
     const html = viewHtml({ selected: [OPTIONS[0].key] });
-    expect(html).toContain(`1 из ${MAX_ROUTE_STOPS}`);
-    expect(html).toContain("Выбери ещё 1 место");
-    expect(html).not.toContain(">Готово<");
+    expect(html).toContain(`Выбрано 1 из ${DAY_ROUTE_PICK}`);
+    expect(html).toContain("Выберите ещё 2 места");
     expect(html.match(/<ion-button[^>]*disabled/g)).toHaveLength(1);
   });
 
@@ -62,7 +65,8 @@ describe("DayRouteView stop picker", () => {
     const html = viewHtml({ selected: [OPTIONS[0].key, OPTIONS[1].key] });
 
     expect(html).not.toContain("Выберите минимум");
-    expect(html).toContain("Готово");
+    expect(html).toContain("Далее");
+    expect(html).toContain("Выберите ещё 1 место");
     expect(html.match(/<ion-button[^>]*disabled/g) ?? []).toHaveLength(0);
   });
 
@@ -70,7 +74,7 @@ describe("DayRouteView stop picker", () => {
     const selected = OPTIONS.slice(0, MAX_ROUTE_STOPS).map((option) => option.key);
     const html = viewHtml({ selected });
 
-    expect(html).toContain(`${MAX_ROUTE_STOPS} из ${MAX_ROUTE_STOPS}`);
+    expect(html).toContain(`Выбрано ${MAX_ROUTE_STOPS} из ${DAY_ROUTE_PICK}`);
     expect(html.match(/<button[^>]*disabled/g)?.length).toBeGreaterThan(0);
   });
 
