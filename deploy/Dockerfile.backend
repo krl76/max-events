@@ -20,6 +20,19 @@ FROM oven/bun:1.3.14-debian
 WORKDIR /app
 ENV NODE_ENV=production
 
+# platform-api2.max.ru is issued by Минцифры (Russian Trusted Sub CA). Node ships
+# Mozilla's CA bundle, so the system store alone is not enough: NODE_EXTRA_CA_CERTS
+# injects the official Gosuslugi PEMs vendored in deploy/certs/.
+COPY deploy/certs/russian_trusted_root_ca.crt /usr/local/share/ca-certificates/russian_trusted_root_ca.crt
+COPY deploy/certs/russian_trusted_sub_ca.crt /usr/local/share/ca-certificates/russian_trusted_sub_ca.crt
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && update-ca-certificates \
+  && cat /usr/local/share/ca-certificates/russian_trusted_root_ca.crt /usr/local/share/ca-certificates/russian_trusted_sub_ca.crt > /etc/ssl/certs/russian-trusted-ca-bundle.pem \
+  && rm -rf /var/lib/apt/lists/*
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/russian-trusted-ca-bundle.pem
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
 COPY --from=build /app/package.json /app/bun.lock /app/turbo.json /app/tsconfig.base.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages/api-contracts ./packages/api-contracts
