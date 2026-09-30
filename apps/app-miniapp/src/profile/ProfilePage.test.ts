@@ -283,16 +283,17 @@ describe("ProfileView", () => {
     const html = renderProfileView();
 
     expect(html).toContain("Календарь");
-    expect(html).toContain("Создать план");
+    expect(html).not.toContain("Создать план");
     expect(html).toContain("Все планы");
     expect(html).toContain("Все брони");
     expect(html).not.toContain("Будущие бронирования");
     expect(html).not.toContain("Маршрут на день");
     expect(html).not.toContain("Микрособытия");
     expect(html).toContain("Достижения");
-    expect(html).toContain("Моё сообщество");
+    expect(html).not.toContain("Моё сообщество");
     expect(html).toContain("Группы");
     expect(html).toContain("Друзья");
+    expect(html.match(/class="app-me-shortcut"/g)).toHaveLength(6);
     expect(html).toContain("Сохранённое");
     expect(html).not.toContain("app-me-row");
     expect(html).not.toContain("app-me-avatar-plus");

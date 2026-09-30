@@ -11,8 +11,22 @@ COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-max-events}"
 cd "$DEPLOY_ROOT"
 export HOST_PORT COMPOSE_PROJECT_NAME
 
+echo "==> Keep uploaded photos"
+seed_dir="/var/lib/${COMPOSE_PROJECT_NAME}/uploads-seed"
+mkdir -p "$seed_dir"
+old_backend="$(docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.prod.yml ps -q backend || true)"
+if [ -n "$old_backend" ]; then
+  docker cp "$old_backend:/data/uploads/." "$seed_dir/" 2>/dev/null || \
+    docker cp "$old_backend:/app/apps/svc-backend/var/uploads/." "$seed_dir/" 2>/dev/null || true
+fi
+
 echo "==> Backend stack ($COMPOSE_PROJECT_NAME on 127.0.0.1:$HOST_PORT)"
 docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.prod.yml up -d --build
+
+new_backend="$(docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.prod.yml ps -q backend || true)"
+if [ -n "$new_backend" ] && [ -d "$seed_dir" ]; then
+  docker cp "$seed_dir/." "$new_backend:/data/uploads/" 2>/dev/null || true
+fi
 
 echo "==> Migrations"
 docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.prod.yml exec -T backend bun run migration:run

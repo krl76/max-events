@@ -567,6 +567,10 @@ class FeedCardBoundary extends Component<{ children: ReactNode }, { failed: bool
     return { failed: true };
   }
 
+  componentDidCatch(error: Error): void {
+    console.error("feed card crashed", error.message);
+  }
+
   render() {
     return this.state.failed ? null : this.props.children;
   }
@@ -775,7 +779,8 @@ export function FeedScreen() {
           setState({ status: "ready", cards });
         },
         // A failed refresh after a write must not blank a feed that is already on screen.
-        () => {
+        (error: unknown) => {
+          console.error("feed cards failed", error);
           if (!alive) return;
           setState((current) => (initial && feedMemory === null ? { status: "error" } : current));
         },
@@ -799,8 +804,15 @@ export function FeedScreen() {
     const el = document.querySelector(".app-content");
     if (top === undefined || !(el instanceof HTMLElement)) return;
     let stop = false;
+    let applies = 0;
     const apply = () => {
       if (stop) return;
+      applies += 1;
+      if (applies > 20) {
+        stop = true;
+        observer.disconnect();
+        return;
+      }
       const room = el.scrollHeight - el.clientHeight;
       if (room + 8 < top) return;
       el.scrollTop = top;

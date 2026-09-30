@@ -2545,6 +2545,10 @@ html[data-theme="dark"] #root {
   width: 100%;
 }
 
+.app-feed-photo--missing {
+  background: var(--app-surface);
+}
+
 .app-feed-photos {
   display: grid;
   gap: 2px;
@@ -27133,7 +27137,7 @@ button.app-fin-op--btn {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-top: 16px;
+  padding-top: 8px;
 }
 
 .app-me--user .app-me-pair {
@@ -27229,6 +27233,13 @@ button.app-fin-op--btn {
   flex: 1;
   font-size: 14px;
   font-weight: 800;
+}
+
+.app-me--user .app-me-shortcut-hint {
+  color: var(--app-text-tertiary);
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .app-me--user .app-me-shortcut > svg:last-child {
