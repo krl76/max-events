@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { CityWalk, Event } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { useRoute } from "../routing/router";
-import { walkRouteLine, walkStopMarkers, type MapMarker } from "./mapMarkers";
+import { walkRouteLine, walkStopMarkers, walkTravelMinutes, type MapMarker } from "./mapMarkers";
 import { MapScreen } from "./MapScreen";
 
 export type MapEventsState = { status: "loading" } | { status: "error" } | { status: "ready"; events: Event[] };
@@ -31,8 +31,8 @@ function defaultLoadWalk(id: string): Promise<CityWalk> {
   return apiClient.getCityWalk(id);
 }
 
-export function MapPageView({ state, onOpenEvent, onOpenPlace, onDiscuss, pin = null, focusPlaceId = null, drawRoute = false, walkMarkers = NO_WALK_MARKERS, walkPath = null, walkFailed = false, focusPoint = null }: { state: MapEventsState; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void; onDiscuss?: () => void; pin?: { lat: number; lng: number } | null; focusPlaceId?: string | null; drawRoute?: boolean; walkMarkers?: readonly MapMarker[]; walkPath?: readonly [number, number][] | null; walkFailed?: boolean; focusPoint?: { lat: number; lng: number } | null }) {
-  return <MapScreen events={state.status === "ready" ? state.events : NO_EVENTS} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} onDiscuss={onDiscuss} eventsFailed={state.status === "error"} eventsLoading={state.status === "loading"} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} extraMarkers={walkMarkers} walkPath={walkPath} walkFailed={walkFailed} focusPoint={focusPoint} />;
+export function MapPageView({ state, onOpenEvent, onOpenPlace, onDiscuss, pin = null, focusPlaceId = null, drawRoute = false, walkMarkers = NO_WALK_MARKERS, walkPath = null, walkTitle = null, walkMinutes = null, walkFailed = false, focusPoint = null }: { state: MapEventsState; onOpenEvent: (id: string) => void; onOpenPlace: (id: string) => void; onDiscuss?: () => void; pin?: { lat: number; lng: number } | null; focusPlaceId?: string | null; drawRoute?: boolean; walkMarkers?: readonly MapMarker[]; walkPath?: readonly [number, number][] | null; walkTitle?: string | null; walkMinutes?: number | null; walkFailed?: boolean; focusPoint?: { lat: number; lng: number } | null }) {
+  return <MapScreen events={state.status === "ready" ? state.events : NO_EVENTS} onOpenEvent={onOpenEvent} onOpenPlace={onOpenPlace} onDiscuss={onDiscuss} eventsFailed={state.status === "error"} eventsLoading={state.status === "loading"} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} extraMarkers={walkMarkers} walkPath={walkPath} walkTitle={walkTitle} walkMinutes={walkMinutes} walkFailed={walkFailed} focusPoint={focusPoint} />;
 }
 
 export type MapPageProps = {
@@ -51,6 +51,8 @@ export function MapPage(props: MapPageProps = {}) {
   const walkId = forcedWalkId === undefined ? routeWalkId : forcedWalkId;
   const [state, setState] = useState<MapEventsState>({ status: "loading" });
   const [walkMarkers, setWalkMarkers] = useState<readonly MapMarker[]>(NO_WALK_MARKERS);
+  const [walkTitle, setWalkTitle] = useState<string | null>(null);
+  const [walkMinutes, setWalkMinutes] = useState<number | null>(null);
   const [walkFailed, setWalkFailed] = useState(false);
 
   useEffect(() => {
@@ -69,11 +71,21 @@ export function MapPage(props: MapPageProps = {}) {
   }, [loadEvents]);
 
   useEffect(() => {
-    if (walkId === null) return;
+    if (walkId === null) {
+      setWalkMarkers(NO_WALK_MARKERS);
+      setWalkTitle(null);
+      setWalkMinutes(null);
+      setWalkFailed(false);
+      return;
+    }
     let alive = true;
     loadWalk(walkId).then(
       (walk) => {
-        if (alive) setWalkMarkers(walkStopMarkers(walk.stops));
+        if (!alive) return;
+        setWalkMarkers(walkStopMarkers(walk.stops));
+        setWalkTitle(walk.city);
+        setWalkMinutes(walkTravelMinutes(walk));
+        setWalkFailed(false);
       },
       () => {
         if (alive) setWalkFailed(true);
@@ -94,5 +106,5 @@ export function MapPage(props: MapPageProps = {}) {
   }, [walkMarkers]);
   const openEvent = useCallback((id: string) => navigate({ name: "event", id }), [navigate]);
   const openPlace = useCallback((id: string) => navigate({ name: "place", id }), [navigate]);
-  return <MapPageView state={state} onOpenEvent={openEvent} onOpenPlace={openPlace} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} walkMarkers={walkMarkers} walkPath={walkPath} walkFailed={walkFailed} focusPoint={focusPoint} />;
+  return <MapPageView state={state} onOpenEvent={openEvent} onOpenPlace={openPlace} pin={pin} focusPlaceId={focusPlaceId} drawRoute={drawRoute} walkMarkers={walkMarkers} walkPath={walkPath} walkTitle={walkTitle} walkMinutes={walkMinutes} walkFailed={walkFailed} focusPoint={focusPoint} />;
 }

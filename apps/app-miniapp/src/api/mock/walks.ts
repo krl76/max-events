@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: In-memory city walks for the mock interceptor so unit tests never hit the network.
-// SCOPE: Compose, list, get, and done. City "Пусто" answers 422 no_sights. Unknown ids are missing.
+// SCOPE: Compose, list, get, done, and delete. City "Пусто" answers 422 no_sights. Unknown ids are missing.
 // DEPENDS: @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -10,6 +10,7 @@
 // - listMockWalks - mock GET /walks, newest first
 // - getMockWalk - mock GET /walks/:id
 // - setMockWalkStopDone - mock PATCH /walks/:id/stops/:order
+// - deleteMockWalk - mock DELETE /walks/:id
 // - resetMockWalks - drop composed walks between tests
 // END_MODULE_MAP
 
@@ -67,4 +68,10 @@ export function setMockWalkStopDone(id: string, order: number, done: boolean): C
   });
   walks = walks.map((walk) => (walk.id === id ? next : walk));
   return next;
+}
+
+export function deleteMockWalk(id: string): boolean {
+  const before = walks.length;
+  walks = walks.filter((walk) => walk.id !== id);
+  return walks.length < before;
 }

@@ -102,14 +102,15 @@ describe("walk stops on the existing map", () => {
     expect(markers.some((marker) => marker.lat === 0 || marker.lng === 0)).toBe(false);
   });
 
-  it("lists the walk steps on the map instead of only opening the catalog", () => {
+  it("shows the same route bar as a built route, with duration and hide", () => {
     const markers = walkStopMarkers([STOP, { ...STOP, order: 2, title: "Набережная", latitude: 54.21, longitude: 37.61, placeId: null }]);
-    const html = renderToStaticMarkup(createElement(MapPageView, { state: { status: "ready", events: [] }, onOpenEvent: noop, onOpenPlace: noop, walkMarkers: markers, walkPath: walkRouteLine(markers) }));
+    const html = renderToStaticMarkup(createElement(MapPageView, { state: { status: "ready", events: [] }, onOpenEvent: noop, onOpenPlace: noop, walkMarkers: markers, walkPath: walkRouteLine(markers), walkTitle: "Тула", walkMinutes: 104 }));
 
-    expect(html).toContain('aria-label="Шаги прогулки"');
-    expect(html).toContain("Кремль");
-    expect(html).toContain("Набережная");
-    expect(html).toContain("app-map-walk-num");
+    expect(html).toContain("app-map16-routebar");
+    expect(html).toContain("Маршрут по Тула");
+    expect(html).toContain("Скрыть");
+    expect(html).toContain("1 ч 44 мин");
+    expect(html).not.toContain('aria-label="Шаги прогулки"');
   });
 
   it("keeps the map open when the walk fails and does not invent a point", () => {
@@ -137,6 +138,33 @@ describe("walk stops on the existing map", () => {
     expect(calls).toEqual(["w1"]);
     expect(host.querySelector('[aria-label="Карта событий и мест"]')).not.toBeNull();
     expect(host.textContent).toContain("Объекты не загрузились");
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
+  });
+
+  it("hides the saved walk from the map", async () => {
+    const markers = walkStopMarkers([STOP, { ...STOP, order: 2, title: "Набережная", latitude: 54.21, longitude: 37.61, placeId: null }]);
+    const { host, root } = await mount(
+      createElement(MapPageView, {
+        state: { status: "ready", events: [] },
+        onOpenEvent: noop,
+        onOpenPlace: noop,
+        walkMarkers: markers,
+        walkPath: walkRouteLine(markers),
+        walkTitle: "Тула",
+        walkMinutes: 15,
+      }),
+    );
+    expect(host.textContent).toContain("Маршрут по Тула");
+    const hide = [...host.querySelectorAll("button")].find((item) => item.textContent === "Скрыть");
+    expect(hide).toBeDefined();
+    await act(async () => {
+      hide?.click();
+    });
+    expect(host.textContent).not.toContain("Маршрут по Тула");
+    expect(host.textContent).not.toContain("Скрыть");
     await act(async () => {
       root.unmount();
     });

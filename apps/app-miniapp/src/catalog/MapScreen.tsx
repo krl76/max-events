@@ -43,7 +43,7 @@ import "leaflet/dist/leaflet.css";
 import { apiClient, type EventForecast, type EventWeatherHour, type MapWeather, type TravelOption } from "../api/client";
 import { CATEGORY_LABELS, pluralRu } from "./format";
 import { metroGeometry, planMetroRide } from "./metroRoute";
-import { osrmTrip, stitchWalkingRoute } from "./walkingRoute";
+import { osrmTrip, stitchWalkingTrip } from "./walkingRoute";
 import { intentForStopKind, mapRouteProfileFor, type MapRouteProfile } from "./mapRoutePolicy";
 import { useProfileCityPoint } from "../geo/profile-city";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
@@ -155,7 +155,11 @@ export function routeGlyphs(profile: MapRouteProfile): ActionIconName[] {
 }
 
 export function formatDrawnRoute(minutes: number): string {
-  return `${minutes} мин`;
+  if (minutes < 60) return `${minutes} мин`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (rest === 0) return `${hours} ч`;
+  return `${hours} ч ${rest} мин`;
 }
 
 function minutesForProfile(options: readonly TravelOption[], profile: MapRouteProfile): number | null {
@@ -652,12 +656,16 @@ interface MapScreenProps {
   extraMarkers?: readonly MapMarker[];
   /** Линия прогулки по порядку остановок. Пока она есть, каталог с карты уходит: на экране сам маршрут. */
   walkPath?: readonly [number, number][] | null;
+  /** Заголовок сохранённой прогулки в том же окне, что и обычный маршрут. */
+  walkTitle?: string | null;
+  /** Сколько займёт прогулка, пока OSRM не ответил. */
+  walkMinutes?: number | null;
   /** Первая остановка прогулки. Не drawRoute: тот флаг смотрит только на одну площадку. */
   focusPoint?: { lat: number; lng: number } | null;
   walkFailed?: boolean;
 }
 
-export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false, extraMarkers = EMPTY_MARKERS, walkPath = null, focusPoint = null, walkFailed = false }: MapScreenProps) {
+export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москва", eventsFailed = false, eventsLoading = false, pin = null, focusPlaceId = null, drawRoute = false, extraMarkers = EMPTY_MARKERS, walkPath = null, walkTitle = null, walkMinutes = null, focusPoint = null, walkFailed = false }: MapScreenProps) {
   const located = useProfileCityPoint();
   const weatherCity = located.city ?? city;
   // Until the profile city is known the canvas stays on Moscow. A far GPS fix must not pan the map away from the catalog.
@@ -672,12 +680,13 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selected, setSelected] = useState<MapMarker | null>(null);
   const [routeOn, setRouteOn] = useState(drawRoute);
+  const [walkHidden, setWalkHidden] = useState(false);
   const [routePlace, setRoutePlace] = useState<MapRouteStop | null>(null);
   const [routeProfile, setRouteProfile] = useState<MapRouteProfile>(walkPath !== null ? "foot" : "driving");
   const routePicked = useRef(false);
   const [dismissedPinKey, setDismissedPinKey] = useState<string | null>(null);
   const [routePath, setRoutePath] = useState<[number, number][] | null>(null);
-  const [drawnRoute, setDrawnRoute] = useState<{ profile: MapRouteProfile; minutes: number } | null>(null);
+  const [drawnRoute, setDrawnRoute] = useState<{ profile: MapRouteProfile; minutes: number } | null>(walkMinutes !== null ? { profile: "foot", minutes: walkMinutes } : null);
   const [weatherOpen, setWeatherOpen] = useState(false);
   const [centered, setCentered] = useState(false);
   const [weather, setWeather] = useState<MapWeather | null>(null);
@@ -763,11 +772,11 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   const shownPlaces = useMemo(() => (layers.places ? filterMapPlaces(readyPlaces, category, needle) : []), [readyPlaces, layers.places, needle, category]);
   // A fresh [] on every render would land in the map's dependency list and rebuild Leaflet each time.
   const visits = useMemo(() => (category === undefined && layers.friends ? friendVisits : EMPTY_VISITS), [layers.friends, friendVisits, category]);
-  const showingWalk = walkPath !== null && walkPath.length >= 2;
+  const walkLine = walkPath !== null && walkPath.length >= 2 ? walkPath : null;
+  const showingWalk = walkLine !== null && !walkHidden;
   const markers = useMemo(() => {
     if (showingWalk) return [...extraMarkers];
-    const catalog = buildMapMarkers(shownEvents, shownPlaces, visits, { placeCatalog: readyPlaces });
-    return extraMarkers.length === 0 ? catalog : [...extraMarkers, ...catalog];
+    return buildMapMarkers(shownEvents, shownPlaces, visits, { placeCatalog: readyPlaces });
   }, [showingWalk, shownEvents, shownPlaces, visits, readyPlaces, extraMarkers]);
 
   useEffect(() => {
@@ -809,7 +818,11 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
   }, [travel, routeOn, routePlace]);
 
   useEffect(() => {
-    if (walkPath !== null && walkPath.length >= 2) return;
+    setWalkHidden(false);
+  }, [walkPath]);
+
+  useEffect(() => {
+    if (showingWalk) return;
     if (!routeOn || routePlace === null) {
       setRoutePath(null);
       setDrawnRoute(null);
@@ -855,7 +868,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     return () => {
       alive = false;
     };
-  }, [routeOn, originPoint, routePlace, walkPath, routeProfile, travel]);
+  }, [routeOn, originPoint, routePlace, showingWalk, routeProfile, travel]);
   const select = useCallback((marker: MapMarker) => {
     setSelected(marker);
     setWeatherOpen(false);
@@ -939,7 +952,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
       setRouteOn(true);
       return;
     }
-    if (walkPath !== null && walkPath.length >= 2) return;
+    if (showingWalk) return;
     if (focusPoint !== null) {
       const key = `walk:${focusPoint.lat.toFixed(5)},${focusPoint.lng.toFixed(5)}`;
       if (flown.current === key) return;
@@ -966,21 +979,27 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
 
   const framed = useRef("");
   useEffect(() => {
-    if (status !== "ready" || walkPath === null || walkPath.length < 2) return;
-    const key = walkPath.map((point) => `${point[0].toFixed(5)},${point[1].toFixed(5)}`).join(";");
+    if (status !== "ready" || !showingWalk || walkLine === null) {
+      if (!showingWalk) framed.current = "";
+      return;
+    }
+    const key = walkLine.map((point) => `${point[0].toFixed(5)},${point[1].toFixed(5)}`).join(";");
     if (framed.current === key) return;
     framed.current = key;
-    const line = walkPath.map((point) => [point[0], point[1]] as [number, number]);
+    const line = walkLine.map((point) => [point[0], point[1]] as [number, number]);
     setRoutePath(line);
+    if (walkMinutes !== null) setDrawnRoute({ profile: "foot", minutes: walkMinutes });
     handleRef.current?.frame(line);
     let alive = true;
-    stitchWalkingRoute(line).then((path) => {
-      if (alive) setRoutePath(path);
+    stitchWalkingTrip(line).then((trip) => {
+      if (!alive) return;
+      setRoutePath(trip.path);
+      setDrawnRoute({ profile: "foot", minutes: trip.minutes });
     });
     return () => {
       alive = false;
     };
-  }, [status, walkPath, handleRef]);
+  }, [status, showingWalk, walkLine, walkMinutes, handleRef]);
 
   const weatherChange = weather === null ? null : formatMapChange(weather);
   const friendsLine = mapFriendsLine(friendVisits.find((visit) => visit.place.id === selectedPlaceId));
@@ -1013,8 +1032,6 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     setVectorFallback(false);
   }
 
-  const walkSteps = showingWalk ? extraMarkers.filter((marker) => marker.badge !== undefined).sort((left, right) => (left.badge ?? 0) - (right.badge ?? 0)) : [];
-
   return (
     // Тёмная и своя подложки тёмные сами: модификатор обёртки снимает с тайлов инверсию тёмной схемы (theme.css)
     <div className={mapWrapClass(basemap)}>
@@ -1022,18 +1039,6 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
           целиком, вместе с классами leaflet (.leaflet-container и его правило max-width для тайлов —
           без него тайлы схлопываются в нулевую ширину). Тон подложки поэтому висит на обёртке выше. */}
       <div ref={containerRef} className={`app-map${status === "error" ? " app-map--blank" : ""}`} aria-label="Карта событий и мест" />
-      {selected === null && walkSteps.length > 0 ? (
-        <ol className="app-map-walk" aria-label="Шаги прогулки">
-          {walkSteps.map((step) => (
-            <li key={step.key}>
-              <button type="button" className="app-map-walk-step" onClick={() => handleRef.current?.focus([step.lat, step.lng], 16)}>
-                <span className="app-map-walk-num">{step.badge}</span>
-                <span className="app-map-walk-title">{step.title}</span>
-              </button>
-            </li>
-          ))}
-        </ol>
-      ) : null}
       {status === "loading" && (
         <span className="app-map-skeleton" aria-live="polite">
           <span className="app-map-here-chip">{hereLabel}</span>
@@ -1167,14 +1172,20 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
           onClose={() => setDismissedPinKey(droppedPinKey(customPin))}
         />
       )}
-      {routeOn && routePlace !== null && selected === null && !weatherOpen && (
+      {((routeOn && routePlace !== null) || showingWalk) && selected === null && !weatherOpen && (
         <div className="app-map16-routebar">
           <div className="app-map16-routebar-row">
-            <span>{routeBarLabel(routePlace)}</span>
+            <span>{showingWalk ? (walkTitle !== null && walkTitle !== "" ? `Маршрут по ${walkTitle}` : "Маршрут прогулки") : routeBarLabel(routePlace!)}</span>
             <button
               type="button"
               className="app-map16-routebar-hide"
               onClick={() => {
+                if (showingWalk) {
+                  setWalkHidden(true);
+                  setRoutePath(null);
+                  setDrawnRoute(null);
+                  return;
+                }
                 setRouteOn(false);
                 setRoutePlace(null);
                 setDrawnRoute(null);

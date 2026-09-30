@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { drivingRoute, osrmTrip, stitchWalkingRoute, walkingRoute } from "./walkingRoute";
+import { drivingRoute, osrmTrip, stitchWalkingRoute, stitchWalkingTrip, walkingRoute } from "./walkingRoute";
 
 const from: [number, number] = [55.75, 37.61];
 const to: [number, number] = [55.76, 37.62];
@@ -110,5 +110,8 @@ describe("walkingRoute", () => {
       [55.755, 37.615],
       [55.76, 37.62],
     ]);
+    const trip = await stitchWalkingTrip([from, mid, to], fetchImpl);
+    expect(trip.minutes).toBeGreaterThanOrEqual(2);
+    expect(trip.path.at(-1)).toEqual(to);
   });
 });

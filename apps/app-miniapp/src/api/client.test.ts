@@ -157,6 +157,20 @@ describe("ApiClient", () => {
     });
   });
 
+  it("does not retry a 502", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      json: () => Promise.resolve({ message: "Bad Gateway" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("http://localhost:3100/api");
+
+    await expect(client.getEvent(validEvent.id)).rejects.toMatchObject({ status: 502 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("omits content-type header on GET without body", async () => {
     const getInit = mockFetchCaptured(validEvent);
     const client = new ApiClient("http://localhost:3100/api");

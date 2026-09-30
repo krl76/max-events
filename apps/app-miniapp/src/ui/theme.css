@@ -24376,6 +24376,30 @@ button.app-story-viewer-author {
   margin: 0;
   padding: 0;
 }
+.app-walk-saved-item {
+  align-items: stretch;
+  display: flex;
+  gap: 8px;
+}
+.app-walk-saved-item .app-walk-saved {
+  flex: 1;
+  min-width: 0;
+}
+.app-walk-saved-delete {
+  align-items: center;
+  background: var(--app-card);
+  border: 0;
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow-lift);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 56px;
+  justify-content: center;
+  padding: 0;
+  width: 56px;
+}
 .app-walk-stop {
   background: var(--app-card);
   border-radius: var(--app-radius-card);

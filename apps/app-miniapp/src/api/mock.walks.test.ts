@@ -52,4 +52,16 @@ describe("city walk mock", () => {
       restore();
     }
   });
+
+  it("deletes a composed walk", async () => {
+    const restore = installMockApi();
+    try {
+      const client = new ApiClient();
+      const walk = await client.composeCityWalk(write);
+      await client.deleteCityWalk(walk.id);
+      await expect(client.getCityWalk(walk.id)).rejects.toMatchObject({ status: 404 });
+    } finally {
+      restore();
+    }
+  });
 });

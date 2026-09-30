@@ -71,7 +71,8 @@ export interface MethodOptions {
   asVisitor?: boolean;
 }
 
-const TRANSIENT_STATUSES = new Set([0, 429, 502, 503, 504]);
+/** Network drops and overload. 502 is a dead upstream: retrying it in a profile-sized burst keeps nginx busy. */
+const TRANSIENT_STATUSES = new Set([0, 429, 503, 504]);
 
 function liveInitData(): string | null {
   if (typeof window === "undefined") return null;

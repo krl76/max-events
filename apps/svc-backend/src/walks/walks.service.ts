@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Compose a city walk from published places or Wikidata and store it for one user.
-// SCOPE: compose, list, and get. Unknown rank ids are dropped. Fewer than two sights is 422 no_sights.
+// SCOPE: compose, list, get, setDone, and remove. Unknown rank ids are dropped. Fewer than two sights is 422 no_sights.
 // DEPENDS: @nestjs/common, @nestjs/typeorm, @max-events/api-contracts, ./fit-walk, ./wikidata-rows, ./city-walk.entity
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -28,6 +28,7 @@ export type WalkStore = {
   save(row: CityWalkEntity): Promise<CityWalkEntity>;
   find(options: { where: { userId: string }; order: { createdAt: "DESC" } }): Promise<CityWalkEntity[]>;
   findOne(options: { where: { id: string; userId?: string } }): Promise<CityWalkEntity | null>;
+  delete(criteria: { id: string; userId: string }): Promise<unknown>;
 };
 
 export type ListedPlace = {
@@ -137,6 +138,12 @@ export class WalksService {
     row.payload = walk;
     await this.walks.save(row);
     return walk;
+  }
+
+  async remove(userId: string, id: string): Promise<void> {
+    const row = await this.walks.findOne({ where: { id, userId } });
+    if (row === null) throw new NotFoundException();
+    await this.walks.delete({ id, userId });
   }
 }
 

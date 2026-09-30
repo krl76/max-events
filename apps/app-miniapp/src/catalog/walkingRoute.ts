@@ -12,6 +12,8 @@
 // - osrmRoute - path only
 // - walkingRoute - OSRM foot geometry
 // - drivingRoute - OSRM car-road geometry
+// - stitchWalkingTrip - foot geometry and minutes through every stop
+// - stitchWalkingRoute - path only of stitchWalkingTrip
 // END_MODULE_MAP
 
 export type OsrmProfile = "foot" | "driving";
@@ -65,17 +67,23 @@ export async function drivingRoute(from: [number, number], to: [number, number],
 }
 
 /** Foot geometry through every stop, in order. A failed leg stays a straight segment so the line still joins the steps. */
-export async function stitchWalkingRoute(stops: readonly [number, number][], fetchImpl: typeof fetch = fetch): Promise<[number, number][]> {
+export async function stitchWalkingTrip(stops: readonly [number, number][], fetchImpl: typeof fetch = fetch): Promise<OsrmTrip> {
   const straight = stops.map((point) => [point[0], point[1]] as [number, number]);
-  if (stops.length < 2) return straight;
+  if (stops.length < 2) return { path: straight, minutes: 1 };
   const joined: [number, number][] = [];
+  let minutes = 0;
   for (let index = 1; index < stops.length; index += 1) {
     const from = stops[index - 1];
     const to = stops[index];
     if (from === undefined || to === undefined) continue;
-    const segment = await osrmRoute(from, to, "foot", fetchImpl);
-    if (joined.length === 0) joined.push(...segment);
-    else joined.push(...segment.slice(1));
+    const trip = await osrmTrip(from, to, "foot", fetchImpl);
+    minutes += trip.minutes;
+    if (joined.length === 0) joined.push(...trip.path);
+    else joined.push(...trip.path.slice(1));
   }
-  return joined.length >= 2 ? joined : straight;
+  return { path: joined.length >= 2 ? joined : straight, minutes: Math.max(1, minutes) };
+}
+
+export async function stitchWalkingRoute(stops: readonly [number, number][], fetchImpl: typeof fetch = fetch): Promise<[number, number][]> {
+  return (await stitchWalkingTrip(stops, fetchImpl)).path;
 }

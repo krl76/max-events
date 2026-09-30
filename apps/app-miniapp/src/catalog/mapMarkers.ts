@@ -187,6 +187,12 @@ export function buildMapMarkers(events: Event[], places: Place[], friendVisits: 
   return markers;
 }
 
+/** Walking time between stops; the outing length is only a fallback when legs were not stored. */
+export function walkTravelMinutes(walk: { durationMinutes: number; legs: readonly { travelMinutes: number }[] }): number {
+  const fromLegs = walk.legs.reduce((sum, leg) => sum + leg.travelMinutes, 0);
+  return fromLegs > 0 ? fromLegs : walk.durationMinutes;
+}
+
 /** Ordered walk line. Stops without a real point are already absent from the markers. */
 export function walkRouteLine(markers: readonly MapMarker[]): [number, number][] {
   return markers
