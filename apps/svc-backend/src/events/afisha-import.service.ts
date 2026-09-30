@@ -1,13 +1,13 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Upsert the public KudaGo catalog into events and places, and hide rows that left the catalog.
-// SCOPE: Database writes for source=kudago only. In-app events (source null) are never touched.
-// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, ./event.entity, ../places/place.entity, ./kudago
+// PURPOSE: Upsert the public KudaGo and TimePad catalogs into events and places, and hide rows that left the catalog.
+// SCOPE: Database writes for source=kudago|timepad only. In-app events (source null) are never touched.
+// DEPENDS: @nestjs/common, @nestjs/typeorm, typeorm, ./event.entity, ../places/place.entity, ./kudago, ./timepad
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - applyAfishaImport - upsert imported rows and optionally unpublish the ones missing from a complete fetch
-// - AfishaImportService - scheduled entry that fetches KudaGo and applies the rows
+// - AfishaImportService - scheduled entry that fetches KudaGo, then TimePad, and applies the rows
 // END_MODULE_MAP
 
 import { Injectable, Logger } from "@nestjs/common";
@@ -16,6 +16,7 @@ import { Repository } from "typeorm";
 import { PlaceEntity } from "../places/place.entity";
 import { EventEntity } from "./event.entity";
 import { AFISHA_SOURCE, fetchKudagoCatalog, type ImportedAfishaEvent, type ImportedPlace, type KudagoCatalog } from "./kudago";
+import { fetchTimepadCatalog } from "./timepad";
 
 export interface AfishaImportResult {
   upserted: number;
@@ -34,11 +35,12 @@ export async function applyAfishaImport(catalog: KudagoCatalog, events: Reposito
     seenByCity.set(row.city, seen);
   }
   let hidden = 0;
+  const source = catalog.source ?? AFISHA_SOURCE;
   if (catalog.complete) {
     const cities = catalog.cities.length > 0 ? catalog.cities : [...seenByCity.keys()];
     for (const city of cities) {
       const seen = seenByCity.get(city) ?? new Set<string>();
-      const current = await events.find({ where: { source: AFISHA_SOURCE, city, published: true } });
+      const current = await events.find({ where: { source, city, published: true } });
       for (const existing of current) {
         if (existing.externalId && seen.has(existing.externalId)) continue;
         existing.published = false;
@@ -51,7 +53,8 @@ export async function applyAfishaImport(catalog: KudagoCatalog, events: Reposito
 }
 
 async function upsertPlace(places: Repository<PlaceEntity>, place: ImportedPlace): Promise<string> {
-  const bySource = await places.findOne({ where: { source: AFISHA_SOURCE, externalId: place.externalId } });
+  const source = place.source ?? AFISHA_SOURCE;
+  const bySource = await places.findOne({ where: { source, externalId: place.externalId } });
   if (bySource) {
     bySource.title = place.title;
     bySource.address = place.address;
@@ -73,7 +76,7 @@ async function upsertPlace(places: Repository<PlaceEntity>, place: ImportedPlace
     longitude: place.longitude,
     organizerUserId: null,
     published: true,
-    source: AFISHA_SOURCE,
+    source,
     externalId: place.externalId,
   });
   try {
@@ -86,7 +89,8 @@ async function upsertPlace(places: Repository<PlaceEntity>, place: ImportedPlace
 }
 
 async function upsertEvent(events: Repository<EventEntity>, row: ImportedAfishaEvent, placeId: string | null): Promise<void> {
-  const existing = await events.findOne({ where: { source: AFISHA_SOURCE, externalId: row.externalId } });
+  const source = row.source ?? AFISHA_SOURCE;
+  const existing = await events.findOne({ where: { source, externalId: row.externalId } });
   const fields = {
     title: row.title,
     description: row.description,
@@ -101,7 +105,7 @@ async function upsertEvent(events: Repository<EventEntity>, row: ImportedAfishaE
     coverUrl: row.coverUrl,
     popularity: row.popularity,
     published: true,
-    source: AFISHA_SOURCE,
+    source,
     externalId: row.externalId,
   };
   if (existing) {
@@ -131,8 +135,15 @@ export class AfishaImportService {
   ) {}
 
   async sync(now = new Date(), fetchImpl: typeof fetch = fetch): Promise<AfishaImportResult> {
-    const catalog = await fetchKudagoCatalog(now, fetchImpl);
-    const result = await applyAfishaImport(catalog, this.events, this.places);
+    const kudago = await fetchKudagoCatalog(now, fetchImpl);
+    const kudagoResult = await applyAfishaImport(kudago, this.events, this.places);
+    const timepad = await fetchTimepadCatalog(now, fetchImpl, process.env.TIMEPAD_TOKEN);
+    if (timepad.events.length === 0 && !timepad.complete) {
+      this.logger.log(`Afisha import upserted ${kudagoResult.upserted} and hid ${kudagoResult.hidden}`);
+      return kudagoResult;
+    }
+    const timepadResult = await applyAfishaImport(timepad, this.events, this.places);
+    const result = { upserted: kudagoResult.upserted + timepadResult.upserted, hidden: kudagoResult.hidden + timepadResult.hidden };
     this.logger.log(`Afisha import upserted ${result.upserted} and hid ${result.hidden}`);
     return result;
   }

@@ -94,8 +94,15 @@ describe("search entries", () => {
     expect(renderToStaticMarkup(createElement(SearchTools, { onAsk: noop, onSwipe: noop, onMap: noop, onWhereto: noop, onNearby: noop, onMicro: noop, onDayRoute: noop, onCityWalk: noop, onUpcoming: noop }))).toContain('aria-label="Рядом"');
     const ranked = CARDS[0];
     if (ranked !== undefined) {
-      const many = Array.from({ length: 24 }, (_, index) => ({ ...ranked, event: { ...ranked.event, id: `pop-${index}`, popularity: index } }));
-      expect(popularCards(many)).toHaveLength(POPULAR_COUNT);
+      const clock = new Date("2026-09-01T00:00:00.000Z");
+      const many = Array.from({ length: 24 }, (_, index) => ({
+        ...ranked,
+        event: { ...ranked.event, id: `pop-${index}`, popularity: index, startsAt: `2026-10-${String((index % 20) + 1).padStart(2, "0")}T18:00:00+03:00` },
+      }));
+      const picked = popularCards(many, POPULAR_COUNT, clock);
+      expect(picked).toHaveLength(POPULAR_COUNT);
+      expect(picked.map((card) => card.event.startsAt)).toEqual([...picked].sort((left, right) => left.event.startsAt.localeCompare(right.event.startsAt)).map((card) => card.event.startsAt));
+      expect(popularCards(many, POPULAR_COUNT, new Date("2027-01-01T00:00:00.000Z"))).toHaveLength(0);
       expect(POPULAR_COUNT).toBeGreaterThanOrEqual(20);
     }
   });

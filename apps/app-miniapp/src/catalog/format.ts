@@ -34,7 +34,7 @@ export const PLACE_CATEGORY_LABELS: Record<PlaceCategory, string> = {
 };
 
 export function formatStartsAt(startsAt: string): string {
-  return new Date(startsAt).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  return new Date(startsAt).toLocaleString("ru-RU", { timeZone: "Europe/Moscow", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 }
 
 export function formatEventWeather(weather: EventWeather): string {

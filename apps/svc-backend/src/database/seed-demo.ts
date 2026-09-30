@@ -19,7 +19,9 @@
 // - buildUserAchievements - grants derived from the generated check-ins, by the same catalog the API reads
 // - buildDemoData - pure generation of all demo rows (deterministic ids via fakerRU.seed(42))
 // - resetGeneratedContent - empty generated and user-made content tables; accounts stay
-// - seedDemoDatabase - ensure owner users, build data, insert tables in dependency order
+// - seedDemoDatabase - ensure owner users, sweep leftover feed, upsert demo events, insert tables in dependency order
+// - sweepStaleDemoFeed - drop CAST posts/stories and leftover junk by photo or text so additive seed does not keep Anna-as-a-man rows
+// - upsertDemoEvents - keep one published copy per scene title+city and refresh its clock
 // - DemoData - generated rows per table
 // - DemoSeedResult - inserted counters plus totals
 // END_MODULE_MAP
@@ -27,12 +29,12 @@
 import "reflect-metadata";
 import { fakerRU } from "@faker-js/faker";
 import { DEFAULT_PRIVACY, DEFAULT_SMART_ALERTS, type AchievementCode, type BookingStatus, type CityWalk, type EventCategory, type GatheringStatus, type InviteeResponse, type ListPreset, type MicroEventStatus, type ParticipationStatus, type PaymentStatus, type PlaceCategory, type PlanParticipantStatus, type PromoCampaignStatus, type PromoCampaignType, type PromotionStatus, type PromotionType, type ReportReason, type ReportSource, type ReportStatus, type ReportTargetType, type WaitlistStatus, type WeGroupStatus } from "@max-events/api-contracts";
-import type { DataSource, ObjectLiteral, Repository } from "typeorm";
+import { In, type DataSource, type ObjectLiteral, type Repository } from "typeorm";
 import { ACHIEVEMENT_CATALOG } from "../achievements/achievements.service";
 import { UserAchievementEntity } from "../achievements/user-achievement.entity";
 import { BookingEntity } from "../bookings/booking.entity";
 import { CheckInEntity } from "../checkins/check-in.entity";
-import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity } from "../feed/feed-post.entity";
+import { FeedCommentEntity, FeedLikeEntity, FeedPostEntity, FeedPostGoingEntity } from "../feed/feed-post.entity";
 import { FriendshipEntity } from "../friends/friendship.entity";
 import { EventEntity } from "../events/event.entity";
 import { GatheringEntity } from "../gatherings/gathering.entity";
@@ -132,7 +134,46 @@ export function assertLocalDatabaseUrl(url: string, allowRemote = false): void {
 
 const DEMO_CITY = "Москва";
 const DEMO_USER_ID_BASE = 700_000_001;
+export const DEMO_MAX_USER_PREFIX = "700000";
 const HOUR_MS = 3_600_000;
+
+const EVENT_COVER_PHOTOS = new Set([
+  "/onboarding/gorky.jpg",
+  "/covers/jazz.jpg",
+  "/covers/concert.jpg",
+  "/covers/run.jpg",
+  "/covers/tour.jpg",
+  "/covers/lecture.jpg",
+  "/covers/yoga.jpg",
+  "/covers/ceramic.jpg",
+  "/covers/bike.jpg",
+  "/covers/cleanup.jpg",
+  "/covers/kolomenskoe.jpg",
+  "/covers/graphics.jpg",
+  "/covers/dawn.jpg",
+  "/covers/books.jpg",
+  "/covers/pingpong.jpg",
+  "/covers/shelter.jpg",
+  "/covers/visits/tsaritsyno.jpg",
+  "/covers/visits/museum.jpg",
+  "/covers/visits/run.jpg",
+  "/covers/visits/cleanup.jpg",
+  "/covers/visits/cafe.jpg",
+]);
+
+const JUNK_FEED_TEXTS = new Set(["Отличное мероприятие, советую всем!", "Была вчера — восторг!", "Кто идёт? Пишите в чат.", "Собираем компанию на выходные.", "Впечатлений море, обязательно повторим.", "Лучшая суббота за месяц.", "Только вернулись — до сих пор под впечатлением.", "Спасибо организаторам!", "Идём с друзьями, присоединяйтесь.", "Место легко найти, вход свободный."]);
+const JUNK_FEED_TEXT_KEYS = new Set([...JUNK_FEED_TEXTS].map((text) => normalizeFeedText(text)));
+
+export function normalizeFeedText(text: string): string {
+  return text.toLowerCase().replaceAll("ё", "е").replace(/\s+/g, " ").trim();
+}
+
+export function isEventCoverPhoto(photoUrl: string | null | undefined): boolean {
+  if (photoUrl == null || photoUrl === "") return false;
+  if (photoUrl.startsWith("/covers/posts/")) return false;
+  if (photoUrl.endsWith("-me.jpg")) return false;
+  return EVENT_COVER_PHOTOS.has(photoUrl) || photoUrl.startsWith("/covers/places/");
+}
 
 const PLACE_POOL: ReadonlyArray<{ title: string; address: string; category: PlaceCategory; latitude: number; longitude: number }> = [
   { title: "Парк Горького", address: "ул. Крымский Вал, 9", category: "park", latitude: 55.7297, longitude: 37.6014 },
@@ -182,19 +223,21 @@ const SCENES: ReadonlyArray<{
   paid: boolean;
   price: number | null;
   past: boolean;
+  dayOffset: number;
+  hourUtc: number;
 }> = [
-  { title: "Утренняя йога у арки", category: "sport", place: "Парк Горького", description: "Встречаемся у главной арки Парка Горького за десять минут до старта. Коврики свои, занятие на лужайке сразу за воротами.", cover: "/onboarding/gorky.jpg", visit: "/covers/visits/gorky-me.jpg", post: "Утренняя йога у арки Парка Горького. Собрались на лужайке сразу за воротами.", review: "В Парке Горького удобно: арка видна сразу, на лужайке хватило места всем коврикам.", paid: false, price: null, past: true },
-  { title: "Экскурсия по Царицыну", category: "tourism", place: "Царицыно", description: "Сбор у Большого дворца Царицына, со стороны пруда. Полтора часа по парку, без спешки и без билета в сам дворец.", cover: "/covers/visits/tsaritsyno.jpg", visit: "/covers/visits/tsaritsyno-me.jpg", post: "Экскурсия по Царицыну. Гуляли у пруда, Большой дворец напротив.", review: "В Царицыне гид держал группу у пруда, дворец всё время был в кадре. Никуда не бежали.", paid: false, price: null, past: true },
-  { title: "Джаз в Нескучном саду", category: "afisha", place: "Нескучный сад", description: "Трио играет у летней площадки Нескучного сада. Вход свободный, стулья занимают кто пришёл раньше.", cover: "/covers/jazz.jpg", visit: "/covers/jazz.jpg", post: "Джаз в Нескучном саду. Трио играло у столиков, без сцены.", review: "В Нескучном саду трио было близко, без сцены и без опоздания. Час пролетел незаметно.", paid: false, price: null, past: true },
-  { title: "Авторская песня в «Циферблате»", category: "afisha", place: "Антикафе «Циферблат»", description: "Гитара и несколько песен в зале антикафе «Циферблат» на Маросейке. Чай берём на месте.", cover: "/covers/concert.jpg", visit: "/covers/concert.jpg", post: "Авторская песня в «Циферблате». Гитара на столе, зал маленький и тихий.", review: "В «Циферблате» слышно каждое слово, зал маленький. Начало ровно в заявленное время.", paid: true, price: 400, past: true },
-  { title: "Лекция в Третьяковке", category: "afisha", place: "Третьяковская галерея", description: "Час в залах Третьяковской галереи на Лаврушинском: как смотреть на большое полотно, не пробегая мимо.", cover: "/covers/visits/museum.jpg", visit: "/covers/visits/museum.jpg", post: "После лекции остались в зале Третьяковки у большого полотна.", review: "В Третьяковке группа была небольшой, у картины удалось постоять, а не только пройти мимо.", paid: true, price: 700, past: true },
-  { title: "Пять километров в Сокольниках", category: "sport", place: "Сокольники", description: "Лёгкий темп по главной аллее Сокольников. Сбор у входа со стороны 5-го Лучевого просека.", cover: "/covers/visits/run.jpg", visit: "/covers/visits/run.jpg", post: "Пять километров в Сокольниках. На главной аллее ещё не отдышался.", review: "В Сокольниках трасса ровная, темп и правда лёгкий. Воду лучше взять с собой.", paid: false, price: null, past: true },
-  { title: "Субботник в Измайловском парке", category: "volunteering", place: "Измайловский парк", description: "Час вдоль дорожек Измайловского парка. Перчатки выдадут на месте, мешки тоже.", cover: "/covers/visits/cleanup.jpg", visit: "/covers/visits/cleanup.jpg", post: "Субботник в Измайловском парке. Мешок собрали вдвоём за час.", review: "В Измайловском парке всё организовали просто: перчатки, мешок, час работы и чай.", paid: false, price: null, past: true },
-  { title: "Разговорный клуб в «Даблби»", category: "afisha", place: "Кофейня «Даблби»", description: "Час английского за столом у окна в «Даблби» на Мясницкой. Напиток каждый берёт сам.", cover: "/covers/visits/cafe.jpg", visit: "/covers/visits/cafe.jpg", post: "Разговорный клуб в «Даблби» на Мясницкой. После занятия остались за кофе у окна.", review: "В «Даблби» на Мясницкой было тихо достаточно, чтобы слышать друг друга. Стол у окна — удача.", paid: false, price: null, past: true },
-  { title: "Экскурсия по Коломенскому", category: "tourism", place: "Коломенское", description: "Сбор у деревянного дворца в Коломенском. Идём к церкви, без захода в платные палаты.", cover: "/covers/kolomenskoe.jpg", visit: "/covers/kolomenskoe.jpg", post: "В Коломенском дошли по дорожке до деревянного дворца и церкви.", review: "В Коломенском маршрут короткий и понятный: дворец, дорожка, церковь. Обувь удобная пригодилась.", paid: false, price: null, past: false },
-  { title: "Прогулка по дворам Замоскворечья", category: "tourism", place: "Третьяковская галерея", description: "Выходим от Третьяковской галереи и час ходим по ближайшим дворам. Это не залы музея, билет не нужен.", cover: "/covers/tour.jpg", visit: "/covers/tour.jpg", post: "Ушли от Третьяковки во дворы Замоскворечья. Жёлтый дом с зелёной аркой.", review: "Маршрут от Третьяковки по дворам спокойный, без толпы. Зелёная арка и правда на месте.", paid: false, price: null, past: false },
-  { title: "Субботник у арки Парка Горького", category: "volunteering", place: "Парк Горького", description: "Собираемся у главной арки Парка Горького. Час на площади перед входом, мешки выдают.", cover: "/onboarding/gorky.jpg", visit: "/covers/visits/gorky-me.jpg", post: "Субботник у арки Парка Горького. Час на площади перед входом.", review: "У арки Парка Горького легко найти группу. Час прошёл быстро, площадь стала заметно чище.", paid: false, price: null, past: false },
-  { title: "Камерный вечер в ДК «Москва»", category: "afisha", place: "ДК «Москва»", description: "Небольшой зал ДК «Москва» на Ленинской Слободе. Гитара и два отделения, без танцпола.", cover: "/covers/concert.jpg", visit: "/covers/concert.jpg", post: "Камерный вечер в ДК «Москва». Сидели близко, гитара была на расстоянии вытянутой руки.", review: "В ДК «Москва» зал маленький, слышно без микрофона на весь крик. Места лучше занять заранее.", paid: true, price: 900, past: false },
+  { title: "Утренняя йога у арки", category: "sport", place: "Парк Горького", description: "Встречаемся у главной арки Парка Горького за десять минут до старта. Коврики свои, занятие на лужайке сразу за воротами.", cover: "/onboarding/gorky.jpg", visit: "/covers/visits/gorky-me.jpg", post: "Утренняя йога у арки Парка Горького. Собрались на лужайке сразу за воротами.", review: "В Парке Горького удобно: арка видна сразу, на лужайке хватило места всем коврикам.", paid: false, price: null, past: true, dayOffset: -3, hourUtc: 7 },
+  { title: "Экскурсия по Царицыну", category: "tourism", place: "Царицыно", description: "Сбор у Большого дворца Царицына, со стороны пруда. Полтора часа по парку, без спешки и без билета в сам дворец.", cover: "/covers/visits/tsaritsyno.jpg", visit: "/covers/visits/tsaritsyno-me.jpg", post: "Экскурсия по Царицыну. Гуляли у пруда, Большой дворец напротив.", review: "В Царицыне гид держал группу у пруда, дворец всё время был в кадре. Никуда не бежали.", paid: false, price: null, past: true, dayOffset: -5, hourUtc: 11 },
+  { title: "Джаз в Нескучном саду", category: "afisha", place: "Нескучный сад", description: "Трио играет у летней площадки Нескучного сада. Вход свободный, стулья занимают кто пришёл раньше.", cover: "/covers/jazz.jpg", visit: "/covers/jazz.jpg", post: "Джаз в Нескучном саду. Трио играло у столиков, без сцены.", review: "В Нескучном саду трио было близко, без сцены и без опоздания. Час пролетел незаметно.", paid: false, price: null, past: true, dayOffset: -2, hourUtc: 16 },
+  { title: "Авторская песня в «Циферблате»", category: "afisha", place: "Антикафе «Циферблат»", description: "Гитара и несколько песен в зале антикафе «Циферблат» на Маросейке. Чай берём на месте.", cover: "/covers/concert.jpg", visit: "/covers/concert.jpg", post: "Авторская песня в «Циферблате». Гитара на столе, зал маленький и тихий.", review: "В «Циферблате» слышно каждое слово, зал маленький. Начало ровно в заявленное время.", paid: true, price: 400, past: true, dayOffset: -4, hourUtc: 16 },
+  { title: "Лекция в Третьяковке", category: "afisha", place: "Третьяковская галерея", description: "Час в залах Третьяковской галереи на Лаврушинском: как смотреть на большое полотно, не пробегая мимо.", cover: "/covers/visits/museum.jpg", visit: "/covers/visits/museum.jpg", post: "После лекции остались в зале Третьяковки у большого полотна.", review: "В Третьяковке группа была небольшой, у картины удалось постоять, а не только пройти мимо.", paid: true, price: 700, past: true, dayOffset: -6, hourUtc: 14 },
+  { title: "Пять километров в Сокольниках", category: "sport", place: "Сокольники", description: "Лёгкий темп по главной аллее Сокольников. Сбор у входа со стороны 5-го Лучевого просека.", cover: "/covers/visits/run.jpg", visit: "/covers/visits/run.jpg", post: "Пять километров в Сокольниках. На главной аллее ещё не отдышался.", review: "В Сокольниках трасса ровная, темп и правда лёгкий. Воду лучше взять с собой.", paid: false, price: null, past: true, dayOffset: -1, hourUtc: 8 },
+  { title: "Субботник в Измайловском парке", category: "volunteering", place: "Измайловский парк", description: "Час вдоль дорожек Измайловского парка. Перчатки выдадут на месте, мешки тоже.", cover: "/covers/visits/cleanup.jpg", visit: "/covers/visits/cleanup.jpg", post: "Субботник в Измайловском парке. Мешок собрали вдвоём за час.", review: "В Измайловском парке всё организовали просто: перчатки, мешок, час работы и чай.", paid: false, price: null, past: true, dayOffset: -7, hourUtc: 8 },
+  { title: "Разговорный клуб в «Даблби»", category: "afisha", place: "Кофейня «Даблби»", description: "Час английского за столом у окна в «Даблби» на Мясницкой. Напиток каждый берёт сам.", cover: "/covers/visits/cafe.jpg", visit: "/covers/visits/cafe.jpg", post: "Разговорный клуб в «Даблби» на Мясницкой. После занятия остались за кофе у окна.", review: "В «Даблби» на Мясницкой было тихо достаточно, чтобы слышать друг друга. Стол у окна — удача.", paid: false, price: null, past: true, dayOffset: -3, hourUtc: 16 },
+  { title: "Экскурсия по Коломенскому", category: "tourism", place: "Коломенское", description: "Сбор у деревянного дворца в Коломенском. Идём к церкви, без захода в платные палаты.", cover: "/covers/kolomenskoe.jpg", visit: "/covers/kolomenskoe.jpg", post: "В Коломенском дошли по дорожке до деревянного дворца и церкви.", review: "В Коломенском маршрут короткий и понятный: дворец, дорожка, церковь. Обувь удобная пригодилась.", paid: false, price: null, past: false, dayOffset: 3, hourUtc: 10 },
+  { title: "Прогулка по дворам Замоскворечья", category: "tourism", place: "Третьяковская галерея", description: "Выходим от Третьяковской галереи и час ходим по ближайшим дворам. Это не залы музея, билет не нужен.", cover: "/covers/tour.jpg", visit: "/covers/tour.jpg", post: "Ушли от Третьяковки во дворы Замоскворечья. Жёлтый дом с зелёной аркой.", review: "Маршрут от Третьяковки по дворам спокойный, без толпы. Зелёная арка и правда на месте.", paid: false, price: null, past: false, dayOffset: 5, hourUtc: 12 },
+  { title: "Субботник у арки Парка Горького", category: "volunteering", place: "Парк Горького", description: "Собираемся у главной арки Парка Горького. Час на площади перед входом, мешки выдают.", cover: "/onboarding/gorky.jpg", visit: "/covers/visits/gorky-me.jpg", post: "Субботник у арки Парка Горького. Час на площади перед входом.", review: "У арки Парка Горького легко найти группу. Час прошёл быстро, площадь стала заметно чище.", paid: false, price: null, past: false, dayOffset: 2, hourUtc: 8 },
+  { title: "Камерный вечер в ДК «Москва»", category: "afisha", place: "ДК «Москва»", description: "Небольшой зал ДК «Москва» на Ленинской Слободе. Гитара и два отделения, без танцпола.", cover: "/covers/concert.jpg", visit: "/covers/concert.jpg", post: "Камерный вечер в ДК «Москва». Сидели близко, гитара была на расстоянии вытянутой руки.", review: "В ДК «Москва» зал маленький, слышно без микрофона на весь крик. Места лучше занять заранее.", paid: true, price: 900, past: false, dayOffset: 8, hourUtc: 17 },
 ];
 
 function sceneByTitle(title: string): (typeof SCENES)[number] {
@@ -294,6 +337,10 @@ function chance(likelihood: number): boolean {
 
 function shiftDays(base: Date, days: number, hourUtc: number): Date {
   return new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate() + days, hourUtc, int(0, 45)));
+}
+
+function eventStart(now: Date, dayOffset: number, hourUtc: number): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + dayOffset, hourUtc, 0, 0, 0));
 }
 
 function isoDay(date: Date): string {
@@ -643,11 +690,7 @@ export function buildViewerSlice(input: ViewerSliceInput): ViewerSlice {
     participations.push({ id: uuid(), userId: viewerId, eventId: event.id, status, createdAt, updatedAt: createdAt });
   }
 
-  const feedPosts: FeedPostEntity[] = [groupPastEvent, hostedPlanEvent].map((event) => {
-    const scene = sceneByTitle(event.title);
-    const happened = event.startsAt.getTime() < now.getTime();
-    return { id: uuid(), authorUserId: viewerId, eventId: event.id, text: happened ? scene.post : `Собираемся: ${scene.title}. ${scene.description}`, photoUrl: scene.cover, published: true, createdAt: new Date(now.getTime() - int(2, 90) * HOUR_MS) };
-  });
+  const feedPosts: FeedPostEntity[] = [];
 
   return { lists, listItems, plans, planParticipants, planExpenses, votes, voteOptions, voteParticipants, voteBallots, weGroups, weGroupMembers, weGroupItems, gatherings, gatheringInvitees, microEvents, microEventParticipants, subscriptions, bookings, checkIns, reviews, participations, feedPosts };
 }
@@ -775,7 +818,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
   const events: EventEntity[] = SCENES.slice(0, c.events).map((scene, i) => {
     const place = places.find((item) => item.title === scene.place);
     if (!place) throw new Error(`Нет площадки «${scene.place}»`);
-    const startsAt = shiftDays(now, scene.past ? -int(1, 6) : int(2, 21), int(10, 19));
+    const startsAt = eventStart(now, scene.dayOffset, scene.hourUtc);
     const createdAt = new Date(startsAt.getTime() - int(3, 21) * 24 * HOUR_MS);
     const organizerUserId = i < 4 ? organizers[i % 2].id : null;
     return {
@@ -1750,6 +1793,39 @@ function remapUserIds(data: DemoData, idMap: Map<string, string>): void {
   for (const row of data.swipeDecisions) row.userId = real(row.userId);
 }
 
+function remapEventIds(data: DemoData, idMap: Map<string, string>): void {
+  const real = (id: string | null | undefined): string | null => (id == null ? null : (idMap.get(id) ?? id));
+  for (const row of data.promoCodes) row.eventId = real(row.eventId) ?? row.eventId;
+  for (const row of data.promoCampaigns) row.eventId = real(row.eventId) ?? row.eventId;
+  for (const row of data.promotionCampaigns) row.eventId = real(row.eventId) ?? row.eventId;
+  for (const row of data.participations) row.eventId = real(row.eventId) ?? row.eventId;
+  for (const row of data.bookings) row.eventId = real(row.eventId) ?? row.eventId;
+  for (const row of data.checkIns) row.eventId = real(row.eventId);
+  for (const row of data.stories) {
+    if (row.sticker && "eventId" in row.sticker && typeof row.sticker.eventId === "string") {
+      row.sticker = { ...row.sticker, eventId: real(row.sticker.eventId) ?? row.sticker.eventId };
+    }
+  }
+  for (const row of data.feedPosts) {
+    row.eventId = real(row.eventId);
+    row.repostOfEventId = real(row.repostOfEventId ?? null);
+  }
+  for (const row of data.reviews) row.eventId = real(row.eventId) ?? row.eventId;
+  for (const row of data.waitlistEntries) row.eventId = real(row.eventId) ?? row.eventId;
+  for (const row of data.listItems) row.eventId = real(row.eventId);
+  for (const row of data.voteOptions) row.eventId = real(row.eventId) ?? row.eventId;
+  for (const row of data.voteBallots) row.eventId = real(row.eventId) ?? row.eventId;
+  for (const row of data.weGroupItems) row.eventId = real(row.eventId);
+  for (const row of data.gatherings) row.eventId = real(row.eventId) ?? row.eventId;
+  for (const row of data.plans) row.eventId = real(row.eventId) ?? row.eventId;
+  for (const row of data.pageViews) {
+    if (row.targetType === "event") row.targetId = real(row.targetId) ?? row.targetId;
+  }
+  for (const row of data.reports) {
+    if (row.targetType === "event") row.targetId = real(row.targetId) ?? row.targetId;
+  }
+}
+
 function remapPlaceIds(data: DemoData, idMap: Map<string, string>): void {
   const real = (id: string | null): string | null => (id === null ? null : (idMap.get(id) ?? id));
   for (const event of data.events) event.placeId = real(event.placeId);
@@ -1772,6 +1848,93 @@ function remapPlaceIds(data: DemoData, idMap: Map<string, string>): void {
   for (const report of data.reports) {
     if (report.targetType === "place") report.targetId = real(report.targetId) ?? report.targetId;
   }
+}
+
+async function deletePostsByIds(dataSource: DataSource, ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  await dataSource.getRepository(FeedCommentEntity).delete({ postId: In(ids) });
+  await dataSource.getRepository(FeedLikeEntity).delete({ postId: In(ids) });
+  await dataSource.getRepository(FeedPostGoingEntity).delete({ postId: In(ids) });
+  await dataSource.getRepository(ListItemEntity).delete({ feedPostId: In(ids) });
+  await dataSource.getRepository(ReportEntity).delete({ targetType: "feed_post", targetId: In(ids) });
+  await dataSource.getRepository(FeedPostEntity).delete({ id: In(ids) });
+  return ids.length;
+}
+
+/**
+ * Additive seed used to keep leftover CAST posts (wrong faces, event covers, stock captions).
+ * Drop those rows — likes/comments on them go with them — so the next insert writes the curated feed.
+ */
+async function sweepStaleDemoFeed(dataSource: DataSource): Promise<number> {
+  const castIds = (await dataSource.getRepository(UserEntity).find())
+    .filter((user) => user.maxUserId.startsWith(DEMO_MAX_USER_PREFIX))
+    .map((user) => user.id);
+  const castSet = new Set(castIds);
+  const posts = await dataSource.getRepository(FeedPostEntity).find({ order: { createdAt: "DESC", id: "DESC" } });
+  const stale = new Set<string>();
+  const seenPhoto = new Set<string>();
+  const seenText = new Set<string>();
+  for (const post of posts) {
+    const photo = post.photoUrl ?? "";
+    const textKey = normalizeFeedText(post.text);
+    if (castSet.has(post.authorUserId) || JUNK_FEED_TEXT_KEYS.has(textKey) || isEventCoverPhoto(photo)) {
+      stale.add(post.id);
+      continue;
+    }
+    if (photo !== "" && seenPhoto.has(photo)) {
+      stale.add(post.id);
+      continue;
+    }
+    if (textKey !== "" && seenText.has(textKey)) {
+      stale.add(post.id);
+      continue;
+    }
+    if (photo !== "") seenPhoto.add(photo);
+    if (textKey !== "") seenText.add(textKey);
+  }
+  const deleted = await deletePostsByIds(dataSource, [...stale]);
+  if (castIds.length > 0) {
+    const stories = await dataSource.getRepository(StoryEntity).find();
+    const storyIds = stories.filter((row) => castSet.has(row.userId)).map((row) => row.id);
+    if (storyIds.length > 0) await dataSource.getRepository(StoryEntity).delete({ id: In(storyIds) });
+    await dataSource.getRepository(FeedCommentEntity).delete({ authorUserId: In(castIds) });
+    return deleted + storyIds.length;
+  }
+  return deleted;
+}
+
+async function upsertDemoEvents(repo: Repository<EventEntity>, rows: EventEntity[]): Promise<{ inserted: number; idMap: Map<string, string> }> {
+  const idMap = new Map<string, string>();
+  let inserted = 0;
+  const existing = await repo.find();
+  const untitled = existing.filter((row) => (row.source == null || row.source === "") && (row.organizerOrganizationId == null || row.organizerOrganizationId === undefined));
+  for (const row of rows) {
+    const matches = untitled.filter((event) => event.title === row.title && event.city === row.city).sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime() || left.id.localeCompare(right.id));
+    const kept = matches[0];
+    if (!kept) {
+      try {
+        await repo.insert(row);
+        inserted += 1;
+        untitled.push(row);
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+      }
+      continue;
+    }
+    idMap.set(row.id, kept.id);
+    kept.startsAt = row.startsAt;
+    kept.endsAt = row.endsAt;
+    kept.coverUrl = row.coverUrl;
+    kept.description = row.description;
+    kept.placeId = row.placeId ?? kept.placeId;
+    kept.published = true;
+    await repo.save(kept);
+    for (const extra of matches.slice(1)) {
+      extra.published = false;
+      await repo.save(extra);
+    }
+  }
+  return { inserted, idMap };
 }
 
 async function fillOrganizerCabinet(dataSource: DataSource, now: Date): Promise<number> {
@@ -1825,7 +1988,10 @@ async function fillOrganizerCabinet(dataSource: DataSource, now: Date): Promise<
         inserted += 1;
       } else {
         event.placeId = event.placeId ?? place?.id ?? null;
-        event.coverUrl = event.coverUrl ?? spec.cover;
+        event.coverUrl = spec.cover;
+        event.startsAt = startsAt;
+        event.endsAt = endsAt;
+        event.description = spec.description;
         event.organizerUserId = org.organizerUserId;
         await eventsRepo.save(event);
       }
@@ -2011,7 +2177,10 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
   for (const item of data.listItems) item.listId = lists.idMap.get(item.listId) ?? item.listId;
 
   inserted.places = places.inserted;
-  inserted.events = await insertRows(dataSource.getRepository(EventEntity), data.events);
+  inserted.staleFeed = await sweepStaleDemoFeed(dataSource);
+  const events = await upsertDemoEvents(dataSource.getRepository(EventEntity), data.events);
+  remapEventIds(data, events.idMap);
+  inserted.events = events.inserted;
   inserted.promoCodes = await insertRows(dataSource.getRepository(PromoCodeEntity), data.promoCodes);
   inserted.promoCampaigns = await insertRows(dataSource.getRepository(PromoCampaignEntity), data.promoCampaigns);
   inserted.promotionCampaigns = await insertRows(dataSource.getRepository(PromotionCampaignEntity), data.promotionCampaigns);

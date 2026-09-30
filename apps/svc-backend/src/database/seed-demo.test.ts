@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EventCategorySchema } from "@max-events/api-contracts";
-import { assertLocalDatabaseUrl, buildDemoData, DEMO_COUNTS, parseDemoScale } from "./seed-demo";
+import { assertLocalDatabaseUrl, buildDemoData, DEMO_COUNTS, isEventCoverPhoto, parseDemoScale } from "./seed-demo";
 
 const now = new Date("2026-09-16T12:00:00Z");
 const ownerUserId = "11111111-1111-4111-8111-111111111111";
@@ -222,7 +222,15 @@ describe("buildDemoData", () => {
     expect(new Set(data.stories.map((story) => story.imageUrl)).size).toBe(data.stories.length);
     for (const photo of authoredPhotos) {
       expect(data.stories.some((story) => story.imageUrl === photo)).toBe(false);
+      expect(isEventCoverPhoto(photo)).toBe(false);
     }
+    const authoredTexts = data.feedPosts.map((post) => post.text);
+    expect(new Set(authoredTexts).size).toBe(authoredTexts.length);
+    for (const event of data.events) {
+      expect(event.startsAt.getUTCMinutes()).toBe(0);
+      expect(event.startsAt.getUTCSeconds()).toBe(0);
+    }
+    expect(data.events.some((event) => event.startsAt.getTime() > now.getTime())).toBe(true);
     expect(data.swipeDecisions.length).toBeGreaterThan(40);
     expect(data.swipeDecisions.every((row) => userIds.has(row.userId) && placeIds.has(row.placeId))).toBe(true);
     for (const review of data.reviews) {

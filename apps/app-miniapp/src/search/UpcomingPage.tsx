@@ -12,7 +12,6 @@
 import { useEffect, useState } from "react";
 import { apiClient, type CatalogCard } from "../api/client";
 import { useRoute } from "../routing/router";
-import { dayKey } from "../today/TodaySection";
 import { BackToTop } from "../ui/BackToTop";
 import { AppSkeleton, AppState } from "../ui/primitives";
 import { EventPoster } from "./EventPoster";
@@ -27,7 +26,7 @@ export function UpcomingPage({ city }: { readonly city: string }) {
     let alive = true;
     setFailed(false);
     setCards(null);
-    apiClient.listEventCards({ city, sort: "soon", dateFrom: dayKey(new Date()), limit: 40 }).then(
+    apiClient.listEventCards({ city, sort: "soon", dateFrom: new Date().toISOString(), limit: 40 }).then(
       (rows) => {
         if (alive) setCards(rows);
       },

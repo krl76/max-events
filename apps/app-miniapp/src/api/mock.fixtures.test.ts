@@ -87,4 +87,12 @@ describe("filterMockEvents", () => {
   it("returns everything without filters", () => {
     expect(filterMockEvents(mockEvents, {})).toHaveLength(mockEvents.length);
   });
+
+  it("keeps only events that start at or after dateFrom", () => {
+    const from = "2026-10-01T00:00:00.000Z";
+    const events = filterMockEvents(mockEvents, { dateFrom: from });
+    expect(events.length).toBeGreaterThan(0);
+    expect(events.length).toBeLessThan(mockEvents.length);
+    expect(events.every((item) => Date.parse(item.startsAt) >= Date.parse(from))).toBe(true);
+  });
 });

@@ -268,8 +268,15 @@ export { cityWalkAsk } from "./WalkPage";
 /** Nine doors, three columns. The last row is the day route, the city walk, and upcoming events. */
 export const POPULAR_COUNT = 20;
 
-export function popularCards(cards: readonly CatalogCard[], limit = POPULAR_COUNT): CatalogCard[] {
-  return [...cards].sort((left, right) => (right.rating ?? 0) * 1000 + (right.event.popularity ?? 0) + (right.event.bookedCount ?? 0) - ((left.rating ?? 0) * 1000 + (left.event.popularity ?? 0) + (left.event.bookedCount ?? 0))).slice(0, limit);
+function eventEndMs(card: CatalogCard): number {
+  return Date.parse(card.event.endsAt ?? card.event.startsAt);
+}
+
+/** Upcoming only, then the popular slice, then chronological so the rail reads as a date list. */
+export function popularCards(cards: readonly CatalogCard[], limit = POPULAR_COUNT, now: Date = new Date()): CatalogCard[] {
+  const upcoming = cards.filter((card) => eventEndMs(card) >= now.getTime() && Date.parse(card.event.startsAt) >= now.getTime());
+  const ranked = [...upcoming].sort((left, right) => (right.rating ?? 0) * 1000 + (right.event.popularity ?? 0) + (right.event.bookedCount ?? 0) - ((left.rating ?? 0) * 1000 + (left.event.popularity ?? 0) + (left.event.bookedCount ?? 0)));
+  return ranked.slice(0, limit).sort((left, right) => left.event.startsAt.localeCompare(right.event.startsAt) || left.event.id.localeCompare(right.event.id));
 }
 
 export function SearchTools({ onAsk, onSwipe, onMap, onWhereto, onNearby, onMicro, onDayRoute, onCityWalk, onUpcoming, nearbyLabel = "Рядом", nearbyAria = "Рядом" }: { onAsk: () => void; onSwipe: () => void; onMap: () => void; onWhereto: () => void; onNearby: () => void; onMicro: () => void; onDayRoute: () => void; onCityWalk: () => void; onUpcoming: () => void; nearbyLabel?: string; nearbyAria?: string }) {
@@ -635,7 +642,7 @@ export function SearchPage() {
 
   useEffect(() => {
     let alive = true;
-    apiClient.listEventCards({ city, sort: "rating", limit: 40 }, { latitude: catalogPoint.latitude, longitude: catalogPoint.longitude }).then(
+    apiClient.listEventCards({ city, sort: "rating", dateFrom: new Date().toISOString(), limit: 40 }, { latitude: catalogPoint.latitude, longitude: catalogPoint.longitude }).then(
       (cards) => {
         if (alive) setPopular(cards);
       },

@@ -37,22 +37,58 @@ describe("mapKudagoEvent", () => {
     });
   });
 
-  it("drops a showing that has already ended and keeps one that is still open", () => {
+  it("drops a showing that has already ended and keeps a future concert with its clock time", () => {
     const ended = mapKudagoEvent({ id: 1, title: "Прошло", dates: [{ start: 1_600_000_000, end: 1_600_000_100 }] }, "Москва", now);
-    const open = mapKudagoEvent({ id: 2, title: "Выставка", categories: ["exhibition"], is_free: true, dates: [{ start: 1_700_000_000, end: Math.floor(new Date("2026-10-10T00:00:00.000Z").getTime() / 1000) }] }, "Москва", now);
+    const open = mapKudagoEvent(
+      {
+        id: 2,
+        title: "Выставка",
+        categories: ["exhibition"],
+        is_free: true,
+        dates: [{ start: Math.floor(new Date("2026-10-10T16:00:00.000Z").getTime() / 1000), end: Math.floor(new Date("2026-10-10T19:00:00.000Z").getTime() / 1000), start_date: "2026-10-10", start_time: "19:00:00" }],
+      },
+      "Москва",
+      now,
+    );
 
     expect(ended).toBeNull();
-    expect(open?.startsAt.toISOString()).toBe(new Date(1_700_000_000 * 1000).toISOString());
-    expect(open?.endsAt?.toISOString()).toBe("2026-10-10T00:00:00.000Z");
+    expect(open?.startsAt.toISOString()).toBe("2026-10-10T16:00:00.000Z");
     expect(open?.isPaid).toBe(false);
   });
 
-  it("treats a startless run that is still open as happening now, and a touring exhibition as afisha", () => {
-    const mapped = mapKudagoEvent({ id: 3, title: "Полотна", categories: ["exhibition", "tour"], is_free: false, price: "", dates: [{ start: -62135433000, end: Math.floor(new Date("2026-10-30T20:00:00.000Z").getTime() / 1000) }] }, "Москва", now);
+  it("drops a startless exhibition without a schedule instead of stamping the import clock", () => {
+    const mapped = mapKudagoEvent({ id: 3, title: "Полотна", categories: ["exhibition", "tour"], is_free: false, price: "", dates: [{ start: -62135433000, end: Math.floor(new Date("2026-10-30T20:00:00.000Z").getTime() / 1000), is_startless: true }] }, "Москва", now);
 
     expect(categoryFromKudago(["exhibition", "tour"])).toBe("afisha");
-    expect(mapped?.startsAt.toISOString()).toBe(now.toISOString());
-    expect(mapped?.endsAt?.toISOString()).toBe("2026-10-30T20:00:00.000Z");
+    expect(mapped).toBeNull();
+  });
+
+  it("uses the next Moscow opening from schedules, not midnight", () => {
+    const mapped = mapKudagoEvent(
+      {
+        id: 4,
+        title: "Фестиваль",
+        is_free: true,
+        dates: [
+          {
+            start_date: "2026-10-01",
+            start_time: null,
+            start: Math.floor(new Date("2026-09-30T21:00:00.000Z").getTime() / 1000),
+            end_date: "2026-10-10",
+            end: Math.floor(new Date("2026-10-10T21:00:00.000Z").getTime() / 1000),
+            schedules: [
+              { days_of_week: [0, 1, 2, 3, 4], start_time: "11:00:00", end_time: "21:00:00" },
+              { days_of_week: [5, 6], start_time: "10:00:00", end_time: "22:00:00" },
+            ],
+          },
+        ],
+      },
+      "Москва",
+      now,
+    );
+
+    expect(mapped?.startsAt.toISOString()).toBe("2026-10-01T08:00:00.000Z");
+    expect(mapped?.endsAt?.toISOString()).toBe("2026-10-01T18:00:00.000Z");
   });
 
   it("reads sport and a place-less event", () => {

@@ -2,7 +2,7 @@ import type { CatalogCard } from "../api/client";
 import { pictured } from "../ui/photos";
 
 function posterWhen(startsAt: string): string {
-  return new Date(startsAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date(startsAt).toLocaleString("ru-RU", { timeZone: "Europe/Moscow", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 /** Price or free entry on the mini-card. Seat counts live on the event page. */

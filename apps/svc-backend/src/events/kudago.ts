@@ -32,6 +32,7 @@ export interface ImportedPlace {
   category: PlaceCategory;
   latitude: number;
   longitude: number;
+  source?: string;
 }
 
 export interface ImportedAfishaEvent {
@@ -48,11 +49,26 @@ export interface ImportedAfishaEvent {
   coverUrl: string | null;
   popularity: number;
   place: ImportedPlace | null;
+  source: string;
+}
+
+interface KudagoSchedule {
+  days_of_week?: number[];
+  start_time?: string | null;
+  end_time?: string | null;
 }
 
 interface KudagoDate {
   start?: number | null;
   end?: number | null;
+  start_date?: string | null;
+  start_time?: string | null;
+  end_date?: string | null;
+  end_time?: string | null;
+  is_continuous?: boolean;
+  is_endless?: boolean;
+  is_startless?: boolean;
+  schedules?: KudagoSchedule[];
 }
 
 interface KudagoPlace {
@@ -129,31 +145,131 @@ function plainText(value: string): string {
 }
 
 const EARLIEST_REAL_START_MS = Date.UTC(2000, 0, 1);
+/** Moscow has had no DST since 2014. */
+const MSK_OFFSET_MS = 3 * 60 * 60 * 1000;
 
-function upcomingWindow(dates: readonly KudagoDate[], nowMs: number): { start: Date; end: Date | null } | null {
-  const open: Array<{ start: Date; end: Date | null }> = [];
-  const startless: Array<{ start: Date; end: Date | null }> = [];
-  for (const date of dates) {
-    if (typeof date.start !== "number") continue;
-    const startMs = date.start * 1000;
-    const endMs = typeof date.end === "number" ? date.end * 1000 : null;
-    if ((endMs ?? startMs) < nowMs) continue;
-    if (startMs < EARLIEST_REAL_START_MS) {
-      if (endMs !== null && endMs >= nowMs) startless.push({ start: new Date(nowMs), end: new Date(endMs) });
+type Showing = { start: Date; end: Date | null };
+
+function moscowWall(date: Date): { year: number; month: number; day: number; hour: number; minute: number; monday0: number } {
+  const shifted = new Date(date.getTime() + MSK_OFFSET_MS);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+    hour: shifted.getUTCHours(),
+    minute: shifted.getUTCMinutes(),
+    monday0: (shifted.getUTCDay() + 6) % 7,
+  };
+}
+
+function fromMoscowWall(year: number, month: number, day: number, hour: number, minute: number): Date {
+  return new Date(Date.UTC(year, month - 1, day, hour - 3, minute, 0, 0));
+}
+
+function parseClock(value: string | null | undefined): { hour: number; minute: number } | null {
+  if (value == null || value === "" || value === "00:00:00") return null;
+  const match = /^(\d{1,2}):(\d{2})/.exec(value);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour > 23 || minute > 59) return null;
+  return { hour, minute };
+}
+
+function parseDay(value: string | null | undefined): { year: number; month: number; day: number } | null {
+  if (value == null || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const day = Number(value.slice(8, 10));
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  return { year, month, day };
+}
+
+function addMoscowDays(parts: { year: number; month: number; day: number }, days: number): { year: number; month: number; day: number } {
+  const next = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + days));
+  return { year: next.getUTCFullYear(), month: next.getUTCMonth() + 1, day: next.getUTCDate() };
+}
+
+function dayKeyParts(parts: { year: number; month: number; day: number }): number {
+  return parts.year * 10_000 + parts.month * 100 + parts.day;
+}
+
+function nextScheduleShowing(range: KudagoDate, now: Date): Showing | null {
+  const schedules = range.schedules ?? [];
+  if (schedules.length === 0) return null;
+  const startDay = parseDay(range.start_date) ?? moscowWall(now);
+  const endDay = parseDay(range.end_date);
+  const today = moscowWall(now);
+  let cursor = dayKeyParts(startDay) > dayKeyParts(today) ? startDay : { year: today.year, month: today.month, day: today.day };
+  const last = endDay ?? addMoscowDays(cursor, 45);
+  for (let step = 0; step < 60 && dayKeyParts(cursor) <= dayKeyParts(last); step += 1) {
+    const monday0 = moscowWall(fromMoscowWall(cursor.year, cursor.month, cursor.day, 12, 0)).monday0;
+    for (const schedule of schedules) {
+      const days = schedule.days_of_week ?? [];
+      if (days.length > 0 && !days.includes(monday0)) continue;
+      const open = parseClock(schedule.start_time);
+      if (open === null) continue;
+      const start = fromMoscowWall(cursor.year, cursor.month, cursor.day, open.hour, open.minute);
+      const close = parseClock(schedule.end_time);
+      const end = close === null ? null : fromMoscowWall(cursor.year, cursor.month, cursor.day, close.hour, close.minute);
+      if (start.getTime() >= now.getTime()) return { start, end };
+    }
+    cursor = addMoscowDays(cursor, 1);
+  }
+  return null;
+}
+
+function unixShowing(range: KudagoDate): Showing | null {
+  const clock = parseClock(range.start_time);
+  const day = parseDay(range.start_date);
+  if (clock && day) {
+    const start = fromMoscowWall(day.year, day.month, day.day, clock.hour, clock.minute);
+    const endClock = parseClock(range.end_time);
+    const endDay = parseDay(range.end_date) ?? day;
+    const end = endClock === null ? (typeof range.end === "number" ? new Date(range.end * 1000) : null) : fromMoscowWall(endDay.year, endDay.month, endDay.day, endClock.hour, endClock.minute);
+    return { start, end };
+  }
+  if (typeof range.start !== "number") return null;
+  const startMs = range.start * 1000;
+  if (startMs < EARLIEST_REAL_START_MS) return null;
+  const start = new Date(startMs);
+  const wall = moscowWall(start);
+  if (clock === null && wall.hour === 0 && wall.minute === 0) return null;
+  const endMs = typeof range.end === "number" ? range.end * 1000 : null;
+  return { start, end: endMs === null ? null : new Date(endMs) };
+}
+
+/**
+ * Next real showing: a clock time from KudaGo, or the next opening from `schedules`.
+ * Sentinel / startless rows without a schedule are dropped so the catalog does not stamp
+ * every exhibition with the import clock (they all used to show as 09:02).
+ */
+export function upcomingWindow(dates: readonly KudagoDate[], now: Date): Showing | null {
+  const open: Showing[] = [];
+  for (const range of dates) {
+    const scheduled = nextScheduleShowing(range, now);
+    if (scheduled) {
+      open.push(scheduled);
       continue;
     }
-    open.push({ start: new Date(startMs), end: endMs === null ? null : new Date(endMs) });
+    if (range.is_startless === true) continue;
+    const showing = unixShowing(range);
+    if (showing === null) continue;
+    const endMs = showing.end?.getTime() ?? showing.start.getTime();
+    if (endMs < now.getTime()) continue;
+    if (showing.start.getTime() < now.getTime()) continue;
+    open.push(showing);
   }
-  const windows = open.length > 0 ? open : startless;
-  windows.sort((left, right) => left.start.getTime() - right.start.getTime());
-  return windows[0] ?? null;
+  open.sort((left, right) => left.start.getTime() - right.start.getTime());
+  const future = open.find((row) => row.start.getTime() >= now.getTime());
+  return future ?? open[0] ?? null;
 }
 
 export function mapKudagoEvent(raw: KudagoEvent, city: string, now: Date): ImportedAfishaEvent | null {
   if (typeof raw.id !== "number" || typeof raw.title !== "string") return null;
   const title = raw.title.trim().slice(0, 200);
   if (title.length === 0) return null;
-  const window = upcomingWindow(raw.dates ?? [], now.getTime());
+  const window = upcomingWindow(raw.dates ?? [], now);
   if (window === null) return null;
   const slugs = raw.categories ?? [];
   const money = rubFromKudago(raw.price ?? "", raw.is_free === true);
@@ -174,6 +290,7 @@ export function mapKudagoEvent(raw: KudagoEvent, city: string, now: Date): Impor
     coverUrl: image,
     popularity: Number.isFinite(raw.favorites_count) ? Math.max(0, Math.round(raw.favorites_count ?? 0)) : 0,
     place,
+    source: AFISHA_SOURCE,
   };
 }
 
@@ -186,7 +303,7 @@ function mapPlace(place: KudagoEvent["place"], slugs: readonly string[], city: s
   if (title.length === 0 || typeof place.id !== "number") return null;
   if (typeof latitude !== "number" || typeof longitude !== "number") return null;
   if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
-  return { externalId: String(place.id), title, address, city, category: placeCategoryFromKudago(slugs), latitude, longitude };
+  return { externalId: String(place.id), title, address, city, category: placeCategoryFromKudago(slugs), latitude, longitude, source: AFISHA_SOURCE };
 }
 
 export interface KudagoCatalog {
@@ -194,6 +311,7 @@ export interface KudagoCatalog {
   /** Cities this pull asked for. A complete pull may hide previous rows in these cities. */
   cities: string[];
   complete: boolean;
+  source?: string;
 }
 
 export async function fetchKudagoCatalog(now: Date, fetchImpl: typeof fetch = fetch): Promise<KudagoCatalog> {
@@ -211,7 +329,7 @@ export async function fetchKudagoCatalog(now: Date, fetchImpl: typeof fetch = fe
       events.push(event);
     }
   }
-  return { events, cities: CITIES.map((location) => location.city), complete };
+  return { events, cities: CITIES.map((location) => location.city), complete, source: AFISHA_SOURCE };
 }
 
 async function fetchCity(slug: string, city: string, since: number, until: number, now: Date, fetchImpl: typeof fetch): Promise<KudagoCatalog> {

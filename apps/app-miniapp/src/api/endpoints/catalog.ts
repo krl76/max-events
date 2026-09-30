@@ -70,6 +70,12 @@ export interface EventFilters {
 }
 
 const isDay = (value: string | null): value is string => value !== null && /^\d{4}-\d{2}-\d{2}$/.test(value);
+const isDayOrInstant = (value: string | null): value is string => {
+  if (value === null) return false;
+  if (isDay(value)) return true;
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(value)) return false;
+  return Number.isFinite(Date.parse(value));
+};
 
 export function serializeEventFilters(filters: EventFilters): string {
   const params = new URLSearchParams();
@@ -105,8 +111,8 @@ export function parseEventFilters(search: string): EventFilters {
     category: category.success ? category.data : undefined,
     city: params.get("city")?.trim() || undefined,
     date: isDay(date) ? date : undefined,
-    dateFrom: isDay(dateFrom) ? dateFrom : undefined,
-    dateTo: isDay(dateTo) ? dateTo : undefined,
+    dateFrom: isDayOrInstant(dateFrom) ? dateFrom : undefined,
+    dateTo: isDayOrInstant(dateTo) ? dateTo : undefined,
     // A value the backend would reject with a 400 is dropped here, like an unknown category.
     minRating: Number.isInteger(minRating) && minRating >= 1 && minRating <= 5 ? minRating : undefined,
     query: params.get("q")?.trim() || undefined,

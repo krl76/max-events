@@ -517,5 +517,6 @@ describe("event filter serialization", () => {
     expect(serializeEventFilters({ dateFrom: "2026-09-01", dateTo: "2026-09-07", limit: 20, offset: 20 })).toBe("date_from=2026-09-01&date_to=2026-09-07&limit=20&offset=20");
     expect(serializeEventFilters({ lat: 55.75, lng: 37.62 })).toBe("lat=55.75&lng=37.62");
     expect(parseEventFilters("?date_from=2026-09-01&date_to=2026-09-07&limit=20&offset=20")).toEqual({ dateFrom: "2026-09-01", dateTo: "2026-09-07", limit: 20, offset: 20 });
+    expect(parseEventFilters("?date_from=2026-09-30T09:02:00.000Z").dateFrom).toBe("2026-09-30T09:02:00.000Z");
   });
 });

@@ -60,6 +60,7 @@ const jazz: ImportedAfishaEvent = eventRow({
   coverUrl: "https://media.kudago.com/images/event/ab/jazz.jpg",
   popularity: 80,
   place: { externalId: "7", title: "Филармония", address: "ул. Тверская, 1", city: "Москва", category: "other", latitude: 55.76, longitude: 37.61 },
+  source: "kudago",
 });
 
 describe("applyAfishaImport", () => {

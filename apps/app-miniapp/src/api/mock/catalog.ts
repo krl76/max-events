@@ -76,13 +76,23 @@ function sortMockEvents(events: Event[], filters: EventFilters, origin: { latitu
   return [...events].sort(bySoon);
 }
 
+function boundMs(value: string, endOfDay: boolean): number {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return Date.parse(endOfDay ? `${value}T23:59:59.999Z` : `${value}T00:00:00.000Z`);
+  return Date.parse(value);
+}
+
 export function filterMockEvents(events: Event[], filters: EventFilters, origin: { latitude: number; longitude: number } | null = null): Event[] {
   const city = filters.city?.toLowerCase();
   const needle = filters.query?.trim().toLowerCase();
+  const fromMs = filters.dateFrom ? boundMs(filters.dateFrom, false) : Number.NaN;
+  const toMs = filters.dateTo ? boundMs(filters.dateTo, true) : Number.NaN;
   const matched = events.filter((item) => {
     if (filters.category !== undefined && item.category !== filters.category) return false;
     if (city !== undefined && item.city.toLowerCase() !== city) return false;
     if (filters.date !== undefined && item.startsAt.slice(0, 10) !== filters.date) return false;
+    const startMs = Date.parse(item.startsAt);
+    if (Number.isFinite(fromMs) && startMs < fromMs) return false;
+    if (Number.isFinite(toMs) && startMs > toMs) return false;
     if (needle !== undefined && needle !== "" && !matchesMockQuery(item, needle)) return false;
     if (filters.minRating === undefined) return true;
     // Backend parity: an event nobody reviewed has no average, so it is not "at least N stars".
