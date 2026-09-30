@@ -28,7 +28,7 @@ COPY deploy/certs/russian_trusted_sub_ca.crt /usr/local/share/ca-certificates/ru
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates \
   && update-ca-certificates \
-  && cat /usr/local/share/ca-certificates/russian_trusted_root_ca.crt /usr/local/share/ca-certificates/russian_trusted_sub_ca.crt > /etc/ssl/certs/russian-trusted-ca-bundle.pem \
+  && { cat /usr/local/share/ca-certificates/russian_trusted_root_ca.crt; printf "\n"; cat /usr/local/share/ca-certificates/russian_trusted_sub_ca.crt; printf "\n"; } > /etc/ssl/certs/russian-trusted-ca-bundle.pem \
   && rm -rf /var/lib/apt/lists/*
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/russian-trusted-ca-bundle.pem
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
