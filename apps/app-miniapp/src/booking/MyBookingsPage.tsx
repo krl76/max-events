@@ -8,15 +8,17 @@
 // START_MODULE_MAP
 // - BOOKING_TABS - the four filters of the design in order: активные / билеты / слоты / прошедшие
 // - BookingTab - one filter of the list
+// - bookingSoonLabel - «Сегодня» / «Завтра» / «Через N дней» of the featured card, Moscow calendar days
+// - ticketFareLine - «1 билет · 0 ₽» of a card
 // - BookingCard - one active card of any of the three kinds, already worded for the screen
 // - PastBookingCard - one past booking: what it was, when, and what can be done about it now
 // - BookingsBoard - the whole screen: active cards, past cards and the two counters of the header
 // - bookingCards - slot board + calendar + codes -> the board of the screen, newest first
 // - filterBookingCards - the tab and the search needle applied to the active cards
 // - BookingsState - union of the fetch states (loading / error / ready)
-// - MyBookingsView - presentational: topbar, segments, filters, the grouped cards and the past list
+// - MyBookingsView - presentational: topbar, filters, the nearest featured card, compact rest and the past list
 // - MyBookingsPage - route container: loads the three sources, filters locally, leaves a waitlist, opens a ticket
-// - ReschedulePicker - the open «Перенести» sheet: which ticket, what it can move to, and what went wrong
+// - ReschedulePicker - the open «Изменить» sheet: which ticket, what it can move to, and what went wrong
 // - rescheduleErrorMessage - ru line for a refused move: no seats, wrong event, or anything else
 // END_MODULE_MAP
 
@@ -28,7 +30,6 @@ import { pluralRu } from "../catalog/format";
 import { shareResult, webApp } from "../max/bridge";
 import { sharePayload } from "../max/links";
 import { companyLabel, formatBookingDate, formatRub, formatSlotWindow, formatTime } from "../place/slots";
-import { CodeBlock } from "./BookingTicketPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
 import { ConfirmSheet } from "../ui/ConfirmSheet";
@@ -44,6 +45,25 @@ export const BOOKING_TABS = [
 
 export type BookingTab = (typeof BOOKING_TABS)[number]["id"];
 
+function moscowDayKey(date: Date): string {
+  return date.toLocaleDateString("en-CA", { timeZone: "Europe/Moscow" });
+}
+
+/** «Сегодня» / «Завтра» / «Через 2 дня» — Moscow calendar days, not 24-hour slices. */
+export function bookingSoonLabel(startsAt: string, now: Date): string {
+  const startKey = moscowDayKey(new Date(startsAt));
+  const nowKey = moscowDayKey(now);
+  const days = Math.round((Date.parse(`${startKey}T12:00:00+03:00`) - Date.parse(`${nowKey}T12:00:00+03:00`)) / 86_400_000);
+  if (days <= 0) return "Сегодня";
+  if (days === 1) return "Завтра";
+  return `Через ${days} ${pluralRu(days, "день", "дня", "дней")}`;
+}
+
+/** «1 билет · 0 ₽» — the fare line of a card; zero is an amount, not «бесплатно». */
+export function ticketFareLine(count: number, rub: number): string {
+  return `${count} ${pluralRu(count, "билет", "билета", "билетов")} · ${formatRub(rub)}`;
+}
+
 /** One active card. The three kinds share a shape because the design draws them the same and only marks them apart. */
 export interface BookingCard {
   kind: "slot" | "ticket" | "waitlist";
@@ -54,6 +74,17 @@ export interface BookingCard {
   title: string;
   /** «Пт, 19 сентября · 17:30 – 20:30 · 3 000 ₽» over the gradient. */
   meta: string;
+  /** «Пт, 19 сентября» of the featured meta column. */
+  dateLine: string;
+  /** «17:30 – 20:30» of a window, or the start time of a ticket. */
+  timeLine: string;
+  /** «Пт, 19 сентября · 17:30» of a compact row. */
+  whenLine: string;
+  /** «3 билета · 3 000 ₽». */
+  fareLine: string;
+  /** «Завтра» of the featured pill. */
+  soonLabel: string;
+  cover: string;
   /** The pill in the corner: what this card is. */
   badge: string;
   /** Category of the event behind the card; null for a venue window, which has no category. */
@@ -78,6 +109,7 @@ export interface PastBookingCard {
   /** «Чт, 11 сентября». */
   meta: string;
   category: EventCategory;
+  cover: string;
 }
 
 export interface BookingsBoard {
@@ -97,12 +129,21 @@ export function bookingCards(slots: MySlotsBoard, calendar: CalendarEntry[], cod
   const active: BookingCard[] = [];
   const past: PastBookingCard[] = [];
   for (const card of slots.bookings) {
+    const dateLine = formatBookingDate(card.slot.startsAt);
+    const timeLine = formatSlotWindow(card.slot);
+    const fareLine = ticketFareLine(card.booking.partySize, card.booking.totalRub);
     active.push({
       kind: "slot",
       id: card.booking.id,
       venue: `${card.place.title}, ${card.unitTitle.toLowerCase()}`,
       title: card.activity,
-      meta: `${formatBookingDate(card.slot.startsAt)} · ${formatSlotWindow(card.slot)} · ${formatRub(card.booking.totalRub)}`,
+      meta: `${dateLine} · ${timeLine} · ${formatRub(card.booking.totalRub)}`,
+      dateLine,
+      timeLine,
+      whenLine: `${dateLine} · ${formatTime(card.slot.startsAt)}`,
+      fareLine,
+      soonLabel: bookingSoonLabel(card.slot.startsAt, now),
+      cover: pictured(card.place.id, card.place.logoUrl),
       badge: "Слот забронирован",
       category: null,
       faces: ["Я", ...card.company.map((friend) => friend.name.charAt(0))],
@@ -114,12 +155,21 @@ export function bookingCards(slots: MySlotsBoard, calendar: CalendarEntry[], cod
     });
   }
   for (const card of slots.waitlist) {
+    const dateLine = formatBookingDate(card.slot.startsAt);
+    const timeLine = formatSlotWindow(card.slot);
+    const fareLine = ticketFareLine(card.entry.seats, card.slot.priceRub ?? 0);
     active.push({
       kind: "waitlist",
       id: card.entry.id,
       venue: `${card.place.title}, ${card.unitTitle.toLowerCase()}`,
       title: card.activity,
-      meta: `${formatBookingDate(card.slot.startsAt)} · ${formatSlotWindow(card.slot)}${card.slot.priceRub === null ? "" : ` · ${formatRub(card.slot.priceRub)}`}`,
+      meta: `${dateLine} · ${timeLine}${card.slot.priceRub === null ? "" : ` · ${formatRub(card.slot.priceRub)}`}`,
+      dateLine,
+      timeLine,
+      whenLine: `${dateLine} · ${formatTime(card.slot.startsAt)}`,
+      fareLine,
+      soonLabel: bookingSoonLabel(card.slot.startsAt, now),
+      cover: pictured(card.place.id, card.place.logoUrl),
       badge: `Лист ожидания · ${card.entry.position}-й`,
       category: null,
       faces: ["Я"],
@@ -133,16 +183,24 @@ export function bookingCards(slots: MySlotsBoard, calendar: CalendarEntry[], cod
   for (const entry of calendar) {
     const startsAt = entry.event.startsAt;
     if (new Date(startsAt).getTime() < now.getTime()) {
-      past.push({ eventId: entry.event.id, title: entry.event.title, meta: formatBookingDate(startsAt), category: entry.event.category });
+      past.push({ eventId: entry.event.id, title: entry.event.title, meta: formatBookingDate(startsAt), category: entry.event.category, cover: pictured(entry.event.id, entry.event.coverUrl) });
       continue;
     }
-    const price = entry.event.isPaid && entry.event.priceRub !== null ? ` · ${formatRub(entry.event.priceRub)}` : " · бесплатно";
+    const dateLine = formatBookingDate(startsAt);
+    const timeLine = entry.event.endsAt ? formatSlotWindow({ startsAt, endsAt: entry.event.endsAt }) : formatTime(startsAt);
+    const fareLine = ticketFareLine(1, entry.event.isPaid && entry.event.priceRub !== null ? entry.event.priceRub : 0);
     active.push({
       kind: "ticket",
       id: entry.booking.id,
       venue: entry.place?.title ?? "Билеты у организатора",
       title: entry.event.title,
-      meta: `${formatBookingDate(startsAt)} · ${formatTime(startsAt)} · 1 билет${price}`,
+      meta: `${dateLine} · ${formatTime(startsAt)} · ${fareLine}`,
+      dateLine,
+      timeLine,
+      whenLine: `${dateLine} · ${formatTime(startsAt)}`,
+      fareLine,
+      soonLabel: bookingSoonLabel(startsAt, now),
+      cover: pictured(entry.event.id, entry.event.coverUrl ?? entry.place?.logoUrl),
       badge: "Билеты у организатора",
       category: entry.event.category,
       faces: ["Я"],
@@ -205,77 +263,130 @@ export function rescheduleErrorMessage(error: unknown): string {
   return "Не удалось перенести билет.";
 }
 
-function BookingCardView({ card, menuOpen, onOpenTicket, onLeaveWaitlist, onMenu, onShare, onReschedule }: { card: BookingCard; menuOpen: boolean; onOpenTicket: () => void; onLeaveWaitlist: () => void; onMenu: () => void; onShare: () => void; onReschedule: () => void }) {
+function FeaturedBooking({ card, menuOpen, onOpenTicket, onLeaveWaitlist, onMenu, onShare, onReschedule }: { card: BookingCard; menuOpen: boolean; onOpenTicket: () => void; onLeaveWaitlist: () => void; onMenu: () => void; onShare: () => void; onReschedule: () => void }) {
+  const waitlist = card.kind === "waitlist";
   return (
-    <section className="app-book-group" aria-label={card.title}>
-      <div className="app-book-group-head">
-        <ActionIcon name="pin" size={18} strokeWidth={2.2} />
-        <span className="app-book-group-title">{card.venue}</span>
-      </div>
-      <button type="button" className="app-book-hero" onClick={onOpenTicket}>
-        <AppMedia category={card.category ?? undefined} src={pictured(card.eventId ?? card.title)} className="app-book-hero-media" />
-        <span className={card.kind === "waitlist" ? "app-book-badge app-book-badge--waiting" : card.kind === "slot" ? "app-book-badge app-book-badge--slot" : "app-book-badge"}>{card.badge}</span>
-        <span className="app-book-hero-veil">
-          <span className="app-book-hero-title">{card.title}</span>
-          <span className="app-book-hero-meta">{card.meta}</span>
+    <article className="app-book-feature">
+      <button type="button" className="app-book-feature-hero" onClick={onOpenTicket}>
+        <AppMedia category={card.category ?? undefined} src={card.cover} className="app-book-feature-media" />
+        <span className="app-book-feature-chip">
+          <ActionIcon name="clock" size={14} strokeWidth={2.4} />
+          Ближайшая бронь
+        </span>
+        <span className="app-book-feature-soon">{card.soonLabel}</span>
+        <span className="app-book-feature-veil">
+          <span className="app-book-feature-title">{card.title}</span>
+          <span className="app-book-feature-place">
+            <ActionIcon name="pin" size={14} strokeWidth={2.4} />
+            {card.venue}
+          </span>
         </span>
       </button>
-      <div className="app-book-row">
-        <span className="app-book-company">
-          <span className="app-place-faces" role="img" aria-label={card.company}>
-            {card.faces.slice(0, 3).map((face, index) => (
-              <span key={index} className="app-place-face app-place-face--small">
-                {face}
-              </span>
-            ))}
+      <div className="app-book-feature-body">
+        <div className="app-book-feature-facts">
+          <span className="app-book-feature-fact">
+            <ActionIcon name="calendar" size={16} strokeWidth={2.2} />
+            {card.dateLine}
           </span>
-          <span className="app-book-company-line">{card.company}</span>
-        </span>
-        {card.kind === "waitlist" ? (
-          <button type="button" className="app-book-action" onClick={onLeaveWaitlist}>
-            Выйти
-          </button>
-        ) : card.kind === "ticket" ? (
-          <button type="button" className="app-book-action" onClick={onReschedule}>
-            Перенести
-          </button>
-        ) : (
-          <button type="button" className="app-book-action app-book-action--primary" onClick={onOpenTicket}>
-            Билет
-            <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
-          </button>
+          <span className="app-book-feature-fact">
+            <ActionIcon name="clock" size={16} strokeWidth={2.2} />
+            {card.timeLine}
+          </span>
+          <span className="app-book-feature-fact">
+            <ActionIcon name="ticket" size={16} strokeWidth={2.2} />
+            {card.fareLine}
+          </span>
+        </div>
+        {card.code !== null && (
+          <div className="app-book-code">
+            <span className="app-book-code-qr" aria-hidden="true">
+              <ActionIcon name="qr" size={18} strokeWidth={2.2} />
+            </span>
+            <span className="app-book-code-body">
+              <span className="app-book-code-label">Код входа</span>
+              <span className="app-book-code-value">{card.code}</span>
+            </span>
+            <button type="button" className="app-book-code-show" onClick={onOpenTicket}>
+              Показать
+              <ActionIcon name="chevron" size={14} strokeWidth={2.6} />
+            </button>
+          </div>
         )}
-        <button type="button" className="app-book-more" aria-label="Ещё" aria-expanded={menuOpen} onClick={onMenu}>
-          <ActionIcon name="dots" size={16} strokeWidth={2.4} />
-        </button>
+        <div className="app-book-feature-cta">
+          {waitlist ? (
+            <button type="button" className="app-book-action" onClick={onLeaveWaitlist}>
+              Выйти
+            </button>
+          ) : (
+            <button type="button" className="app-book-action app-book-action--primary" onClick={onOpenTicket}>
+              <ActionIcon name="ticket" size={16} strokeWidth={2.2} />
+              Показать билет
+              <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+            </button>
+          )}
+          <button type="button" className="app-book-iconbtn" onClick={onReschedule}>
+            <span className="app-book-iconbtn-glyph">
+              <ActionIcon name="calendar" size={18} strokeWidth={2.2} />
+            </span>
+            Изменить
+          </button>
+          <button type="button" className="app-book-iconbtn" aria-label="Ещё" aria-expanded={menuOpen} onClick={onMenu}>
+            <span className="app-book-iconbtn-glyph">
+              <ActionIcon name="dots" size={18} strokeWidth={2.2} />
+            </span>
+            Ещё
+          </button>
+        </div>
+        {menuOpen && (
+          <div className="app-book-menu">
+            <button type="button" onClick={onShare}>
+              Поделиться
+            </button>
+          </div>
+        )}
       </div>
-      {menuOpen && (
-        <div className="app-book-menu">
-          <button type="button" onClick={onShare}>
-            Поделиться
-          </button>
-        </div>
-      )}
-      {card.code !== null && (
-        <div className="app-book-code">
-          <CodeBlock code={card.code} size={3} className="app-book-code-matrix" />
-          <span className="app-book-code-body">
-            <span className="app-book-code-label">Код входа</span>
-            <span className="app-book-code-value">{card.code}</span>
+    </article>
+  );
+}
+
+function CompactBooking({ card, onOpenTicket, onLeaveWaitlist }: { card: BookingCard; onOpenTicket: () => void; onLeaveWaitlist: () => void }) {
+  const waitlist = card.kind === "waitlist";
+  return (
+    <article className="app-book-item">
+      <button type="button" className="app-book-item-main" onClick={onOpenTicket}>
+        <AppMedia category={card.category ?? undefined} src={card.cover} className="app-book-item-media" />
+        <span className="app-book-item-body">
+          <span className="app-book-item-title">{card.title}</span>
+          <span className="app-book-item-venue">
+            <ActionIcon name="pin" size={12} strokeWidth={2.4} />
+            {card.venue}
           </span>
-          <button type="button" className="app-book-code-show" onClick={onOpenTicket}>
-            Показать
-          </button>
-        </div>
+          <span className="app-book-item-when">
+            <ActionIcon name="calendar" size={12} strokeWidth={2.4} />
+            {card.whenLine}
+          </span>
+          <span className="app-book-item-fare">{waitlist ? card.badge : card.fareLine}</span>
+        </span>
+      </button>
+      {waitlist ? (
+        <button type="button" className="app-book-item-chip" onClick={onLeaveWaitlist}>
+          Выйти
+        </button>
+      ) : (
+        <button type="button" className="app-book-item-chip app-book-item-chip--ticket" onClick={onOpenTicket}>
+          <ActionIcon name="ticket" size={14} strokeWidth={2.4} />
+          Билет
+        </button>
       )}
-    </section>
+    </article>
   );
 }
 
 export function MyBookingsView({ board, tab, query, searching, menuId, onTab, onQuery, onToggleSearch, onOpenTicket, onLeaveWaitlist, onMenu, onShare, onRate, onRepeat, onReschedule, picker, onPickReschedule, onClosePicker }: MyBookingsViewProps) {
   const cards = filterBookingCards(board.active, tab, query);
-  const showActive = tab !== "past";
-  const showPast = tab === "active" || tab === "past";
+  const featured = tab === "past" ? undefined : cards[0];
+  const rest = tab === "past" ? [] : cards.slice(1);
+  const showPast = tab === "past";
   return (
     <section className="app-book">
       <div className="app-book-bar">
@@ -296,11 +407,46 @@ export function MyBookingsView({ board, tab, query, searching, menuId, onTab, on
         {BOOKING_TABS.map((item) => (
           <button key={item.id} type="button" className={item.id === tab ? "app-book-filter app-book-filter--on" : "app-book-filter"} aria-pressed={item.id === tab} onClick={() => onTab(item.id)}>
             {item.label}
+            {item.id === "active" ? <span className="app-book-filter-count">{board.activeCount}</span> : null}
+            {item.id === "past" ? <span className="app-book-filter-count">{board.pastCount}</span> : null}
           </button>
         ))}
       </div>
 
-      {showActive && (cards.length === 0 ? <AppState>{query.trim() === "" ? "Здесь пока пусто — забронируй окно или запишись на событие." : "Ничего не нашлось."}</AppState> : cards.map((card) => <BookingCardView key={`${card.kind}-${card.id}`} card={card} menuOpen={menuId === card.id} onOpenTicket={() => onOpenTicket(card)} onLeaveWaitlist={() => onLeaveWaitlist(card.id)} onMenu={() => onMenu(menuId === card.id ? null : card.id)} onShare={() => onShare(card)} onReschedule={() => onReschedule(card)} />))}
+      {tab !== "past" &&
+        (cards.length === 0 ? (
+          <AppState>{query.trim() === "" ? "Здесь пока пусто — забронируй окно или запишись на событие." : "Ничего не нашлось."}</AppState>
+        ) : (
+          <>
+            {featured !== undefined && (
+              <FeaturedBooking
+                card={featured}
+                menuOpen={menuId === featured.id}
+                onOpenTicket={() => onOpenTicket(featured)}
+                onLeaveWaitlist={() => onLeaveWaitlist(featured.id)}
+                onMenu={() => onMenu(menuId === featured.id ? null : featured.id)}
+                onShare={() => onShare(featured)}
+                onReschedule={() => onReschedule(featured)}
+              />
+            )}
+            {rest.length > 0 && (
+              <section className="app-book-rest" aria-label="Другие активные брони">
+                <div className="app-book-rest-head">
+                  <h2 className="app-book-rest-title">
+                    Другие активные брони <span className="app-book-rest-count">{rest.length}</span>
+                  </h2>
+                  <span className="app-book-rest-sort">
+                    <ActionIcon name="calendar" size={14} strokeWidth={2.2} />
+                    По дате
+                  </span>
+                </div>
+                {rest.map((card) => (
+                  <CompactBooking key={`${card.kind}-${card.id}`} card={card} onOpenTicket={() => onOpenTicket(card)} onLeaveWaitlist={() => onLeaveWaitlist(card.id)} />
+                ))}
+              </section>
+            )}
+          </>
+        ))}
 
       {picker !== null && (
         <section className="app-book-past" aria-label="Перенести билет">
@@ -324,26 +470,28 @@ export function MyBookingsView({ board, tab, query, searching, menuId, onTab, on
         </section>
       )}
 
-      {showPast && board.past.length > 0 && (
-        <section className="app-book-past" aria-label="Прошедшие">
-          <div className="app-place-label">Прошедшие</div>
-          {board.past.map((card) => (
-            <div key={card.eventId} className="app-book-past-card">
-              <AppMedia category={card.category} src={pictured(card.eventId)} className="app-book-past-media" />
-              <span className="app-book-past-body">
-                <span className="app-book-past-title">{card.title}</span>
-                <span className="app-book-past-meta">{card.meta}</span>
-              </span>
-              <button type="button" className="app-book-past-action" onClick={() => onRate(card.eventId)}>
-                Оценить
-              </button>
-              <button type="button" className="app-book-past-repeat" onClick={() => onRepeat(card.eventId)}>
-                Повторить
-              </button>
-            </div>
-          ))}
-        </section>
-      )}
+      {showPast &&
+        (board.past.length === 0 ? (
+          <AppState>Прошедших броней пока нет.</AppState>
+        ) : (
+          <section className="app-book-past" aria-label="Прошедшие">
+            {board.past.map((card) => (
+              <div key={card.eventId} className="app-book-past-card">
+                <AppMedia category={card.category} src={card.cover} className="app-book-past-media" />
+                <span className="app-book-past-body">
+                  <span className="app-book-past-title">{card.title}</span>
+                  <span className="app-book-past-meta">{card.meta}</span>
+                </span>
+                <button type="button" className="app-book-past-action" onClick={() => onRate(card.eventId)}>
+                  Оценить
+                </button>
+                <button type="button" className="app-book-past-repeat" onClick={() => onRepeat(card.eventId)}>
+                  Повторить
+                </button>
+              </div>
+            ))}
+          </section>
+        ))}
     </section>
   );
 }
@@ -414,6 +562,10 @@ export function MyBookingsPage() {
     void shareResult(webApp, payload.text, payload.link);
   };
   const openReschedule = (card: BookingCard) => {
+    if (card.kind !== "ticket") {
+      if (card.placeId !== null) navigate({ name: "place", id: card.placeId });
+      return;
+    }
     setPicker({ card, events: [], error: null, busy: true });
     apiClient.listEvents({ sort: "soon" }).then(
       (events) => {

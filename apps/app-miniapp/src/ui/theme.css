@@ -16477,111 +16477,154 @@ button.app-cal-peer-chip {
   min-height: 100%;
 }
 
-.app-ticket-bar {
-  align-items: center;
-  background: var(--app-canvas);
-  border-bottom: var(--app-hairline);
-  display: flex;
-  gap: var(--app-space-m);
-  padding: var(--app-space-l) var(--app-space-screen) 14px;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-.app-ticket-bar-title {
-  flex: 1;
-  font-size: var(--app-font-size-title);
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  margin: 0;
-}
-
-.app-ticket-body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  padding: var(--app-space-l) var(--app-space-screen) var(--app-space-xl);
-}
-
-.app-ticket-card {
-  border: var(--app-hairline);
-  border-radius: var(--app-radius-card);
-  overflow: hidden;
-}
-
-/* Градиент держит только короткую шапку брони: длинный текст живёт ниже, на холсте схемы */
 .app-ticket-hero {
-  background: var(--app-gradient-dark);
   color: var(--brand-white);
-  display: flex;
-  flex-direction: column;
+  height: 248px;
   overflow: hidden;
-  padding: 18px 18px 20px;
   position: relative;
 }
 
-.app-ticket-blob {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  height: 180px;
+.app-ticket-hero-media {
+  aspect-ratio: auto;
+  height: 100%;
+  left: 0;
   position: absolute;
-  right: -50px;
-  top: -60px;
-  width: 180px;
+  top: 0;
 }
 
-.app-ticket-when {
+.app-ticket-hero-btn {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.94);
+  border: none;
+  border-radius: 50%;
+  color: var(--brand-ink);
+  cursor: pointer;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  width: 40px;
+  z-index: 2;
+}
+
+.app-ticket-hero-btn--back {
+  left: 16px;
+}
+
+.app-ticket-hero-btn--more {
+  right: 16px;
+}
+
+.app-ticket-hero-veil {
+  background: linear-gradient(180deg, rgba(6, 7, 8, 0) 28%, rgba(6, 7, 8, 0.78) 100%);
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  left: 0;
+  padding: 56px 20px 36px;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.app-ticket-status {
   align-items: center;
   display: flex;
   font-size: var(--app-font-size-description);
   font-weight: 700;
-  gap: var(--app-space-s);
-  position: relative;
+  gap: 8px;
+}
+
+.app-ticket-status--off {
+  opacity: 0.82;
 }
 
 .app-ticket-when-dot {
   background: var(--app-status);
   border-radius: 50%;
-  height: 7px;
-  width: 7px;
+  flex: none;
+  height: 8px;
+  width: 8px;
+}
+
+.app-ticket-status--off .app-ticket-when-dot {
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .app-ticket-title {
-  font-size: var(--app-font-size-headline);
+  font-size: 28px;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-  margin-top: 6px;
-  position: relative;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 8px 0 0;
 }
 
 .app-ticket-place {
-  font-size: var(--app-font-size-description);
-  margin-top: 2px;
+  font-size: var(--app-font-size-callout);
+  margin: 4px 0 0;
   opacity: 0.92;
+}
+
+.app-ticket-sheet {
+  background: var(--app-canvas);
+  border-radius: 24px 24px 0 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin-top: -22px;
+  padding: 18px var(--app-space-screen) calc(var(--app-space-xl) + env(safe-area-inset-bottom, 0px));
   position: relative;
+  z-index: 1;
+}
+
+.app-ticket-actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.app-ticket-action {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 16px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  justify-content: center;
+  min-height: 72px;
+  padding: 12px 8px;
+}
+
+.app-ticket-action svg {
+  color: var(--app-accent-text);
 }
 
 .app-ticket-code {
   align-items: center;
-  background: var(--app-canvas);
   display: flex;
   flex-direction: column;
-  padding: 18px;
+  padding: 22px 8px 8px;
 }
 
 .app-ticket-matrix {
   background: var(--app-ink);
-  border-radius: var(--app-radius-card);
+  border-radius: 18px;
   box-sizing: border-box;
   display: grid;
-  gap: 3px;
+  gap: 4px;
   grid-template-columns: repeat(7, 1fr);
   grid-template-rows: repeat(7, 1fr);
-  height: 160px;
-  padding: 14px;
-  width: 160px;
+  height: 168px;
+  padding: 16px;
+  width: 168px;
 }
 
 .app-ticket-cell {
@@ -16606,126 +16649,153 @@ button.app-cal-peer-chip {
 .app-ticket-hint {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);
-  margin-top: 2px;
+  margin-top: 4px;
+  max-width: 240px;
   text-align: center;
 }
 
-/* Пунктир — линия отрыва билета: она отделяет код от условий брони */
 .app-ticket-facts {
-  border-top: 1px dashed var(--app-divider);
+  background: var(--app-surface);
+  border-radius: 20px;
   display: grid;
-  gap: var(--app-space-m);
+  gap: 16px 12px;
   grid-template-columns: 1fr 1fr;
-  margin: 0;
-  padding: var(--app-space-l) 18px;
+  margin: 18px 0 0;
+  padding: 16px;
+}
+
+.app-ticket-fact {
+  min-width: 0;
 }
 
 .app-ticket-fact dt {
+  align-items: center;
   color: var(--app-text-secondary);
+  display: flex;
   font-size: var(--app-font-size-caption);
   font-weight: 700;
+  gap: 6px;
 }
 
 .app-ticket-fact dd {
   font-size: var(--app-font-size-callout);
   font-weight: 800;
-  margin: 0;
+  line-height: 1.25;
+  margin: 4px 0 0;
 }
 
-.app-ticket-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: var(--app-space-l);
-}
-
-.app-ticket-action {
-  align-items: center;
-  background: none;
-  border: var(--app-hairline);
-  border-radius: 14px;
-  color: var(--app-text);
-  cursor: pointer;
-  display: flex;
-  flex: 1;
-  font: inherit;
-  font-size: var(--app-font-size-callout);
-  font-weight: 800;
-  gap: var(--app-space-s);
-  height: 48px;
-  justify-content: center;
+.app-ticket-fact small {
+  color: var(--app-text-secondary);
+  display: block;
+  font-size: var(--app-font-size-description);
+  font-weight: 600;
+  margin-top: 2px;
 }
 
 .app-ticket-chat {
   background: var(--app-surface);
-  border-radius: var(--app-radius-card);
+  border-radius: 18px;
   display: flex;
   flex-direction: column;
   margin-top: var(--app-space-l);
-  padding: 14px var(--app-space-l);
+  padding: 14px 16px 16px;
+}
+
+.app-ticket-chat-head {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  justify-content: space-between;
 }
 
 .app-ticket-chat-title {
+  align-items: center;
+  color: var(--app-text);
+  display: flex;
   font-size: var(--app-font-size-callout);
   font-weight: 800;
+  gap: 8px;
   margin: 0;
 }
 
-.app-ticket-chat-members {
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-description);
-  margin: 2px 0 0;
-}
-
-.app-ticket-message {
-  align-items: flex-start;
+.app-ticket-chat-faces {
   display: flex;
-  gap: 10px;
-  margin-top: 10px;
+  margin-top: 12px;
+  padding-left: 4px;
 }
 
-.app-ticket-message-face {
+.app-ticket-face {
   align-items: center;
-  background: var(--app-media-gradient-4);
+  background: var(--app-media-gradient-2);
+  border: 2px solid var(--app-surface);
   border-radius: 50%;
   color: var(--brand-white);
   display: flex;
-  flex: none;
-  font-size: var(--app-font-size-caption);
+  font-size: 11px;
   font-weight: 800;
-  height: 28px;
+  height: 32px;
   justify-content: center;
-  width: 28px;
+  margin-left: -6px;
+  width: 32px;
 }
 
-.app-ticket-message-text {
+.app-ticket-face--you {
+  background: #ff3b5c;
+}
+
+.app-ticket-face:nth-child(3) {
+  background: var(--app-media-gradient-1);
+}
+
+.app-ticket-face:nth-child(4) {
+  background: var(--app-media-gradient-4);
+}
+
+.app-ticket-face--more {
   background: var(--app-canvas);
-  border-radius: 0 14px 14px 14px;
-  display: flex;
-  flex-direction: column;
-  font-size: var(--app-font-size-callout);
-  line-height: 1.4;
-  padding: var(--app-space-s) var(--app-space-m);
+  color: var(--app-text-secondary);
 }
 
-.app-ticket-message-author {
+.app-ticket-face-name {
   color: var(--app-text-secondary);
-  font-size: var(--app-font-size-caption);
+  font-size: 11px;
   font-weight: 700;
+  margin: 4px 0 0 6px;
+}
+
+.app-ticket-chat-hint {
+  background: rgba(6, 7, 8, 0.04);
+  border-radius: 12px;
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  line-height: 1.4;
+  margin: 12px 0 0;
+  padding: 10px 12px;
 }
 
 .app-ticket-invite {
   align-items: center;
-  border: var(--app-hairline);
-  border-radius: var(--app-radius-card);
   display: flex;
-  gap: var(--app-space-m);
-  justify-content: space-between;
+  gap: 12px;
   margin-top: var(--app-space-l);
-  padding: 14px var(--app-space-l);
+  padding: 4px 2px;
+}
+
+.app-ticket-invite-icon {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 50%;
+  color: var(--app-accent-text);
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
 }
 
 .app-ticket-invite-body {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
 }
@@ -16764,18 +16834,22 @@ button.app-cal-peer-chip {
   text-align: center;
 }
 
-/* Отмена необратима, поэтому по брендбуку это обводка, а не залитая пилюля — макет рисует её текстом */
 .app-ticket-cancel {
+  align-items: center;
   background: none;
   border: 1px solid var(--app-danger-border);
   border-radius: var(--app-radius-pill);
   color: var(--app-danger-label);
   cursor: pointer;
+  display: flex;
   font: inherit;
   font-size: var(--app-font-size-description);
   font-weight: 700;
-  height: 44px;
-  margin-top: var(--app-space-l);
+  gap: 6px;
+  height: 48px;
+  justify-content: center;
+  margin-top: 18px;
+  width: 100%;
 }
 
 .app-ticket-cancel--confirm {
@@ -16791,6 +16865,7 @@ button.app-cal-peer-chip {
 .app-book {
   display: flex;
   flex-direction: column;
+  padding-bottom: 12px;
 }
 
 .app-book-bar {
@@ -16798,7 +16873,7 @@ button.app-cal-peer-chip {
   display: flex;
   gap: var(--app-space-m);
   justify-content: space-between;
-  padding-top: var(--app-space-l);
+  padding-top: 8px;
 }
 
 .app-book-bar-titles {
@@ -16810,7 +16885,7 @@ button.app-cal-peer-chip {
 .app-book-bar-title {
   font-size: var(--app-font-size-display);
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   margin: 0;
 }
 
@@ -16822,7 +16897,7 @@ button.app-cal-peer-chip {
 
 .app-book-search {
   align-items: center;
-  background: var(--app-surface);
+  background: none;
   border: none;
   border-radius: 50%;
   color: var(--app-text);
@@ -16846,98 +16921,74 @@ button.app-cal-peer-chip {
   padding: 0 var(--app-space-l);
 }
 
-.app-book-segments {
-  display: flex;
-  gap: var(--app-space-s);
-  padding-top: var(--app-space-l);
-}
-
-.app-book-segment {
-  background: var(--app-surface);
-  border: none;
-  border-radius: var(--app-radius-media);
-  color: var(--app-text-secondary);
-  cursor: pointer;
-  flex: 1;
-  font: inherit;
-  font-size: var(--app-font-size-callout);
-  font-weight: 700;
-  padding: 9px 0;
-  text-align: center;
-}
-
-.app-book-segment--on {
-  background: var(--app-confirm);
-  color: var(--app-confirm-contrast);
-  font-weight: 800;
-}
-
 .app-book-filters {
   display: flex;
-  gap: var(--app-space-s);
+  gap: 6px;
   margin: 0 calc(-1 * var(--app-space-screen));
   overflow-x: auto;
-  padding: var(--app-space-l) var(--app-space-screen) 0;
+  padding: 16px var(--app-space-screen) 4px;
   scrollbar-width: none;
 }
 
 .app-book-filter {
-  background: none;
-  border: var(--app-hairline);
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
   border-radius: var(--app-radius-pill);
   color: var(--app-text);
   cursor: pointer;
+  display: flex;
   flex: none;
   font: inherit;
-  /* Четыре фильтра макета должны умещаться в 390 px без прокрутки: на callout «Прошедшие» срезается */
-  font-size: var(--app-font-size-description);
+  font-size: 12px;
   font-weight: 700;
-  min-height: 44px;
-  padding: 10px var(--app-space-m);
+  gap: 5px;
+  min-height: 36px;
+  padding: 6px 10px;
   white-space: nowrap;
 }
 
 .app-book-filter--on {
   background: var(--app-confirm);
-  border-color: transparent;
   color: var(--app-confirm-contrast);
-  font-weight: 700;
 }
 
-/* Три вида броней в одном списке, но врозь: группы разделяет полоса во всю ширину экрана */
-.app-book-group {
+.app-book-filter-count {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  height: 20px;
+  justify-content: center;
+  min-width: 20px;
+  padding: 0 6px;
+}
+
+.app-book-filter:not(.app-book-filter--on) .app-book-filter-count {
+  background: rgba(6, 7, 8, 0.08);
+  color: var(--app-text-secondary);
+}
+
+.app-book-feature {
+  background: var(--app-canvas);
+  border-radius: 22px;
+  box-shadow: 0 10px 28px rgba(6, 7, 8, 0.06);
   display: flex;
   flex-direction: column;
-  margin: 0 calc(-1 * var(--app-space-screen));
-  padding: var(--app-space-screen) var(--app-space-screen) 0;
+  margin-top: 16px;
+  overflow: hidden;
 }
 
-.app-book-group + .app-book-group {
-  border-top: var(--app-space-s) solid var(--app-surface);
-  margin-top: var(--app-space-screen);
-}
-
-.app-book-group-head {
-  align-items: center;
-  display: flex;
-  gap: var(--app-space-s);
-}
-
-.app-book-group-title {
-  font-size: var(--app-font-size-body);
-  font-weight: 800;
-}
-
-.app-book-hero {
+.app-book-feature-hero {
   background: none;
   border: none;
-  border-radius: var(--app-radius-card);
   color: var(--brand-white);
   cursor: pointer;
   display: block;
   font: inherit;
-  height: 200px;
-  margin-top: var(--app-space-m);
+  height: 188px;
   overflow: hidden;
   padding: 0;
   position: relative;
@@ -16945,7 +16996,7 @@ button.app-cal-peer-chip {
   width: 100%;
 }
 
-.app-book-hero-media {
+.app-book-feature-media {
   aspect-ratio: auto;
   height: 100%;
   left: 0;
@@ -16953,74 +17004,97 @@ button.app-cal-peer-chip {
   top: 0;
 }
 
-.app-book-badge {
-  background: rgba(6, 7, 8, 0.55);
+.app-book-feature-chip,
+.app-book-feature-soon {
+  align-items: center;
+  background: rgba(6, 7, 8, 0.38);
   border-radius: var(--app-radius-pill);
-  color: var(--brand-white);
-  font-size: var(--app-font-size-description);
-  font-weight: 800;
-  left: 14px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
   padding: 6px 10px;
   position: absolute;
-  top: 14px;
+  top: 12px;
+  z-index: 1;
 }
 
-.app-book-badge--slot {
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--brand-ink);
+.app-book-feature-chip {
+  left: 12px;
 }
 
-.app-book-badge--waiting {
-  background: var(--app-badge);
-  color: var(--app-badge-contrast);
+.app-book-feature-soon {
+  right: 12px;
 }
 
-.app-book-hero-veil {
-  background: linear-gradient(180deg, rgba(6, 7, 8, 0), rgba(6, 7, 8, 0.82));
+.app-book-feature-veil {
+  background: linear-gradient(180deg, rgba(6, 7, 8, 0) 30%, rgba(6, 7, 8, 0.78) 100%);
   bottom: 0;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   left: 0;
-  padding: 54px var(--app-space-l) var(--app-space-l);
+  padding: 48px 16px 14px;
   position: absolute;
   right: 0;
+  top: 0;
 }
 
-.app-book-hero-title {
-  font-size: var(--app-font-size-title);
+.app-book-feature-title {
+  font-size: 26px;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 
-.app-book-hero-meta {
-  font-size: var(--app-font-size-description);
-  margin-top: 3px;
-  opacity: 0.92;
-}
-
-.app-book-row {
+.app-book-feature-place {
   align-items: center;
   display: flex;
-  gap: var(--app-space-m);
-  justify-content: space-between;
-  margin-top: var(--app-space-m);
+  font-size: 13px;
+  font-weight: 600;
+  gap: 4px;
+  margin-top: 4px;
+  opacity: 0.94;
 }
 
-.app-book-company {
-  align-items: center;
+.app-book-feature-body {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  padding: 14px 14px 16px;
+}
+
+.app-book-feature-facts {
+  display: flex;
+  gap: 8px;
+}
+
+.app-book-feature-fact {
+  align-items: flex-start;
+  color: var(--app-text-secondary);
+  display: flex;
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 4px;
+  line-height: 1.25;
   min-width: 0;
 }
 
-.app-book-company-line {
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-description);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.app-book-feature-fact svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.app-book-feature-fact + .app-book-feature-fact {
+  border-left: 1px solid rgba(6, 7, 8, 0.1);
+  padding-left: 10px;
+}
+
+.app-book-feature-cta {
+  align-items: flex-end;
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .app-book-action {
@@ -17031,13 +17105,15 @@ button.app-cal-peer-chip {
   color: var(--app-text);
   cursor: pointer;
   display: flex;
-  flex: none;
+  flex: 1;
   font: inherit;
-  font-size: var(--app-font-size-description);
+  font-size: 14px;
   font-weight: 800;
-  gap: 6px;
-  height: 44px;
-  padding: 0 var(--app-space-l);
+  gap: 4px;
+  height: 48px;
+  justify-content: center;
+  padding: 0 12px;
+  white-space: nowrap;
 }
 
 .app-book-action--primary {
@@ -17050,7 +17126,7 @@ button.app-cal-peer-chip {
   background: var(--app-accent-press);
 }
 
-.app-book-more {
+.app-book-iconbtn {
   align-items: center;
   background: none;
   border: none;
@@ -17058,10 +17134,24 @@ button.app-cal-peer-chip {
   cursor: pointer;
   display: flex;
   flex: none;
+  flex-direction: column;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 4px;
+  padding: 0;
+  width: 52px;
+}
+
+.app-book-iconbtn-glyph {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 50%;
+  color: var(--app-text);
+  display: flex;
   height: 44px;
   justify-content: center;
-  padding: 0;
-  width: 32px;
+  width: 44px;
 }
 
 .app-book-menu {
@@ -17084,29 +17174,22 @@ button.app-cal-peer-chip {
 
 .app-book-code {
   align-items: center;
-  border-top: var(--app-hairline);
+  background: var(--app-surface);
+  border-radius: 16px;
   display: flex;
   gap: 10px;
-  margin-top: var(--app-space-m);
-  padding-top: var(--app-space-m);
+  margin-top: 14px;
+  padding: 10px 12px;
 }
 
-.app-book-code-matrix {
-  background: var(--app-ink);
-  border-radius: 10px;
-  box-sizing: border-box;
-  display: grid;
+.app-book-code-qr {
+  align-items: center;
+  color: var(--app-text);
+  display: flex;
   flex: none;
-  gap: 2px;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
   height: 36px;
-  padding: 6px;
+  justify-content: center;
   width: 36px;
-}
-
-.app-book-code-matrix .app-ticket-cell {
-  border-radius: 1px;
 }
 
 .app-book-code-body {
@@ -17124,31 +17207,167 @@ button.app-cal-peer-chip {
 .app-book-code-value {
   font-size: var(--app-font-size-callout);
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
 }
 
 .app-book-code-show {
+  align-items: center;
   background: none;
   border: none;
   color: var(--app-accent-text);
   cursor: pointer;
+  display: flex;
   flex: none;
   font: inherit;
   font-size: var(--app-font-size-description);
   font-weight: 800;
+  gap: 2px;
   padding: 0;
+}
+
+.app-book-rest {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.app-book-rest-head {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+}
+
+.app-book-rest-title {
+  align-items: center;
+  display: flex;
+  font-size: 18px;
+  font-weight: 800;
+  gap: 8px;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.app-book-rest-count {
+  color: var(--app-text-tertiary);
+  font-size: 16px;
+}
+
+.app-book-rest-sort {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-book-item {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 18px;
+  display: flex;
+  gap: 10px;
+  padding: 10px 10px 10px 10px;
+}
+
+.app-book-item-main {
+  align-items: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font: inherit;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.app-book-item-media {
+  aspect-ratio: auto;
+  border-radius: 14px;
+  flex: none;
+  height: 72px;
+  width: 72px;
+}
+
+.app-book-item-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-book-item-title {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  display: -webkit-box;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  overflow: hidden;
+}
+
+.app-book-item-venue {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: 12px;
+  gap: 4px;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-book-item-when {
+  align-items: center;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: 12px;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.app-book-item-fare {
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  margin-top: 1px;
+}
+
+.app-book-item-chip {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 12px;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 4px;
+  height: 36px;
+  padding: 0 10px;
+}
+
+.app-book-item-chip--ticket {
+  background: rgba(0, 122, 255, 0.1);
 }
 
 .app-book-past {
   display: flex;
   flex-direction: column;
-  padding-top: 26px;
+  padding-top: 18px;
 }
 
 .app-book-past-card {
   align-items: center;
-  border: var(--app-hairline);
-  border-radius: var(--app-radius-card);
+  background: var(--app-surface);
+  border: none;
+  border-radius: 18px;
   display: flex;
   gap: var(--app-space-s);
   margin-top: 10px;
@@ -17159,10 +17378,9 @@ button.app-cal-peer-chip {
   aspect-ratio: auto;
   border-radius: 14px;
   flex: none;
-  height: 56px;
+  height: 64px;
   margin-right: 2px;
-  opacity: 0.75;
-  width: 56px;
+  width: 64px;
 }
 
 .app-book-past-body {
@@ -17173,7 +17391,6 @@ button.app-cal-peer-chip {
 }
 
 .app-book-past-title {
-  /* Две строки и многоточие: длинное название иначе распирает карточку вчетверо против макета */
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   display: -webkit-box;
@@ -27937,7 +28154,6 @@ button.app-fin-op--btn {
   margin: 0;
   max-width: 16rem;
 }
-
 
 .app-me--user .app-me-follow:active,
 .app-me--user .app-me-shortcut:active,

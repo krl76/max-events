@@ -79,13 +79,13 @@ export function walkShareText(walk: CityWalk): string {
   return `Прогулка по городу ${walk.city} в Афише MAX`;
 }
 
-export function WalkResult({ city, walk, now, onAnother, onPlace, onSaved, onMap, onShare }: { readonly city: string; readonly walk: CityWalk; readonly now: number; readonly onAnother: () => void; readonly onPlace: (id: string) => void; readonly onSaved?: () => void; readonly onMap?: () => void; readonly onShare?: () => void }) {
+export function WalkResult({ city: _city, walk, now, onAnother, onPlace, onSaved, onMap, onShare }: { readonly city: string; readonly walk: CityWalk; readonly now: number; readonly onAnother: () => void; readonly onPlace: (id: string) => void; readonly onSaved?: () => void; readonly onMap?: () => void; readonly onShare?: () => void }) {
   const count = walk.stops.length;
   const travel = walk.legs.reduce((sum, leg) => sum + leg.travelMinutes, 0);
   return (
     <section className="app-walk">
       <header className="app-walk-head">
-        <h1 className="app-walk-title">Прогулка: {city}</h1>
+        <h1 className="app-walk-title">Прогулка</h1>
       </header>
       {walk.sourceLabel === "catalog" ? <p className="app-walk-note">Маршрут из каталога</p> : null}
       <p className="app-walk-saved-flag">

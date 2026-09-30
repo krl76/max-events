@@ -34,6 +34,7 @@ const noop = () => {};
 
 async function mount(node: ReactElement): Promise<{ host: HTMLDivElement; root: Root }> {
   const host = document.createElement("div");
+  host.className = "app-root";
   document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
@@ -118,6 +119,81 @@ describe("profile post delete", () => {
       confirm.click();
     });
     expect(deleted).toEqual(["33000000-0000-4000-8000-000000000001"]);
+
+    await unmount(host, root);
+  });
+});
+
+function buttonByText(root: ParentNode, text: string): HTMLButtonElement {
+  return [...root.querySelectorAll("button")].find((button) => button.textContent?.includes(text)) as HTMLButtonElement;
+}
+
+describe("guest profile sheets", () => {
+  const guestProps = {
+    user,
+    profile,
+    lists: null,
+    subscriptions: null,
+    following: null,
+    followers: null,
+    achievements: null,
+    weGroups: null,
+    friendsCount: null,
+    posts: [],
+    postsFailed: false,
+    visitedPlaces: [],
+    tab: "posts" as const,
+    own: false,
+    areFriends: true,
+    onSettings: noop,
+    onShare: noop,
+    onLists: noop,
+    onPlans: noop,
+    onCreatePlan: noop,
+    onBookings: noop,
+    onOpenBooking: noop,
+    onCalendar: noop,
+    onWalks: noop,
+    onSubscriptions: noop,
+    onFollowers: noop,
+    onAchievements: noop,
+    onWeGroups: noop,
+    onFriends: noop,
+    onSubscribe: noop,
+    onWrite: noop,
+    onInvite: noop,
+    onOpenPost: noop,
+    onNewPost: noop,
+    onOpenPlace: noop,
+    onTab: noop,
+  };
+
+  it("opens the friends sheet on the app root so the tabbar does not cover it", async () => {
+    const { host, root } = await mount(createElement(ProfileView, guestProps));
+
+    await act(async () => {
+      buttonByText(host, "Вы в друзьях").click();
+    });
+
+    const dialog = host.querySelector(":scope > .app-me-pop");
+    expect(dialog?.getAttribute("role")).toBe("dialog");
+    expect(dialog?.textContent).toContain("Удалить из друзей");
+    expect(host.querySelector(".app-me-guest .app-me-pop")).toBeNull();
+
+    await unmount(host, root);
+  });
+
+  it("opens the more sheet on the app root", async () => {
+    const { host, root } = await mount(createElement(ProfileView, guestProps));
+
+    await act(async () => {
+      buttonByText(host, "Ещё").click();
+    });
+
+    const dialog = host.querySelector(":scope > .app-me-pop");
+    expect(dialog?.getAttribute("role")).toBe("dialog");
+    expect(dialog?.textContent).toContain("Позвать");
+    expect(host.querySelector(".app-me-guest .app-me-pop")).toBeNull();
 
     await unmount(host, root);
   });

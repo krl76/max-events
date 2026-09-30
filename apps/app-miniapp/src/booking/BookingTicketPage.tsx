@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 20 «Бронь и код входа»: the confirmation of a booked window — the gradient header with the venue and the way to it, the entry code, the four facts of the booking, the route and calendar actions, the booking chat, the invite row and the cancellation.
+// PURPOSE: Экран 20 «Бронь и код входа»: the confirmation of a booked window — the photo header with the venue and the way to it, the entry code, the four facts of the booking, the route and calendar actions, the booking chat, the invite row and the cancellation.
 // SCOPE: Reads apiClient.getSlotBooking and writes apiClient.cancelSlotBooking (mock-backed, #492); sharing goes through the MAX bridge, the route and the calendar hand over to the existing screens. No chat input: the chat has no domain to write to.
 // DEPENDS: ../api/client.js (apiClient, SlotBookingScreen), ../max/bridge.js (shareResult, webApp), ../place/slots.js, ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -12,6 +12,7 @@
 // - partyLabel - «3 человека» of the facts row
 // - inviteLine - «Стол на 12, свободно 9 мест» under «Позвать ещё друзей»
 // - ticketShareText - what the share sheet sends into a MAX chat
+// - chatFaceItems - initials of the viewer and the company, with an overflow count
 // - CodeBlock - the placeholder of the scannable code, drawn from the code itself
 // - BookingTicketState - union of the ticket fetch states (loading / error / ready)
 // - BookingTicketView - presentational: the whole screen with its actions lifted out
@@ -23,11 +24,14 @@ import type { Friend } from "@max-events/api-contracts";
 import { apiClient, type SlotBookingScreen } from "../api/client";
 import { shareResult, webApp } from "../max/bridge";
 import { sharePayload } from "../max/links";
-import { codeMatrix, formatRub, formatSlotWindow, formatTime, type CodeCell } from "../place/slots";
+import { codeMatrix, companyLabel, formatBookingDate, formatRub, formatSlotWindow, formatTime, type CodeCell } from "../place/slots";
 import { useRoute } from "../routing/router";
 import { pluralRu } from "../catalog/format";
 import { ActionIcon } from "../ui/icons";
-import { AppSkeletonList, AppState } from "../ui/primitives";
+import { pictured } from "../ui/photos";
+import { AppMedia, AppSkeletonList, AppState } from "../ui/primitives";
+
+const CHAT_FACE_LIMIT = 4;
 
 /** «Пятница, 19 сентября · 17:30» — the full weekday of the design, capitalised. */
 export function ticketWhen(startsAt: string): string {
@@ -65,6 +69,12 @@ export function ticketShareText(screen: Pick<SlotBookingScreen, "unitTitle" | "p
   return `${screen.unitTitle} · ${screen.place.title}, ${ticketWhen(screen.slot.startsAt)}. Присоединяйся!`;
 }
 
+export function chatFaceItems(company: Friend[]): { initials: string[]; overflow: number } {
+  const initials = ["Я", ...company.map((friend) => friend.name.charAt(0))];
+  if (initials.length <= CHAT_FACE_LIMIT) return { initials, overflow: 0 };
+  return { initials: initials.slice(0, CHAT_FACE_LIMIT), overflow: initials.length - CHAT_FACE_LIMIT };
+}
+
 const CELL_CLASS: Record<CodeCell, string> = { off: "app-ticket-cell", on: "app-ticket-cell app-ticket-cell--on", accent: "app-ticket-cell app-ticket-cell--accent" };
 
 /**
@@ -97,88 +107,107 @@ interface BookingTicketViewProps {
   onCancel: () => void;
 }
 
-export function BookingTicketView({ screen, confirming, busy, failed, shared, onRoute, onCalendar, onShare, onCancel }: BookingTicketViewProps) {
-  const { booking, slot } = screen;
+export function BookingTicketView({ screen, confirming, busy, failed, shared, onBack, onRoute, onCalendar, onShare, onCancel }: BookingTicketViewProps) {
+  const { booking, slot, place } = screen;
   const cancelled = booking.status === "cancelled";
+  const faces = chatFaceItems(screen.company);
+  const placeLine = place.title;
   return (
     <section className="app-ticket">
-      <header className="app-ticket-bar">
-        <h1 className="app-ticket-bar-title">{cancelled ? "Бронь отменена" : "Бронь подтверждена"}</h1>
+      <header className="app-ticket-hero">
+        <AppMedia src={pictured(place.id, place.logoUrl)} className="app-ticket-hero-media" />
+        <button type="button" className="app-ticket-hero-btn app-ticket-hero-btn--back" aria-label="Закрыть" onClick={onBack}>
+          <ActionIcon name="close" size={18} strokeWidth={2.4} />
+        </button>
+        <button type="button" className="app-ticket-hero-btn app-ticket-hero-btn--more" aria-label="Ещё" onClick={onShare}>
+          <ActionIcon name="dots" size={18} strokeWidth={2.4} />
+        </button>
+        <div className="app-ticket-hero-veil">
+          <p className={cancelled ? "app-ticket-status app-ticket-status--off" : "app-ticket-status"}>
+            <span className="app-ticket-when-dot" aria-hidden="true" />
+            {cancelled ? "Бронь отменена" : "Слот забронирован"}
+          </p>
+          <h1 className="app-ticket-title">{screen.unitTitle}</h1>
+          <p className="app-ticket-place">{placeLine}</p>
+        </div>
       </header>
 
-      <div className="app-ticket-body">
-        <div className="app-ticket-card">
-          <div className="app-ticket-hero">
-            <span className="app-ticket-blob" aria-hidden="true" />
-            <span className="app-ticket-when">
-              <span className="app-ticket-when-dot" aria-hidden="true" />
-              {ticketWhen(slot.startsAt)}
-            </span>
-            <span className="app-ticket-title">{screen.unitTitle}</span>
-            <span className="app-ticket-place">{ticketPlaceLine(screen)}</span>
-          </div>
-
-          <div className="app-ticket-code">
-            <CodeBlock code={booking.checkInCode} />
-            <span className="app-ticket-value">{booking.checkInCode}</span>
-            <span className="app-ticket-hint">Покажите код на входе — организатор отметит вас в списке</span>
-          </div>
-
-          <dl className="app-ticket-facts">
-            <div className="app-ticket-fact">
-              <dt>Слот</dt>
-              <dd>{formatSlotWindow(slot)}</dd>
-            </div>
-            <div className="app-ticket-fact">
-              <dt>Компания</dt>
-              <dd>{partyLabel(booking.partySize)}</dd>
-            </div>
-            <div className="app-ticket-fact">
-              <dt>Оплачено</dt>
-              <dd>{formatRub(booking.totalRub)}</dd>
-            </div>
-            <div className="app-ticket-fact">
-              <dt>Отмена</dt>
-              <dd>{booking.cancelBefore === null ? "по правилам площадки" : `до ${formatTime(booking.cancelBefore)}`}</dd>
-            </div>
-          </dl>
-        </div>
-
+      <div className="app-ticket-sheet">
         <div className="app-ticket-actions">
           <button type="button" className="app-ticket-action" onClick={onRoute}>
-            <ActionIcon name="navigation" size={18} strokeWidth={2.2} />
-            Маршрут
+            <ActionIcon name="navigation" size={20} strokeWidth={2.2} />
+            Построить маршрут
           </button>
           <button type="button" className="app-ticket-action" onClick={onCalendar}>
-            <ActionIcon name="calendar" size={18} strokeWidth={2.2} />В календарь
+            <ActionIcon name="calendar" size={20} strokeWidth={2.2} />
+            Добавить в календарь
           </button>
         </div>
 
+        <div className="app-ticket-code">
+          <CodeBlock code={booking.checkInCode} className="app-ticket-matrix" />
+          <span className="app-ticket-value">{booking.checkInCode}</span>
+          <span className="app-ticket-hint">Покажите код на входе — организатор отметит вас в списке</span>
+        </div>
+
+        <dl className="app-ticket-facts">
+          <div className="app-ticket-fact">
+            <dt>
+              <ActionIcon name="calendar" size={14} strokeWidth={2.2} />
+              Дата и время
+            </dt>
+            <dd>{formatBookingDate(slot.startsAt)}</dd>
+            <small>{formatSlotWindow(slot)}</small>
+          </div>
+          <div className="app-ticket-fact">
+            <dt>
+              <ActionIcon name="wallet" size={14} strokeWidth={2.2} />
+              Оплачено
+            </dt>
+            <dd>{formatRub(booking.totalRub)}</dd>
+          </div>
+          <div className="app-ticket-fact">
+            <dt>
+              <ActionIcon name="pin" size={14} strokeWidth={2.2} />
+              Место
+            </dt>
+            <dd>{place.title},</dd>
+            <small>{screen.unitTitle.toLowerCase()}</small>
+          </div>
+          <div className="app-ticket-fact">
+            <dt>
+              <ActionIcon name="users" size={14} strokeWidth={2.2} />
+              Посетителей
+            </dt>
+            <dd>{partyLabel(booking.partySize)}</dd>
+            <small>{companyLabel(screen.company)}</small>
+          </div>
+        </dl>
+
         <section className="app-ticket-chat" aria-label="Чат брони">
-          <h2 className="app-ticket-chat-title">Чат брони</h2>
-          <p className="app-ticket-chat-members">{chatMembersLabel(screen.company)}</p>
-          {screen.chat.length === 0 ? (
-            <AppState>В чате пока тихо.</AppState>
-          ) : (
-            screen.chat.map((message) => (
-              <div key={message.id} className="app-ticket-message">
-                <span className="app-ticket-message-face" aria-hidden="true">
-                  {message.authorName
-                    .split(" ")
-                    .map((word) => word.charAt(0))
-                    .join("")
-                    .slice(0, 2)}
-                </span>
-                <span className="app-ticket-message-text">
-                  <span className="app-ticket-message-author">{message.authorName}</span>
-                  {message.text}
-                </span>
-              </div>
-            ))
-          )}
+          <div className="app-ticket-chat-head">
+            <h2 className="app-ticket-chat-title">
+              <ActionIcon name="comment" size={18} strokeWidth={2.2} />
+              Чат брони
+            </h2>
+            <ActionIcon name="chevron" size={16} strokeWidth={2.4} />
+          </div>
+          <div className="app-ticket-chat-faces" aria-hidden="true">
+            {faces.initials.map((face, index) => (
+              <span key={`${face}-${index}`} className={index === 0 ? "app-ticket-face app-ticket-face--you" : "app-ticket-face"}>
+                {face}
+              </span>
+            ))}
+            {faces.overflow > 0 && <span className="app-ticket-face app-ticket-face--more">+{faces.overflow}</span>}
+          </div>
+          <span className="app-ticket-face-name">Ты</span>
+          <p className="app-ticket-chat-hint">В чате можно обсудить детали посещения с участниками</p>
         </section>
 
         <div className="app-ticket-invite">
+          <span className="app-ticket-invite-icon" aria-hidden="true">
+            <ActionIcon name="link" size={18} strokeWidth={2.2} />
+          </span>
           <span className="app-ticket-invite-body">
             <span className="app-ticket-invite-title">Позвать ещё друзей</span>
             <span className="app-ticket-invite-line">{inviteLine(screen)}</span>
@@ -193,6 +222,7 @@ export function BookingTicketView({ screen, confirming, busy, failed, shared, on
 
         {!cancelled && (
           <button type="button" className={confirming ? "app-ticket-cancel app-ticket-cancel--confirm" : "app-ticket-cancel"} disabled={busy} onClick={onCancel}>
+            <ActionIcon name="close" size={16} strokeWidth={2.6} />
             {confirming ? "Точно отменить бронь?" : "Отменить бронь"}
           </button>
         )}
