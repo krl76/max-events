@@ -22,7 +22,7 @@
 
 import { DiscoveryResponseSchema, FriendActivityByFriendSchema, FriendAvailabilitySchema, FriendPlaceVisitSchema, FriendRouteSchema, FriendSchema, GatheringSchema, MicroBudgetSchema, MicroEventSchema, PeopleResponseSchema, PlaceSchema } from "@max-events/api-contracts";
 import type { CreatePlanExpenseWrite, Friend, FriendActivityByFriend, FriendAvailability, FriendPlaceVisit, Gathering, InviteeResponse, MicroBudget, MicroEvent, PeopleResponse, Place } from "@max-events/api-contracts";
-import { isEndpointMissing } from "./transport";
+import { isEndpointMissing, lenientArraySchema } from "./transport";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /** Gathering launch payload: event, invited friends, proposed meeting time. */
@@ -243,7 +243,7 @@ const CloseFriendSchema: ZodSchema<{ close: boolean }> = {
 export function withSocial<TBase extends ApiMixin>(Base: TBase) {
   return class SocialEndpoints extends Base {
     listFriends(): Promise<Friend[]> {
-      return this.request("/friends", FriendSchema.array());
+      return this.request("/friends", lenientArraySchema(FriendSchema, "friend"));
     }
 
     /** «Добавить» on a profile: both people land in each other's friends lists. */
@@ -297,13 +297,18 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
       return this.request("/friends/follows", FollowedIdsSchema, { method: "PUT", body: { userIds } });
     }
 
+    /** Mutual follow after a friend opens a `user-` invite link. */
+    acceptFriendInvite(userId: string): Promise<string[]> {
+      return this.request("/friends/invite-accept", FollowedIdsSchema, { method: "POST", body: { userId } });
+    }
+
     /**
      * People this person follows — one half of the two header counters of экран 36. Following a person
      * is not a `Subscription` (#501) and lives in the follow set POST /friends/follows writes, so the
      * profile reads it here and not through listSubscriptions.
      */
     listFollowing(userId: string): Promise<Friend[]> {
-      return this.request(`/users/${encodeURIComponent(userId)}/following`, FriendSchema.array());
+      return this.request(`/users/${encodeURIComponent(userId)}/following`, lenientArraySchema(FriendSchema, "following"));
     }
 
     /**
@@ -312,7 +317,7 @@ export function withSocial<TBase extends ApiMixin>(Base: TBase) {
      * the path and the shape the endpoint will take, mock-backed meanwhile.
      */
     listFollowers(userId: string): Promise<Friend[]> {
-      return this.request(`/users/${encodeURIComponent(userId)}/followers`, FriendSchema.array());
+      return this.request(`/users/${encodeURIComponent(userId)}/followers`, lenientArraySchema(FriendSchema, "follower"));
     }
 
     createGathering(payload: CreateGathering): Promise<Gathering> {

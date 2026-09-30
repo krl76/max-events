@@ -101,9 +101,11 @@ export interface BookingSheetProps {
   onClose: () => void;
   onBook: () => void;
   onCancel: () => void;
+  /** True while createBooking / joinWaitlist is in flight — a second tap must not fire another write. */
+  busy?: boolean;
 }
 
-export function BookingSheet({ details, offer, organizerName, promo, waitlist, onClose, onBook, onCancel }: BookingSheetProps) {
+export function BookingSheet({ details, offer, organizerName, promo, waitlist, onClose, onBook, onCancel, busy = false }: BookingSheetProps) {
   const swipe = useSheetSwipe(onClose);
   const booked = details.activeBookingId !== null;
   const soldOut = details.remainingSeats === 0;
@@ -155,19 +157,19 @@ export function BookingSheet({ details, offer, organizerName, promo, waitlist, o
         </div>
         <div className="app-evb-actions">
           {booked ? (
-            <button type="button" className="app-evb-cta app-evb-cta--booked" onClick={onCancel}>
+            <button type="button" className="app-evb-cta app-evb-cta--booked" disabled={busy} onClick={onCancel}>
               Отменить запись
             </button>
           ) : (
-            <button type="button" className="app-evb-cta" disabled={soldOut} onClick={onBook}>
-              {primaryCtaLabel(details)}
-              {eventCharges(details.event) && <ActionIcon name="arrow" size={18} />}
+            <button type="button" className="app-evb-cta" disabled={soldOut || busy} onClick={onBook}>
+              {busy ? "Записываем…" : primaryCtaLabel(details)}
+              {!busy && eventCharges(details.event) && <ActionIcon name="arrow" size={18} />}
             </button>
           )}
           {waitlist !== null && (
             <>
-              <button type="button" className="app-evb-waitlist" disabled={waitlist.joined} onClick={waitlist.onJoin}>
-                {waitlist.joined ? "Вы в листе ожидания" : waitlistCtaLabel(waitlist.ahead)}
+              <button type="button" className="app-evb-waitlist" disabled={waitlist.joined || busy} onClick={waitlist.onJoin}>
+                {waitlist.joined ? "Вы в листе ожидания" : busy ? "Записываем…" : waitlistCtaLabel(waitlist.ahead)}
               </button>
               <p className="app-evb-note">Уведомим, если освободится место</p>
             </>

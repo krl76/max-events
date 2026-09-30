@@ -403,6 +403,7 @@ export function PlacePage({ id }: { id: string }) {
   // until the next load; board.checkedInToday is what survives a remount.
   const [checkedIn, setCheckedIn] = useState(false);
   const [confirmingCheckIn, setConfirmingCheckIn] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   // Fire-and-forget page view (#196): a tracking failure must never break the page (trackPageView swallows rejections); skip until auth resolves so pre-login views are not recorded.
   useEffect(() => {
@@ -428,10 +429,15 @@ export function PlacePage({ id }: { id: string }) {
     return () => {
       alive = false;
     };
-  }, [id, userId]);
+  }, [id, userId, attempt]);
 
   if (state.status === "loading") return <AppSkeletonList rows={4} />;
-  if (state.status === "error") return <AppState error>Не удалось загрузить место.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={{ label: "Повторить", onClick: () => setAttempt((n) => n + 1) }}>
+        Не удалось загрузить место.
+      </AppState>
+    );
   const checkIn = () => {
     if (userId === null) return;
     apiClient.createCheckIn({ userId, placeId: id }).then(

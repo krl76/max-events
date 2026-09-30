@@ -208,6 +208,7 @@ export function BookingTicketPage({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [shared, setShared] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -223,7 +224,7 @@ export function BookingTicketPage({ id }: { id: string }) {
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [id, attempt]);
 
   const cancel = useCallback(() => {
     if (busy) return;
@@ -249,7 +250,12 @@ export function BookingTicketPage({ id }: { id: string }) {
   }, [busy, confirming, id]);
 
   if (state.status === "loading") return <AppSkeletonList rows={3} />;
-  if (state.status === "error") return <AppState error>Не удалось загрузить бронь.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={{ label: "Повторить", onClick: () => setAttempt((n) => n + 1) }}>
+        Не удалось загрузить бронь.
+      </AppState>
+    );
   const share = () => {
     const payload = sharePayload(ticketShareText(state.screen), `booking-${id}`);
     void shareResult(webApp, payload.text, payload.link).then((channel) => setShared(channel === "bridge" ? "Отправили в чат" : channel === "clipboard" ? "Скопировали приглашение" : "Поделиться не получилось"));

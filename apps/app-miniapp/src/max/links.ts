@@ -43,6 +43,13 @@ export function startParamFromSharedUrl(raw: string): string | null {
   }
 }
 
+/** Opens a MAX dialog with a person who already has a MAX id. */
+export function maxUserChatUrl(user: { maxUserId: string; username?: string | null }): string {
+  const nick = user.username?.trim().replace(/^@/, "");
+  if (nick) return `https://max.ru/${encodeURIComponent(nick)}`;
+  return `https://max.ru/id${encodeURIComponent(user.maxUserId)}`;
+}
+
 export function sharePayload(sentence: string, startParam: string | null): { text: string; link?: string } {
   const payload = startParam?.trim() ?? "";
   if (payload.length === 0) return { text: sentence };

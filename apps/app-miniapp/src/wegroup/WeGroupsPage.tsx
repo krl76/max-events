@@ -215,9 +215,10 @@ interface WeGroupsViewProps {
   onDraftChange: (draft: CreateDraft) => void;
   onCreate: () => void;
   onOpen: (id: string) => void;
+  onRetry?: () => void;
 }
 
-export function WeGroupsView({ state, friends, creating, draft, saving, failed, now = new Date(), onToggleCreate, onDraftChange, onCreate, onOpen }: WeGroupsViewProps) {
+export function WeGroupsView({ state, friends, creating, draft, saving, failed, now = new Date(), onToggleCreate, onDraftChange, onCreate, onOpen, onRetry }: WeGroupsViewProps) {
   const groups = state.status === "ready" ? state.groups : [];
   const active = groups.filter((card) => card.group.status === "active");
   const archived = groups.filter((card) => card.group.status === "archived");
@@ -233,7 +234,11 @@ export function WeGroupsView({ state, friends, creating, draft, saving, failed, 
       <p className="app-we-lead">Группа живёт дольше одного вечера: двор, коллеги, родительский чат. Для одного вечера есть план.</p>
       {creating && <WeGroupCreateForm draft={draft} friends={friends} saving={saving} failed={failed} onChange={onDraftChange} onSubmit={onCreate} />}
       {state.status === "loading" && <AppSkeletonList rows={3} />}
-      {state.status === "error" && <AppState error>Не удалось загрузить группы.</AppState>}
+      {state.status === "error" && (
+        <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+          Не удалось загрузить группы.
+        </AppState>
+      )}
       {state.status === "ready" && groups.length === 0 && <AppState>Пока нет групп. Создайте первую.</AppState>}
       {active.map((card) => (
         <WeGroupCardRow key={card.group.id} card={card} now={now} onOpen={onOpen} />
@@ -262,6 +267,7 @@ export function WeGroupsPage() {
   const [draft, setDraft] = useState<CreateDraft>(EMPTY_CREATE_DRAFT);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -279,7 +285,7 @@ export function WeGroupsPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [attempt]);
 
   const create = () => {
     if (createDraftErrors(draft).length > 0) return;
@@ -294,5 +300,5 @@ export function WeGroupsPage() {
     );
   };
 
-  return <WeGroupsView state={state} friends={friends} creating={creating} draft={draft} saving={saving} failed={failed} onToggleCreate={() => setCreating((value) => !value)} onDraftChange={setDraft} onCreate={create} onOpen={(id) => navigate({ name: "we-group", id })} />;
+  return <WeGroupsView state={state} friends={friends} creating={creating} draft={draft} saving={saving} failed={failed} onToggleCreate={() => setCreating((value) => !value)} onDraftChange={setDraft} onCreate={create} onOpen={(id) => navigate({ name: "we-group", id })} onRetry={() => setAttempt((n) => n + 1)} />;
 }

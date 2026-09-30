@@ -40,6 +40,14 @@ describe("bookingErrorMessage", () => {
     expect(bookingErrorMessage(new ApiError(409, "conflict"), false)).toBe("К сожалению, места закончились.");
     expect(bookingErrorMessage(new Error("network"), false)).toBe("Не удалось записаться. Попробуйте ещё раз.");
   });
+
+  it("treats a duplicate booking as already recorded, not as sold out", () => {
+    expect(bookingErrorMessage(new ApiError(409, "Booking already exists"), false)).toBeNull();
+  });
+
+  it("asks to retry when the request times out", () => {
+    expect(bookingErrorMessage(new ApiError(0, "timeout while fetching /bookings"), false)).toBe("Сервер не ответил. Попробуйте ещё раз.");
+  });
 });
 
 describe("eventShareText", () => {

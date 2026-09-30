@@ -19,7 +19,7 @@
 
 import { AutoPlanProposalSchema, CalendarResponseSchema, DayRouteSchema, FriendSchema, OptimizeRouteSchema, PlanBudgetSchema, PlanCardSchema } from "@max-events/api-contracts";
 import type { AutoPlanProposal, Booking, CreatePlanExpenseWrite, CreatePlanWrite, DayRoute, Event, Friend, OptimizeRoute, Place, PlanBudget, PlanCancelScope, PlanCard, RouteStopWrite } from "@max-events/api-contracts";
-import type { ApiMixin, ZodSchema } from "./transport";
+import { lenientArraySchema, type ApiMixin, type ZodSchema } from "./transport";
 
 /** Calendar item: active booking enriched with its event and place. */
 export interface CalendarEntry {
@@ -150,7 +150,7 @@ export function withPlans<TBase extends ApiMixin>(Base: TBase) {
   return class PlanEndpoints extends Base {
     listPlans(origin: { latitude: number; longitude: number } | null = null): Promise<PlanCard[]> {
       const query = origin === null ? "" : `?${new URLSearchParams({ lat: String(origin.latitude), lng: String(origin.longitude) }).toString()}`;
-      return this.request(`/plans${query}`, PlanCardSchema.array());
+      return this.request(`/plans${query}`, lenientArraySchema(PlanCardSchema, "plan"));
     }
 
     getPlan(id: string): Promise<PlanCard> {

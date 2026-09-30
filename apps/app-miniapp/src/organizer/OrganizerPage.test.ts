@@ -269,6 +269,7 @@ describe("OrganizerListStatus", () => {
   it("renders the loading, error and empty states", () => {
     expect(renderToStaticMarkup(createElement(OrganizerListStatus, { state: { status: "loading" } as OrganizerListState<OrganizerEvent>, emptyText: "Пока нет событий — создайте первое." }))).toContain("Загрузка");
     expect(renderToStaticMarkup(createElement(OrganizerListStatus, { state: { status: "error" } as OrganizerListState<OrganizerEvent>, emptyText: "Пока нет событий — создайте первое." }))).toContain("Не удалось загрузить список.");
+    expect(renderToStaticMarkup(createElement(OrganizerListStatus, { state: { status: "error" } as OrganizerListState<OrganizerEvent>, emptyText: "Пока нет событий — создайте первое.", onRetry: () => {} }))).toContain("Повторить");
     expect(renderToStaticMarkup(createElement(OrganizerListStatus, { state: { status: "ready", items: [] } as OrganizerListState<OrganizerEvent>, emptyText: "Пока нет событий — создайте первое." }))).toContain("Пока нет событий");
     expect(renderToStaticMarkup(createElement(OrganizerListStatus, { state: { status: "ready", items: [draftEvent] } as OrganizerListState<OrganizerEvent>, emptyText: "Пока нет событий — создайте первое." }))).toBe("");
   });

@@ -7,6 +7,7 @@ import { App } from "./App";
 import { apiClient } from "./api/client";
 import { getWebApp } from "./max/bridge";
 import { installChunkLoadRecovery } from "./ui/chunk-load";
+import { installErrorLogging } from "./ui/log-error";
 import { initTheme } from "./ui/theme";
 import "@ionic/react/css/core.css";
 import "@ionic/react/css/normalize.css";
@@ -16,6 +17,7 @@ import "./ui/theme.css";
 
 setupIonicReact({ mode: "ios" });
 installChunkLoadRecovery();
+installErrorLogging();
 
 // Colour scheme before the first paint and above the entry gate. Layout only mounts on the
 // signed-in branch, so driving it from there left EntryPage and OrganizerSpace ignoring an

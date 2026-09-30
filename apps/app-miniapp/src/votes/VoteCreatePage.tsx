@@ -327,6 +327,7 @@ export function VoteCreatePage({ groupId }: { groupId: string | null }) {
   const auth = useAuth();
   const ownId = auth.status === "authenticated" ? auth.user.id : null;
   const [seed, setSeed] = useState<SeedState>({ status: "loading" });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -344,7 +345,7 @@ export function VoteCreatePage({ groupId }: { groupId: string | null }) {
     return () => {
       alive = false;
     };
-  }, [groupId, ownId]);
+  }, [groupId, ownId, attempt]);
 
   return (
     <section className="app-poll-screen" aria-label="Создание голосования">
@@ -352,7 +353,11 @@ export function VoteCreatePage({ groupId }: { groupId: string | null }) {
         <h1 className="app-we-bar-name">Новое голосование</h1>
       </div>
       {seed.status === "loading" && <AppSkeletonList rows={4} />}
-      {seed.status === "error" && <AppState error>Не удалось открыть создание голосования.</AppState>}
+      {seed.status === "error" && (
+        <AppState error action={{ label: "Повторить", onClick: () => setAttempt((n) => n + 1) }}>
+          Не удалось открыть создание голосования.
+        </AppState>
+      )}
       {seed.status === "ready" && <VoteCreateSection events={seed.events} preselectedFriendIds={seed.friendIds} cancelLabel={null} onCreated={(vote) => navigate({ name: "vote", id: vote.id })} onCancel={back} />}
     </section>
   );

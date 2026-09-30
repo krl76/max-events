@@ -30,7 +30,7 @@
 
 import { EventSchema, FeedCommentSchema, FeedPostSchema, FriendSchema, ParticipationStatusSchema, PlaceSchema, StorySchema } from "@max-events/api-contracts";
 import type { Event, FeedComment as ContractFeedComment, FeedPost as ContractFeedPost, Friend, ParticipationStatus, Place, Story } from "@max-events/api-contracts";
-import { isEndpointMissing } from "./transport";
+import { isEndpointMissing, lenientArraySchema } from "./transport";
 import type { ApiMixin, ZodSchema } from "./transport";
 
 /** Feed comment attributed to its author. */
@@ -474,14 +474,14 @@ export function withFeed<TBase extends ApiMixin>(Base: TBase) {
         return await this.request(`/feed/cards?userId=${encodeURIComponent(userId)}`, FeedCardsSchema);
       } catch (error) {
         if (!isEndpointMissing(error)) throw error;
-        const [posts, events, places] = await Promise.all([this.request("/feed", FeedPostSchema.array()), this.request("/events", EventSchema.array()), this.request("/places", PlaceSchema.array())]);
+        const [posts, events, places] = await Promise.all([this.request("/feed", lenientArraySchema(FeedPostSchema, "feed post")), this.request("/events", EventSchema.array()), this.request("/places", PlaceSchema.array())]);
         return feedCardsFromPosts(posts, events, places, new Date());
       }
     }
 
     listFeedPosts(eventId?: string, placeId?: string): Promise<FeedPost[]> {
       const query = eventId !== undefined ? `?eventId=${encodeURIComponent(eventId)}` : placeId !== undefined ? `?placeId=${encodeURIComponent(placeId)}` : "";
-      return this.request(`/feed${query}`, FeedPostSchema.array());
+      return this.request(`/feed${query}`, lenientArraySchema(FeedPostSchema, "feed post"));
     }
 
     getFeedPost(postId: string): Promise<FeedPost> {

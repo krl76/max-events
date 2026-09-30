@@ -106,11 +106,17 @@ interface CalendarViewProps {
   onRate?: (eventId: string) => void;
   /** Past card: the event page, to go again. */
   onRepeat?: (eventId: string) => void;
+  onRetry?: () => void;
 }
 
-export function CalendarView({ state, now, onCancel, onExplore, onExport, onOpen, onRate, onRepeat }: CalendarViewProps) {
+export function CalendarView({ state, now, onCancel, onExplore, onExport, onOpen, onRate, onRepeat, onRetry }: CalendarViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить календарь.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+        Не удалось загрузить календарь.
+      </AppState>
+    );
 
   const { upcoming, past } = splitCalendarEntries(state.entries, now);
   return (
@@ -227,6 +233,7 @@ interface SharedCalendarViewProps {
   /** «Добавить друга» больше ничего не раскрывает внутри экрана — выбор живёт во всплывающем окне. */
   onAddFriend: () => void;
   notice?: string | null;
+  onRetry?: () => void;
   /** Полноэкранный календарь: крест сверху и нижняя панель вместо таббара. */
   chrome?: boolean;
   onClose?: () => void;
@@ -235,7 +242,7 @@ interface SharedCalendarViewProps {
   onRemovePeer?: (userId: string) => void;
 }
 
-export function SharedCalendarView({ shared, entries, month, selected, now, onSelect, onOpen, onGoing, onShare, onAddFriend, notice = null, chrome = false, scope = "own", onSelectScope, onRemovePeer }: SharedCalendarViewProps) {
+export function SharedCalendarView({ shared, entries, month, selected, now, onSelect, onOpen, onGoing, onShare, onAddFriend, notice = null, chrome = false, scope = "own", onSelectScope, onRemovePeer, onRetry }: SharedCalendarViewProps) {
   const dayEntries = entriesOn(entries, selected);
   const warnings = overlapWarnings(dayEntries);
   const reminder = calendarReminder(entries, now);
@@ -258,7 +265,11 @@ export function SharedCalendarView({ shared, entries, month, selected, now, onSe
           </button>
         </div>
 
-        {shared.status === "error" && <AppState error>Не удалось загрузить общий календарь.</AppState>}
+        {shared.status === "error" && (
+          <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+            Не удалось загрузить общий календарь.
+          </AppState>
+        )}
         {shared.status === "ready" && (shared.shared.peers.length > 0 || onSelectScope !== undefined) && (
           <div className="app-cal-peers">
             <div className="app-cal-peer-chips" role="group" aria-label="Чей календарь">
@@ -401,7 +412,7 @@ export function CalendarPage({ tab = "month", inviteToken, embedded = false }: {
     return () => {
       alive = false;
     };
-  }, [inviteToken]);
+  }, [inviteToken, attempt]);
 
   const cancel = useCallback((bookingId: string) => {
     apiClient.cancelBooking(bookingId).then(
@@ -490,10 +501,11 @@ export function CalendarPage({ tab = "month", inviteToken, embedded = false }: {
           scope={scope}
           onSelectScope={setScope}
           onRemovePeer={removePeer}
+          onRetry={() => setAttempt((n) => n + 1)}
         />
       ) : (
         <>
-          <CalendarView state={state} now={new Date()} onCancel={cancel} onExplore={() => navigate({ name: "home" })} onExport={state.status === "ready" ? () => exportCalendarIcs(state.entries) : undefined} onOpen={(eventId) => navigate({ name: "event", id: eventId })} onRate={(eventId) => navigate({ name: "after-event", eventId })} onRepeat={(eventId) => navigate({ name: "event", id: eventId })} />
+          <CalendarView state={state} now={new Date()} onCancel={cancel} onExplore={() => navigate({ name: "home" })} onExport={state.status === "ready" ? () => exportCalendarIcs(state.entries) : undefined} onOpen={(eventId) => navigate({ name: "event", id: eventId })} onRate={(eventId) => navigate({ name: "after-event", eventId })} onRepeat={(eventId) => navigate({ name: "event", id: eventId })} onRetry={() => setAttempt((n) => n + 1)} />
         </>
       )}
       {picking && <FriendPicker friends={invitable} title="Кого позвать в календарь" hint="Он увидит твои планы, ты — его." confirmLabel="Открыть календарь" emptyText="Все друзья уже в этом календаре." multiple busy={inviting} onConfirm={invite} onClose={() => setPicking(false)} />}

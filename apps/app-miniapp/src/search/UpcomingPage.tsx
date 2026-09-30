@@ -21,6 +21,7 @@ export function UpcomingPage({ city }: { readonly city: string }) {
   const { navigate } = useRoute();
   const [cards, setCards] = useState<CatalogCard[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -37,11 +38,21 @@ export function UpcomingPage({ city }: { readonly city: string }) {
     return () => {
       alive = false;
     };
-  }, [city]);
+  }, [city, attempt]);
 
   return (
     <section className="app-upcoming" aria-label="Ближайшие события">
-      {failed ? <AppState error>Не удалось загрузить события.</AppState> : cards === null ? <AppSkeleton /> : cards.length === 0 ? <p className="app-upcoming-empty">Ближайших событий пока нет.</p> : cards.map((card) => <EventPoster key={card.event.id} card={card} onOpen={(id) => navigate({ name: "event", id })} />)}
+      {failed ? (
+        <AppState error action={{ label: "Повторить", onClick: () => setAttempt((n) => n + 1) }}>
+          Не удалось загрузить события.
+        </AppState>
+      ) : cards === null ? (
+        <AppSkeleton />
+      ) : cards.length === 0 ? (
+        <p className="app-upcoming-empty">Ближайших событий пока нет.</p>
+      ) : (
+        cards.map((card) => <EventPoster key={card.event.id} card={card} onOpen={(id) => navigate({ name: "event", id })} />)
+      )}
       <BackToTop />
     </section>
   );

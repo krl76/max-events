@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { maxAppLink, sharePayload, startParamFromSharedUrl } from "./links";
+import { maxAppLink, maxUserChatUrl, sharePayload, startParamFromSharedUrl } from "./links";
 
 describe("maxAppLink", () => {
   it("opens the bot window on the screen named by startapp", () => {
@@ -14,6 +14,13 @@ describe("startParamFromSharedUrl", () => {
     expect(startParamFromSharedUrl("https://events.versacegus.cc/calendar/invite/018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93")).toBe("calendar-018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d93");
     expect(startParamFromSharedUrl("https://max.ru/c/1")).toBeNull();
     expect(startParamFromSharedUrl("not a url")).toBeNull();
+  });
+});
+
+describe("maxUserChatUrl", () => {
+  it("opens the MAX profile by username, otherwise by numeric id", () => {
+    expect(maxUserChatUrl({ maxUserId: "42", username: "regina" })).toBe("https://max.ru/regina");
+    expect(maxUserChatUrl({ maxUserId: "42", username: null })).toBe("https://max.ru/id42");
   });
 });
 

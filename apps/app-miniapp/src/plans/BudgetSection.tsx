@@ -160,6 +160,7 @@ export function BudgetSection({ planId, members, load, add }: { planId?: string;
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -179,7 +180,7 @@ export function BudgetSection({ planId, members, load, add }: { planId?: string;
     return () => {
       alive = false;
     };
-  }, [planId, load]);
+  }, [planId, load, attempt]);
 
   const submit = () => {
     if (state.status !== "ready") return;
@@ -206,6 +207,11 @@ export function BudgetSection({ planId, members, load, add }: { planId?: string;
 
   if (state.status === "hidden") return null;
   if (state.status === "loading") return <AppState>Загружаем бюджет…</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить бюджет.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={{ label: "Повторить", onClick: () => setAttempt((n) => n + 1) }}>
+        Не удалось загрузить бюджет.
+      </AppState>
+    );
   return <BudgetView budget={state.budget} members={members} ownId={ownId} draft={draft} saving={saving} failed={failed} showErrors={showErrors} onDraftChange={setDraft} onSubmit={submit} />;
 }

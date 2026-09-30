@@ -133,4 +133,11 @@ describe("BookingSheet", () => {
     expect(html).toContain("Отменить запись");
     expect(html).not.toContain("Купить билет у организатора");
   });
+
+  it("disables the CTA while a booking request is in flight", () => {
+    const html = renderToStaticMarkup(createElement(BookingSheet, { details: detailsOf(), offer: { waitlistAhead: 0, friendsWithTickets: [] }, organizerName: null, promo, waitlist: null, busy: true, onClose: noop, onBook: noop, onCancel: noop }));
+
+    expect(html).toContain("Записываем…");
+    expect(html).toContain("disabled");
+  });
 });

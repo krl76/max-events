@@ -63,11 +63,13 @@ export function App() {
           <AuthProvider>
             <UserShell onExit={() => setMode(null)}>
               <OnboardingGate>
-                <RouteProvider>
-                  <Layout>
-                    <RoutedPages />
-                  </Layout>
-                </RouteProvider>
+                <ScreenErrorBoundary label="app shell crashed">
+                  <RouteProvider>
+                    <Layout>
+                      <RoutedPages />
+                    </Layout>
+                  </RouteProvider>
+                </ScreenErrorBoundary>
               </OnboardingGate>
             </UserShell>
           </AuthProvider>

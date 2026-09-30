@@ -29,6 +29,7 @@ import { browsedCityOrigin, useViewerOrigin } from "../geo/viewer-origin";
 import { pluralRu } from "../catalog/format";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
+import { logError } from "../ui/log-error";
 import { pictured } from "../ui/photos";
 import { AppState, AppSkeleton, AppMedia } from "../ui/primitives";
 
@@ -312,7 +313,7 @@ function PlanCreate({ onCreate }: { onCreate?: () => void }) {
   );
 }
 
-export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromViewer = true }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void; onCreate?: () => void; distancesFromViewer?: boolean }) {
+export function PlansView({ state, onOpen, onExplore, onCreate, onRetry, distancesFromViewer = true }: { state: PlansState; onOpen: (planId: string) => void; onExplore: () => void; onCreate?: () => void; onRetry?: () => void; distancesFromViewer?: boolean }) {
   const [featured, setFeatured] = useState(0);
   if (state.status === "loading")
     return (
@@ -325,7 +326,9 @@ export function PlansView({ state, onOpen, onExplore, onCreate, distancesFromVie
     return (
       <div className="app-plans">
         <PlanCreate onCreate={onCreate} />
-        <AppState error>Не удалось загрузить планы.</AppState>
+        <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+          Не удалось загрузить планы.
+        </AppState>
       </div>
     );
   if (state.cards.length === 0)
@@ -372,6 +375,7 @@ export function PlansPage() {
   const origin = useViewerOrigin();
   const [homeCity, setHomeCity] = useState<string | null>(null);
   const [state, setState] = useState<PlansState>({ status: "loading" });
+  const [reloads, setReloads] = useState(0);
   const point = useMemo(() => (homeCity === null ? { latitude: origin.latitude, longitude: origin.longitude, fromViewer: true } : browsedCityOrigin(origin, homeCity)), [origin, homeCity]);
   useEffect(() => {
     let alive = true;
@@ -392,20 +396,21 @@ export function PlansPage() {
       (cards) => {
         if (alive) setState({ status: "ready", cards });
       },
-      () => {
+      (error: unknown) => {
+        logError("plans failed", error);
         if (alive) setState({ status: "error" });
       },
     );
     return () => {
       alive = false;
     };
-  }, [point.latitude, point.longitude]);
+  }, [point.latitude, point.longitude, reloads]);
   return (
     <section className="app-plans-screen" aria-label="Планы">
       <div className="app-plans-bar">
         <h1>Планы</h1>
       </div>
-      <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "search" })} onCreate={() => navigate({ name: "plan-new" })} distancesFromViewer={point.fromViewer} />
+      <PlansView state={state} onOpen={(planId) => navigate({ name: "plan", id: planId })} onExplore={() => navigate({ name: "search" })} onCreate={() => navigate({ name: "plan-new" })} onRetry={() => setReloads((value) => value + 1)} distancesFromViewer={point.fromViewer} />
     </section>
   );
 }

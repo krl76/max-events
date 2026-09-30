@@ -138,6 +138,10 @@ describe("CalendarView", () => {
     expect(loading).toContain("Загрузка…");
     expect(error).toContain("app-state--error");
     expect(error).toContain("Не удалось загрузить календарь");
+    expect(error).not.toContain("Повторить");
+
+    const retry = renderToStaticMarkup(createElement(CalendarView, { state: { status: "error" }, now: NOW, onCancel: () => {}, onExplore: () => {}, onRetry: () => {} }));
+    expect(retry).toContain("Повторить");
   });
 });
 

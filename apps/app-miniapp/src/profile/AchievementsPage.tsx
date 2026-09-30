@@ -134,9 +134,14 @@ export function AchievementCard({ achievement }: { achievement: Achievement }) {
   );
 }
 
-export function AchievementsView({ state, event = null, now = new Date(), onOpenEvent = () => {} }: { state: AchievementsState; event?: Event | null; now?: Date; onOpenEvent?: (eventId: string) => void }) {
+export function AchievementsView({ state, event = null, now = new Date(), onOpenEvent = () => {}, onRetry }: { state: AchievementsState; event?: Event | null; now?: Date; onOpenEvent?: (eventId: string) => void; onRetry?: () => void }) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
-  if (state.status === "error") return <AppState error>Не удалось загрузить достижения.</AppState>;
+  if (state.status === "error")
+    return (
+      <AppState error action={onRetry === undefined ? undefined : { label: "Повторить", onClick: onRetry }}>
+        Не удалось загрузить достижения.
+      </AppState>
+    );
   const nearest = nearestAchievement(state.achievements);
   return (
     <section className="app-ach">
@@ -173,6 +178,7 @@ export function AchievementsPage() {
   const [state, setState] = useState<AchievementsState>({ status: "loading" });
   const [event, setEvent] = useState<Event | null>(null);
   const now = new Date();
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (userId === null) return;
@@ -200,7 +206,7 @@ export function AchievementsPage() {
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [userId, attempt]);
 
-  return <AchievementsView state={state} event={event} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} />;
+  return <AchievementsView state={state} event={event} now={now} onOpenEvent={(id) => navigate({ name: "event", id })} onRetry={() => setAttempt((n) => n + 1)} />;
 }
