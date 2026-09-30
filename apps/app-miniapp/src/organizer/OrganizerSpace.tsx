@@ -284,7 +284,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         setNoticesOpen(false);
         return;
       }
-      if (manage !== null && manageScreen !== "hub" && manageScreen !== "tickets" && manageScreen !== "stats") {
+      if (manage !== null && manageScreen !== "hub") {
         setManageScreen("hub");
         return;
       }
@@ -321,9 +321,8 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   };
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
-  const dossier = manage !== null && (manageScreen === "hub" || manageScreen === "tickets" || manageScreen === "stats");
-  const ownChrome = ((section === "profile" || section === "finance" || section === "dashboard" || section === "promo" || section === "events") && !pushed) || dossier;
-  const flush = composerTitle !== null || settingsReplay || noticesOpen || (ownChrome && (section === "promo" || section === "finance")) || dossier;
+  const ownChrome = (section === "profile" || section === "finance" || section === "dashboard" || section === "promo" || section === "events") && !pushed;
+  const flush = composerTitle !== null || settingsReplay || noticesOpen || (ownChrome && (section === "promo" || section === "finance"));
   const manageTitle = manageScreen === "checkin" ? "Контроль входа" : manageScreen === "participants" ? "Участники" : manageScreen === "tickets" ? "Билеты и регистрация" : manageScreen === "stats" ? "Статистика" : manageScreen === "reviews" ? "Отзывы" : "Событие";
   const title = composerTitle ?? (statsOpen ? "Статистика" : manage !== null ? manageTitle : organizationOpen ? "Организация" : settingsOpen ? "Настройки" : ORGANIZER_SECTION_TITLES[section]);
   const hideTabs = settingsReplay || composerTitle !== null || noticesOpen || (manage !== null && manageScreen === "checkin");
@@ -417,10 +416,6 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
               setSection("events");
             }}
             onPublished={setManage}
-            onBack={() => {
-              setManage(null);
-              setManageScreen("hub");
-            }}
           />
         )}
         {settingsOpen && !organizationOpen && (
