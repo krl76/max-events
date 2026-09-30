@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { EMPTY_PROMO_DRAFT, PROMO_CAMPAIGNS, PROMO_HOME_TOOLS, PROMO_TOOL_CARDS, promoToolBlock, promoToolNotice, OrganizerPromotion } from "./OrganizerPromotion";
+import { CODE_FORM_DRAFT, EMPTY_PROMO_DRAFT, PROMO_CAMPAIGNS, PROMO_CODE_ROWS, PROMO_HOME_TOOLS, PROMO_TOOL_CARDS, PromoCodeCreate, PromoCodesScreen, promoToolBlock, promoToolNotice, OrganizerPromotion } from "./OrganizerPromotion";
 
 describe("promoToolBlock", () => {
   it("asks for a campaign name and a whole-ruble budget", () => {
@@ -43,5 +43,32 @@ describe("OrganizerPromotion", () => {
     expect(html).toContain("Опубликована");
     expect(html).toContain("Скидка 20%");
     expect(html).toContain("/covers/promo-jazz.jpg");
+    expect(html).not.toContain("Список промокодов");
+  });
+
+  it("draws the promo-code list and the new-code form from the mocks", () => {
+    const noop = () => {};
+    const list = renderToStaticMarkup(createElement(PromoCodesScreen, { onBack: noop, onCreate: noop }));
+    const form = renderToStaticMarkup(createElement(PromoCodeCreate, { draft: CODE_FORM_DRAFT, block: null, onChange: noop, onSubmit: noop, onBack: noop }));
+
+    expect(list).toContain("Промокоды");
+    expect(list).toContain("Архивные");
+    expect(list).toContain("Создавайте промокоды и привлекайте больше гостей на ваши события!");
+    expect(list).toContain("Создать промокод");
+    expect(list).toContain("Список промокодов");
+    for (const row of PROMO_CODE_ROWS) {
+      expect(list).toContain(row.code);
+      expect(list).toContain(row.detail);
+      expect(list).toContain(row.delta);
+    }
+    expect(form).toContain("Новый промокод");
+    expect(form).toContain("SUMMER2025");
+    expect(form).toContain("Тип скидки");
+    expect(form).toContain("Размер скидки, %");
+    expect(form).toContain("Выберите событие");
+    expect(form).toContain("01.08.2025 — 31.08.2025");
+    expect(form).toContain("Без ограничений");
+    expect(form).toContain("Применять ко всем билетам");
+    expect(form).toContain('aria-checked="true"');
   });
 });

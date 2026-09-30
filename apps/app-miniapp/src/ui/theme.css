@@ -29075,6 +29075,310 @@ label.app-field {
   min-height: 48px;
 }
 
+/* Список промокодов и форма «Новый промокод» — экраны макета. */
+.app-pcodes {
+  gap: 14px;
+  padding-top: 10px;
+}
+
+.app-pcodes-bar {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+}
+
+.app-pcodes-title {
+  color: #0c1238;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0;
+  text-align: center;
+}
+
+.app-pcodes-iconbtn {
+  align-items: center;
+  background: none;
+  border: none;
+  color: #0c1238;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+button.app-pcodes-iconbtn {
+  cursor: pointer;
+}
+
+.app-pcodes-back-icon {
+  display: flex;
+  transform: scaleX(-1);
+}
+
+.app-pcodes-tabs {
+  display: flex;
+  gap: 22px;
+  padding: 0 6px;
+}
+
+.app-pcodes-tabs button {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #9aabc6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 0 0 8px;
+}
+
+.app-pcodes-tabs button[aria-selected="true"] {
+  border-bottom-color: #3a56f1;
+  color: #3a56f1;
+}
+
+.app-pcodes-hero {
+  background: linear-gradient(105deg, #2a5bff 0%, #454efc 42%, #7c3afc 100%);
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.app-pcodes-hero-row {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 46px minmax(0, 1fr);
+}
+
+.app-pcodes-hero-mark,
+.app-pcodes-mark {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
+.app-pcodes-hero-mark {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  color: #ffffff;
+  height: 46px;
+  width: 46px;
+}
+
+.app-pcodes-hero p {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.app-pcodes-hero-btn,
+.app-pcodes-submit {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.app-pcodes-hero-btn {
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 14px;
+  color: #1a2458;
+  font-size: 15px;
+  min-height: 44px;
+}
+
+.app-pcodes-list-title {
+  color: #7d90b0;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 2px 0 0;
+}
+
+.app-pcodes-card {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e7eef6;
+  border-radius: 20px;
+  box-shadow: 0 8px 20px rgba(28, 45, 90, 0.04);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 48px minmax(0, 1fr);
+  padding: 12px 14px;
+}
+
+.app-pcodes-mark {
+  background: #efeaff;
+  border-radius: 14px;
+  color: #6d35fc;
+  height: 48px;
+  width: 48px;
+}
+
+.app-pcodes-code {
+  color: #12183a;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.app-pcodes-detail,
+.app-pcodes-uses {
+  color: #8ea0bf;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-pcodes-detail {
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.app-pcodes-uses {
+  margin-top: 4px;
+}
+
+.app-pcodes-uses em {
+  color: #12a85a;
+  font-style: normal;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+.app-pcodes-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.app-pcodes-field > span:first-child {
+  color: #8ea0bf;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-pcodes-pair {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.app-pcodes-input,
+.app-pcodes-control {
+  background: #ffffff;
+  border: 1px solid #e7eef6;
+  border-radius: 16px;
+  box-shadow: 0 6px 16px rgba(28, 45, 90, 0.04);
+  color: #12183a;
+  min-height: 52px;
+}
+
+.app-pcodes-input {
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 12px 16px;
+  width: 100%;
+}
+
+.app-pcodes-control {
+  align-items: center;
+  display: flex;
+  position: relative;
+}
+
+.app-pcodes-control select,
+.app-pcodes-control input {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: #12183a;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  min-height: 52px;
+  padding: 12px 36px 12px 16px;
+  width: 100%;
+}
+
+.app-pcodes-control > svg {
+  color: #b7c3d8;
+  pointer-events: none;
+  position: absolute;
+  right: 14px;
+  transform: rotate(90deg);
+}
+
+.app-pcodes-control--placeholder select {
+  color: #a9b6ce;
+  font-weight: 600;
+}
+
+.app-pcodes-control--icon > svg {
+  color: #8ea2c4;
+  left: 14px;
+  right: auto;
+  transform: none;
+}
+
+.app-pcodes-control--icon input {
+  padding-left: 42px;
+}
+
+.app-pcodes-toggle-row {
+  align-items: center;
+  color: #12183a;
+  display: flex;
+  font-size: 15px;
+  font-weight: 700;
+  justify-content: space-between;
+  padding: 4px 2px;
+}
+
+.app-pcodes-switch {
+  background: #d5deea;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  flex: none;
+  height: 30px;
+  padding: 3px;
+  width: 50px;
+}
+
+.app-pcodes-switch i {
+  background: #ffffff;
+  border-radius: 50%;
+  display: block;
+  height: 24px;
+  width: 24px;
+}
+
+.app-pcodes-switch--on {
+  background: #2f8fff;
+}
+
+.app-pcodes-switch--on i {
+  transform: translateX(20px);
+}
+
+.app-pcodes-submit {
+  background: linear-gradient(90deg, #1a6afd 0%, #4a4efc 48%, #8a3efc 100%);
+  border-radius: 16px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 800;
+  min-height: 52px;
+}
+
 .app-tabbar--org {
   background: #ffffff;
   border-top: none;
