@@ -217,6 +217,14 @@ describe("buildDemoData", () => {
     expect(data.cityWalks.length).toBeGreaterThanOrEqual(2);
     expect(data.cityWalks.every((walk) => walk.userId === devUserId && walk.payload.stops.length >= 2)).toBe(true);
     expect(data.weGroupPhotos.length).toBeGreaterThan(0);
+    const authoredPhotos = data.feedPosts.filter((post) => post.authorUserId !== devUserId).map((post) => post.photoUrl);
+    expect(new Set(authoredPhotos).size).toBe(authoredPhotos.length);
+    expect(new Set(data.stories.map((story) => story.imageUrl)).size).toBe(data.stories.length);
+    for (const photo of authoredPhotos) {
+      expect(data.stories.some((story) => story.imageUrl === photo)).toBe(false);
+    }
+    expect(data.swipeDecisions.length).toBeGreaterThan(40);
+    expect(data.swipeDecisions.every((row) => userIds.has(row.userId) && placeIds.has(row.placeId))).toBe(true);
     for (const review of data.reviews) {
       expect(userIds.has(review.userId)).toBe(true);
       expect(pastEventIds.has(review.eventId)).toBe(true);

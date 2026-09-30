@@ -65,6 +65,7 @@ import { VoteBallotEntity, VoteEntity, VoteOptionEntity, VoteParticipantEntity }
 import { WaitlistEntryEntity } from "../waitlist/waitlist-entry.entity";
 import { CityWalkEntity } from "../walks/city-walk.entity";
 import { WeGroupEntity, WeGroupItemEntity, WeGroupMemberEntity, WeGroupPhotoEntity } from "../wegroups/we-group.entity";
+import { SwipeDecisionEntity } from "../swipe/swipe-decision.entity";
 import { AUTHORED_COMMENTS, AUTHORED_POSTS, AUTHORED_REVIEWS, AUTHORED_STORIES, DEMO_CAST, ORGANIZER_REVIEW_TEXTS, ORGANIZER_SHOWCASE, PLACE_LOGOS, VIEWER_WALKS, WE_GROUP_TITLES } from "./seed-demo-cast";
 
 // --- Demo scales and guards -------------------------------------------------
@@ -95,9 +96,9 @@ export type DemoCounts = {
 };
 
 export const DEMO_COUNTS: Record<DemoScale, DemoCounts> = {
-  small: { users: 10, places: 26, events: 12, stories: 8, feedPosts: 8, reviews: 8, checkIns: 18, bookings: 10, participations: 20, plans: 3, votes: 2, weGroups: 1, gatherings: 1, microEvents: 4, subscriptions: 5, pageViews: 60, feedLikes: 20, feedComments: 8, waitlistEntries: 4, reports: 3 },
-  normal: { users: 20, places: 26, events: 12, stories: 12, feedPosts: 12, reviews: 8, checkIns: 100, bookings: 50, participations: 100, plans: 18, votes: 8, weGroups: 5, gatherings: 6, microEvents: 18, subscriptions: 24, pageViews: 320, feedLikes: 120, feedComments: 36, waitlistEntries: 16, reports: 10 },
-  big: { users: 20, places: 26, events: 12, stories: 12, feedPosts: 12, reviews: 8, checkIns: 150, bookings: 75, participations: 150, plans: 25, votes: 12, weGroups: 7, gatherings: 7, microEvents: 25, subscriptions: 40, pageViews: 500, feedLikes: 180, feedComments: 36, waitlistEntries: 25, reports: 20 },
+  small: { users: 10, places: 32, events: 12, stories: 8, feedPosts: 8, reviews: 8, checkIns: 18, bookings: 10, participations: 20, plans: 3, votes: 2, weGroups: 1, gatherings: 1, microEvents: 4, subscriptions: 5, pageViews: 60, feedLikes: 20, feedComments: 8, waitlistEntries: 4, reports: 3 },
+  normal: { users: 20, places: 32, events: 12, stories: 12, feedPosts: 12, reviews: 8, checkIns: 100, bookings: 50, participations: 100, plans: 18, votes: 8, weGroups: 5, gatherings: 6, microEvents: 18, subscriptions: 24, pageViews: 320, feedLikes: 120, feedComments: 36, waitlistEntries: 16, reports: 10 },
+  big: { users: 20, places: 32, events: 12, stories: 12, feedPosts: 12, reviews: 8, checkIns: 150, bookings: 75, participations: 150, plans: 25, votes: 12, weGroups: 7, gatherings: 7, microEvents: 25, subscriptions: 40, pageViews: 500, feedLikes: 180, feedComments: 36, waitlistEntries: 25, reports: 20 },
 };
 
 export function parseDemoScale(raw: string | undefined): DemoScale {
@@ -160,6 +161,12 @@ const PLACE_POOL: ReadonlyArray<{ title: string; address: string; category: Plac
   { title: "УСЗ «Москвич»", address: "ул. Люблинская, 100с1", category: "sport", latitude: 55.6575, longitude: 37.744 },
   { title: "ДК «Москва»", address: "ул. Ленинская Слобода, 26", category: "other", latitude: 55.7083, longitude: 37.664 },
   { title: "Кинотеатр «Иллюзион»", address: "Котельническая наб., 1/15", category: "other", latitude: 55.747, longitude: 37.641 },
+  { title: "Патриаршие пруды", address: "ул. Малая Бронная, 32", category: "park", latitude: 55.7639, longitude: 37.5924 },
+  { title: "Чистые пруды", address: "Чистопрудный бульвар, 12", category: "park", latitude: 55.7608, longitude: 37.646 },
+  { title: "Воробьёвы горы", address: "ул. Косыгина, 28", category: "park", latitude: 55.7102, longitude: 37.5594 },
+  { title: "Музеон", address: "ул. Крымский Вал, 2", category: "park", latitude: 55.7344, longitude: 37.6056 },
+  { title: "Новодевичий монастырь", address: "Новодевичий пр., 1", category: "museum", latitude: 55.7262, longitude: 37.5595 },
+  { title: "Сад «Эрмитаж»", address: "ул. Каретный Ряд, 3", category: "park", latitude: 55.7708, longitude: 37.6094 },
 ];
 
 /** Одно событие — одна площадка и два снимка: афиша места и кадр, где человек сам в кадре. */
@@ -266,6 +273,7 @@ export type DemoData = {
   promoFulfillments: PromoFulfillmentEntity[];
   cityWalks: CityWalkEntity[];
   weGroupPhotos: WeGroupPhotoEntity[];
+  swipeDecisions: SwipeDecisionEntity[];
 };
 
 function uuid(): string {
@@ -1502,6 +1510,24 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
 
   const userAchievements = buildUserAchievements(checkIns, events, places, now);
 
+  const swipeDecisions: SwipeDecisionEntity[] = [];
+  const swipePairs = new Set<string>();
+  users.forEach((user, userIndex) => {
+    places.forEach((place, placeIndex) => {
+      if ((userIndex + placeIndex) % 3 === 0) return;
+      const key = `${user.id}:${place.id}`;
+      if (swipePairs.has(key)) return;
+      swipePairs.add(key);
+      swipeDecisions.push({
+        id: uuid(),
+        userId: user.id,
+        placeId: place.id,
+        decision: (userIndex + placeIndex) % 5 === 0 ? "skip" : "like",
+        createdAt: shiftDays(now, -int(1, 21), int(10, 21)),
+      });
+    });
+  });
+
   return {
     users,
     profiles,
@@ -1544,6 +1570,7 @@ export function buildDemoData(config: DemoBuildConfig): DemoData {
     promoFulfillments,
     cityWalks,
     weGroupPhotos,
+    swipeDecisions,
   };
 }
 
@@ -1720,6 +1747,7 @@ function remapUserIds(data: DemoData, idMap: Map<string, string>): void {
   for (const row of data.userAchievements) row.userId = real(row.userId);
   for (const row of data.reports) row.userId = real(row.userId);
   for (const row of data.cityWalks) row.userId = real(row.userId);
+  for (const row of data.swipeDecisions) row.userId = real(row.userId);
 }
 
 function remapPlaceIds(data: DemoData, idMap: Map<string, string>): void {
@@ -1731,6 +1759,7 @@ function remapPlaceIds(data: DemoData, idMap: Map<string, string>): void {
   for (const subscription of data.subscriptions) subscription.placeId = real(subscription.placeId);
   for (const microEvent of data.microEvents) microEvent.placeId = real(microEvent.placeId);
   for (const post of data.feedPosts) post.placeId = real(post.placeId ?? null);
+  for (const row of data.swipeDecisions) row.placeId = real(row.placeId) ?? row.placeId;
   for (const walk of data.cityWalks) {
     walk.payload.stops = walk.payload.stops.map((stop) => {
       const placeId = real(stop.placeId);
@@ -2020,6 +2049,7 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
   inserted.planParticipants = await insertRows(dataSource.getRepository(PlanParticipantEntity), data.planParticipants);
   inserted.planExpenses = await insertRows(dataSource.getRepository(PlanExpenseEntity), data.planExpenses);
   inserted.cityWalks = await insertRows(dataSource.getRepository(CityWalkEntity), data.cityWalks);
+  inserted.swipeDecisions = await insertRows(dataSource.getRepository(SwipeDecisionEntity), data.swipeDecisions);
   inserted.organizerCabinet = await fillOrganizerCabinet(dataSource, now);
 
   const totalRows = Object.values(data).reduce((sum, rows) => sum + rows.length, 0);

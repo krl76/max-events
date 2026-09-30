@@ -30,6 +30,12 @@ const PLACE_PHOTOS: ReadonlyArray<readonly [string, string]> = [
   ["УСЗ «Москвич»", "/covers/places/moskvich.jpg"],
   ["ДК «Москва»", "/covers/places/dk.jpg"],
   ["Кинотеатр «Иллюзион»", "/covers/places/illusion.jpg"],
+  ["Патриаршие пруды", "/covers/places/patriarshie.jpg"],
+  ["Чистые пруды", "/covers/places/chistye.jpg"],
+  ["Воробьёвы горы", "/covers/dawn.jpg"],
+  ["Музеон", "/covers/graphics.jpg"],
+  ["Новодевичий монастырь", "/covers/places/novodevichy.jpg"],
+  ["Сад «Эрмитаж»", "/covers/places/hermitage.jpg"],
 ];
 
 export class SetPlacePhotos20260930120000 implements MigrationInterface {
