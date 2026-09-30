@@ -255,16 +255,26 @@ describe("SettingsView", () => {
   });
 
   it("drops visitor privacy, close friends and notifications in the organizer cabinet", () => {
-    const html = renderSettings({ organizerCabinet: true, onShowOnboarding: () => {} });
+    const html = renderSettings({ organizerCabinet: true, onShowOnboarding: () => {}, onPickCover: () => {} });
     const groups = [...html.matchAll(/class="app-set-group-title">([^<]+)</g)].map((match) => match[1]);
 
     expect(groups).toEqual(["Приложение", "Мини-приложение"]);
     expect(html).toContain("Тема");
-    expect(html).toContain("Онбординг");
+    expect(html).toContain("Шапка профиля");
+    expect(html).not.toContain("Онбординг");
+    expect(html).not.toContain("О себе");
+    expect(html).not.toContain("Интересы");
+    expect(html).not.toContain("Радиус поиска");
     expect(html).not.toContain("Кто видит мои планы");
     expect(html).not.toContain("Близкие друзья");
     expect(html).not.toContain("Когда выходить");
     expect(html).not.toContain("Тихие часы");
+
+    const visitor = renderSettings({ onShowOnboarding: () => {} });
+    expect(visitor).toContain("Онбординг");
+    expect(visitor).toContain("О себе");
+    expect(visitor).toContain("Интересы");
+    expect(visitor).toContain("Радиус поиска");
   });
 
   it("does not compare the bio to Instagram", () => {

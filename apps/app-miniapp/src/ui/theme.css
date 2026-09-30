@@ -31273,8 +31273,14 @@ button.app-mail-card {
   background: transparent;
 }
 
-.app-root .app-cab :is(.app-fin-hero, .app-pcodes-hero, .app-promo-submit, .app-pcodes-submit, .app-fin-chip--on, .app-fin-switch-btn--on, .app-promo-switch button[aria-selected="true"]) {
+.app-root .app-cab :is(.app-pcodes-hero, .app-promo-submit, .app-pcodes-submit, .app-fin-chip--on, .app-fin-switch-btn--on, .app-promo-switch button[aria-selected="true"]) {
   background: var(--app-accent);
+  color: var(--app-accent-contrast);
+}
+
+.app-root .app-cab .app-fin-hero {
+  background: linear-gradient(118deg, var(--brand-blue) 0%, var(--brand-blue-pressed) 42%, color-mix(in srgb, var(--brand-blue) 32%, var(--brand-void)) 100%);
+  box-shadow: 0 12px 28px rgba(0, 122, 255, 0.22);
   color: var(--app-accent-contrast);
 }
 

@@ -315,7 +315,7 @@ export interface SettingsViewProps {
   followers?: readonly Friend[];
   onToggleClose?: (userId: string, close: boolean) => void;
   onShowOnboarding?: () => void;
-  /** Cabinet settings keep the app controls and drop the visitor-only groups. */
+  /** Cabinet settings keep city, theme and the cover, and drop visitor profile and privacy controls. */
   organizerCabinet?: boolean;
 }
 
@@ -379,16 +379,24 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
           </>
         )}
         <SettingsValueRow title="Тема" hint="Светлая, тёмная или как в системе" value={themeLabel(theme.preference)} expanded={picker === "theme"} onOpen={() => open("theme")} />
-        {onShowOnboarding !== undefined && <SettingsValueRow title="Онбординг" hint="Посмотреть вступление ещё раз, не сбрасывая вход" value="Открыть" expanded={false} onOpen={onShowOnboarding} />}
+        {!organizerCabinet && onShowOnboarding !== undefined && <SettingsValueRow title="Онбординг" hint="Посмотреть вступление ещё раз, не сбрасывая вход" value="Открыть" expanded={false} onOpen={onShowOnboarding} />}
         {picker === "theme" && <SettingsPicker options={THEME_OPTIONS.map((option) => ({ value: option.value, label: option.label }))} selected={[theme.preference]} onPick={(value) => theme.setPreference(value as ThemePreference)} />}
-        <SettingsValueRow title="О себе" hint={profile.bio.trim() === "" ? "Коротко, по желанию" : profile.bio} value="Изменить" expanded={picker === "bio"} onOpen={() => open("bio")} />
-        {picker === "bio" && <textarea className="app-review-text" maxLength={PROFILE_BIO_MAX} value={profile.bio} onChange={(change) => onProfile({ bio: change.target.value })} placeholder="Пара слов о себе" />}
+        {!organizerCabinet && (
+          <>
+            <SettingsValueRow title="О себе" hint={profile.bio.trim() === "" ? "Коротко, по желанию" : profile.bio} value="Изменить" expanded={picker === "bio"} onOpen={() => open("bio")} />
+            {picker === "bio" && <textarea className="app-review-text" maxLength={PROFILE_BIO_MAX} value={profile.bio} onChange={(change) => onProfile({ bio: change.target.value })} placeholder="Пара слов о себе" />}
+          </>
+        )}
         {onPickCover !== undefined && <SettingsValueRow title="Шапка профиля" hint={profile.coverUrl === null ? "Градиент Афиши" : "Своя фотография"} value={profile.coverUrl === null ? "Добавить" : "Изменить"} expanded={false} onOpen={onPickCover} />}
         {profile.coverUrl !== null && onResetCover !== undefined && <SettingsValueRow title="Исходная шапка" hint="Вернуть градиент Афиши" value="Сбросить" expanded={false} onOpen={onResetCover} />}
-        <SettingsValueRow title="Интересы" hint={interestsHint(profile.interests)} value="Изменить" expanded={picker === "interests"} onOpen={() => open("interests")} />
-        {picker === "interests" && <SettingsPicker multiple options={ONBOARDING_INTERESTS.map((interest) => ({ value: interest, label: interest }))} selected={profile.interests} onPick={(interest) => onProfile({ interests: profile.interests.includes(interest) ? profile.interests.filter((item) => item !== interest) : [...profile.interests, interest] })} />}
-        <SettingsValueRow title="Радиус поиска" hint="Что считать «рядом»" value={settings === null ? undefined : radiusLabel(settings.searchRadiusKm)} expanded={picker === "radius"} onOpen={() => open("radius")} />
-        {picker === "radius" && settings !== null && <SettingsPicker options={SEARCH_RADIUS_OPTIONS.map((km) => ({ value: String(km), label: radiusLabel(km) }))} selected={[String(settings.searchRadiusKm)]} onPick={(km) => onSettings({ searchRadiusKm: Number(km) })} />}
+        {!organizerCabinet && (
+          <>
+            <SettingsValueRow title="Интересы" hint={interestsHint(profile.interests)} value="Изменить" expanded={picker === "interests"} onOpen={() => open("interests")} />
+            {picker === "interests" && <SettingsPicker multiple options={ONBOARDING_INTERESTS.map((interest) => ({ value: interest, label: interest }))} selected={profile.interests} onPick={(interest) => onProfile({ interests: profile.interests.includes(interest) ? profile.interests.filter((item) => item !== interest) : [...profile.interests, interest] })} />}
+            <SettingsValueRow title="Радиус поиска" hint="Что считать «рядом»" value={settings === null ? undefined : radiusLabel(settings.searchRadiusKm)} expanded={picker === "radius"} onOpen={() => open("radius")} />
+            {picker === "radius" && settings !== null && <SettingsPicker options={SEARCH_RADIUS_OPTIONS.map((km) => ({ value: String(km), label: radiusLabel(km) }))} selected={[String(settings.searchRadiusKm)]} onPick={(km) => onSettings({ searchRadiusKm: Number(km) })} />}
+          </>
+        )}
       </SettingsGroup>
 
       {!organizerCabinet && (
