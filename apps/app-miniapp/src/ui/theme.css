@@ -28845,6 +28845,261 @@ label.app-field {
   gap: 8px;
 }
 
+/* Кабинет организатора, вкладка «Продвижение»: холст и карточки макета. */
+.app-promo {
+  background: #f9fbfe;
+  gap: 12px;
+  min-height: 100%;
+  padding: 20px 16px 28px;
+}
+
+.app-promo-title {
+  color: #000830;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin: 0 0 4px;
+}
+
+.app-promo-lead {
+  color: #6d7ea3;
+  font-size: 15px;
+  font-weight: 500;
+  margin: -4px 0 8px;
+}
+
+.app-promo-section {
+  color: #000830;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin: 16px 0 0;
+}
+
+.app-promo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.app-promo-row,
+.app-promo-camp {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e7eef8;
+  border-radius: 22px;
+  box-shadow: 0 10px 24px rgba(24, 42, 84, 0.045);
+  color: #b4bdd0;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 12px;
+  grid-template-columns: 52px minmax(0, 1fr) 18px;
+  padding: 14px 14px 14px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-promo-camp {
+  grid-template-columns: 68px minmax(0, 1fr) 18px;
+  padding: 12px 14px;
+}
+
+.app-promo-row-icon {
+  align-items: center;
+  border-radius: 50%;
+  display: flex;
+  height: 52px;
+  justify-content: center;
+  width: 52px;
+}
+
+.app-promo-row-icon--blue {
+  background: #e7f0fe;
+  color: #1a6cff;
+}
+
+.app-promo-row-icon--violet {
+  background: #f1ecfe;
+  color: #631ffc;
+}
+
+.app-promo-row-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-promo-row-title {
+  color: #000830;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.app-promo-row-text,
+.app-promo-note {
+  color: #6d7ea3;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  margin-top: 2px;
+}
+
+.app-promo-switch {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.app-promo-switch button {
+  background: #eef3fb;
+  border: none;
+  border-radius: 999px;
+  color: #485880;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  min-height: 46px;
+  padding: 10px 12px;
+}
+
+.app-promo-switch button[aria-selected="true"] {
+  background: linear-gradient(90deg, #0071fe 0%, #3d5cfe 48%, #7442fc 100%);
+  color: #ffffff;
+}
+
+.app-promo-camp-cover,
+.app-promo-camp-mark {
+  border-radius: 16px;
+  height: 68px;
+  width: 68px;
+}
+
+.app-promo-camp-cover {
+  display: block;
+  object-fit: cover;
+}
+
+.app-promo-camp-mark {
+  align-items: center;
+  background: #f1ecfe;
+  color: #631ffc;
+  display: flex;
+  justify-content: center;
+}
+
+.app-promo-badge {
+  align-items: center;
+  align-self: flex-start;
+  background: #e5f9ee;
+  border-radius: 999px;
+  color: #03a546;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 5px;
+  line-height: 1;
+  margin-top: 6px;
+  padding: 4px 10px 4px 4px;
+}
+
+.app-promo-badge i {
+  align-items: center;
+  background: #03a546;
+  border-radius: 50%;
+  color: #ffffff;
+  display: inline-flex;
+  height: 16px;
+  justify-content: center;
+  width: 16px;
+}
+
+.app-promo-meta {
+  align-items: center;
+  color: #7e8daf;
+  display: flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.app-promo-empty {
+  color: #6d7ea3;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 4px 2px 0;
+}
+
+.app-promo-back {
+  align-items: center;
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: #485880;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  gap: 6px;
+  padding: 0;
+}
+
+.app-promo-submit {
+  background: linear-gradient(90deg, #0071fe 0%, #3d5cfe 48%, #7442fc 100%);
+  border: none;
+  border-radius: 16px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  margin-top: 8px;
+  min-height: 48px;
+}
+
+.app-tabbar--org {
+  background: #ffffff;
+  border-top: none;
+  box-shadow: 0 -1px 0 #eef2f8;
+}
+
+.app-tabbar--org button {
+  color: #8392b3;
+}
+
+.app-tabbar--org button span {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.app-tabbar--org button[aria-current="page"] {
+  color: #4c25f9;
+}
+
+.app-tabbar--org button[aria-current="page"] span {
+  background: none;
+  color: #4c25f9;
+  font-weight: 600;
+  -webkit-text-fill-color: #4c25f9;
+}
+
+.app-tabbar--org button[aria-current="page"] svg,
+.app-tabbar--org button[aria-current="page"] svg * {
+  fill: none;
+  stroke: #4c25f9;
+}
+
+.app-tabbar--org button[aria-current="page"]::after {
+  content: none;
+}
+
 .app-make {
   background: var(--app-page);
   box-sizing: border-box;

@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Organizer «Продвижение» tab — tools to launch a campaign, a feed post, a promo code and a mailing, plus the promotion counters from the cabinet mock.
-// SCOPE: The tools/analytics switch, the four action forms and the three promotion counters. Numbers follow the mock; a finished form records the action on this screen.
+// PURPOSE: Organizer «Продвижение» tab — the cabinet mock: three launch rows, the campaign switch, and the running campaigns.
+// SCOPE: The home screen from the mock, plus the feed, mailing and promo-code forms opened from those rows. Campaign cards on the home screen are the mock's own examples.
 // DEPENDS: react, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -9,7 +9,7 @@ import { useState } from "react";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { useOrganizerNativeBack } from "./organizer-native-back";
 
-export type PromoPane = "tools" | "analytics";
+export type PromoPane = "active" | "scheduled";
 export type PromoTool = "campaign" | "feed" | "code" | "mail";
 
 interface PromoToolCard {
@@ -22,16 +22,56 @@ interface PromoToolCard {
 }
 
 export const PROMO_TOOL_CARDS: PromoToolCard[] = [
+  { id: "feed", icon: "megaphone", tone: "blue", title: "Публикация в ленте", text: "Рассказать о событии", action: "Опубликовать" },
+  { id: "mail", icon: "mail", tone: "blue", title: "Рассылка", text: "Сообщение участникам", action: "Создать рассылку" },
+  { id: "code", icon: "percent", tone: "violet", title: "Промокод", text: "Скидка на билеты", action: "Создать" },
   { id: "campaign", icon: "target", tone: "blue", title: "Рекламная кампания", text: "Запустите таргетированную рекламу на вашу аудиторию", action: "Запустить" },
-  { id: "feed", icon: "share", tone: "blue", title: "Публикация в ленте", text: "Разместите событие в общей ленте пользователей", action: "Опубликовать" },
-  { id: "code", icon: "tag", tone: "violet", title: "Промокоды", text: "Создавайте промокоды для привлечения новых гостей", action: "Создать" },
-  { id: "mail", icon: "mail", tone: "violet", title: "Рассылка", text: "Отправьте персональное сообщение вашей аудитории", action: "Создать рассылку" },
 ];
 
-export const PROMO_COUNTERS = [
-  { id: "clicks", icon: "bars" as const, label: "Переходы по ссылкам", value: "1\u00a0248", delta: "+32%" },
-  { id: "reach", icon: "eye" as const, label: "Охваты (лента)", value: "45\u00a0732", delta: "+28%" },
-  { id: "subs", icon: "users" as const, label: "Подписчики", value: "362", delta: "+12%" },
+/** Rows on the promotion home screen, in the order the mock draws them. */
+export const PROMO_HOME_TOOLS: PromoTool[] = ["feed", "mail", "code"];
+
+export interface PromoCampaignCard {
+  id: string;
+  phase: PromoPane;
+  tool: "feed" | "code";
+  title: string;
+  note: string | null;
+  status: string | null;
+  meta: string;
+  cover: string | null;
+  eventTitle: string;
+  code: string;
+  discount: string;
+}
+
+export const PROMO_CAMPAIGNS: PromoCampaignCard[] = [
+  {
+    id: "jazz-post",
+    phase: "active",
+    tool: "feed",
+    title: "Публикация о вечере джаза",
+    note: null,
+    status: "Опубликована",
+    meta: "124 перехода",
+    cover: "/covers/promo-jazz.jpg",
+    eventTitle: "Вечер джаза",
+    code: "",
+    discount: "",
+  },
+  {
+    id: "jazz20",
+    phase: "active",
+    tool: "code",
+    title: "JAZZ20",
+    note: "Скидка 20%",
+    status: null,
+    meta: "12 оплаченных заказов",
+    cover: null,
+    eventTitle: "",
+    code: "JAZZ20",
+    discount: "20",
+  },
 ];
 
 const AUDIENCES = ["Все пользователи", "Были на событиях", "Подписчики"] as const;
@@ -75,9 +115,13 @@ function ToolForm({ tool, draft, block, onChange, onSubmit, onBack }: { tool: Pr
   const card = PROMO_TOOL_CARDS.find((item) => item.id === tool);
   useOrganizerNativeBack(true, onBack);
   return (
-    <section className="app-cab" aria-label={card?.title}>
-      <h1 className="app-cab-title">{card?.title}</h1>
-      <p className="app-cab-lead">{card?.text}</p>
+    <section className="app-cab app-promo" aria-label={card?.title}>
+      <button type="button" className="app-promo-back" onClick={onBack}>
+        <ActionIcon name="undo" size={18} strokeWidth={2} />
+        Назад
+      </button>
+      <h1 className="app-promo-title">{card?.title}</h1>
+      <p className="app-promo-lead">{card?.text}</p>
       {tool === "campaign" && (
         <>
           <label className="app-fin-field">
@@ -137,7 +181,7 @@ function ToolForm({ tool, draft, block, onChange, onSubmit, onBack }: { tool: Pr
         </>
       )}
       {block !== null && <p className="app-fin-block">{block}</p>}
-      <button type="button" className="app-fin-withdraw" onClick={onSubmit}>
+      <button type="button" className="app-promo-submit" onClick={onSubmit}>
         {card?.action}
       </button>
     </section>
@@ -145,11 +189,18 @@ function ToolForm({ tool, draft, block, onChange, onSubmit, onBack }: { tool: Pr
 }
 
 export function OrganizerPromotion() {
-  const [pane, setPane] = useState<PromoPane>("tools");
+  const [pane, setPane] = useState<PromoPane>("active");
   const [tool, setTool] = useState<PromoTool | null>(null);
   const [draft, setDraft] = useState<PromoDraft>(EMPTY_PROMO_DRAFT);
   const [block, setBlock] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const visible = PROMO_CAMPAIGNS.filter((card) => card.phase === pane);
+
+  const openTool = (next: PromoTool, patch: Partial<PromoDraft> = {}) => {
+    setBlock(null);
+    setDraft({ ...EMPTY_PROMO_DRAFT, ...patch });
+    setTool(next);
+  };
 
   const submit = () => {
     if (tool === null) return;
@@ -184,57 +235,75 @@ export function OrganizerPromotion() {
   }
 
   return (
-    <section className="app-cab" aria-label="Продвижение">
-      <h1 className="app-fin-title">Продвижение</h1>
-      <div className="app-cab-panes" role="tablist" aria-label="Раздел продвижения">
-        <button type="button" role="tab" aria-selected={pane === "tools"} className={pane === "tools" ? "app-cab-pane app-cab-pane--on" : "app-cab-pane"} onClick={() => setPane("tools")}>
-          Инструменты
+    <section className="app-cab app-promo" aria-label="Продвижение">
+      <h1 className="app-promo-title">Продвижение</h1>
+      <div className="app-promo-list">
+        {PROMO_HOME_TOOLS.map((id) => {
+          const card = PROMO_TOOL_CARDS.find((item) => item.id === id);
+          if (card === undefined) return null;
+          return (
+            <button key={card.id} type="button" className="app-promo-row" onClick={() => openTool(card.id)}>
+              <span className={`app-promo-row-icon app-promo-row-icon--${card.tone}`} aria-hidden="true">
+                <ActionIcon name={card.icon} size={22} strokeWidth={1.9} />
+              </span>
+              <span className="app-promo-row-copy">
+                <span className="app-promo-row-title">{card.title}</span>
+                <span className="app-promo-row-text">{card.text}</span>
+              </span>
+              <ActionIcon name="chevron" size={18} strokeWidth={2} />
+            </button>
+          );
+        })}
+      </div>
+      <h2 className="app-promo-section">Мои кампании</h2>
+      <div className="app-promo-switch" role="tablist" aria-label="Кампании">
+        <button type="button" role="tab" aria-selected={pane === "active"} onClick={() => setPane("active")}>
+          Активные
         </button>
-        <button type="button" role="tab" aria-selected={pane === "analytics"} className={pane === "analytics" ? "app-cab-pane app-cab-pane--on" : "app-cab-pane"} onClick={() => setPane("analytics")}>
-          Аналитика
+        <button type="button" role="tab" aria-selected={pane === "scheduled"} onClick={() => setPane("scheduled")}>
+          Запланированные
         </button>
       </div>
       {notice !== null && <p className="app-fin-notice">{notice}</p>}
-      {pane === "tools" && (
-        <>
-          <h2 className="app-cab-section">Реклама и охваты</h2>
-          {PROMO_TOOL_CARDS.map((card) => (
-            <article key={card.id} className="app-cab-tool">
-              <span className={`app-cab-tool-icon app-cab-tool-icon--${card.tone}`} aria-hidden="true">
-                <ActionIcon name={card.icon} size={20} strokeWidth={2} />
+      {visible.length === 0 ? (
+        <p className="app-promo-empty">Нет запланированных кампаний</p>
+      ) : (
+        <div className="app-promo-list">
+          {visible.map((card) => (
+            <button
+              key={card.id}
+              type="button"
+              className="app-promo-camp"
+              onClick={() => openTool(card.tool, { eventTitle: card.eventTitle, code: card.code, discount: card.discount })}
+            >
+              {card.cover !== null ? (
+                <img className="app-promo-camp-cover" src={card.cover} alt="" />
+              ) : (
+                <span className="app-promo-camp-mark" aria-hidden="true">
+                  <ActionIcon name="percent" size={28} strokeWidth={2.2} />
+                </span>
+              )}
+              <span className="app-promo-row-copy">
+                <span className="app-promo-row-title">{card.title}</span>
+                {card.status !== null && (
+                  <span className="app-promo-badge">
+                    <i aria-hidden="true">
+                      <ActionIcon name="check" size={11} strokeWidth={3} />
+                    </i>
+                    {card.status}
+                  </span>
+                )}
+                {card.note !== null && <span className="app-promo-note">{card.note}</span>}
+                <span className="app-promo-meta">
+                  <ActionIcon name="bars" size={14} strokeWidth={2} />
+                  {card.meta}
+                </span>
               </span>
-              <h3 className="app-cab-tool-title">{card.title}</h3>
-              <p className="app-cab-tool-text">{card.text}</p>
-              <button
-                type="button"
-                className="app-cab-tool-action"
-                onClick={() => {
-                  setBlock(null);
-                  setTool(card.id);
-                }}
-              >
-                {card.action}
-              </button>
-            </article>
+              <ActionIcon name="chevron" size={18} strokeWidth={2} />
+            </button>
           ))}
-        </>
+        </div>
       )}
-      <h2 className="app-cab-section">{pane === "tools" ? "Статистика продвижения" : "Аналитика продвижения"}</h2>
-      <ul className={pane === "analytics" ? "app-cab-stats app-cab-stats--stack" : "app-cab-stats"}>
-        {PROMO_COUNTERS.map((row) => (
-          <li key={row.id}>
-            <span>
-              <span className="app-cab-stat-label">{row.label}</span>
-              <span className="app-cab-stat-value">
-                {row.value} <em>{row.delta}</em>
-              </span>
-            </span>
-            <span className="app-cab-stat-icon" aria-hidden="true">
-              <ActionIcon name={row.icon} size={18} strokeWidth={2} />
-            </span>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }

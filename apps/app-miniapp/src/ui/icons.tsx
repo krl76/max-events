@@ -14,7 +14,7 @@
 // END_MODULE_MAP
 
 import type { LucideIcon } from "lucide-react";
-import { AlignVerticalJustifyCenter, ArrowRight, ArrowUp, Armchair, BarChart3, Bell, Bookmark, Building, CalendarDays, Camera, Car, ChartColumn, Check, ChevronRight, CircleAlert, Clock, CloudRain, CloudSun, Ellipsis, Eye, Group, Heart, House, Info, Layers, LocateFixed, Lock, Mail, MapPin, Medal, Megaphone, MessageCircle, Minus, Navigation, PenLine, Percent, PersonStanding, Plus, RefreshCw, Repeat2, ScanQrCode, Search, Send, Settings, ShieldCheck, SlidersHorizontal, Sparkles, SquarePlus, SquareStack, Star, Sun, Tag, Target, TextAlignCenter, TextAlignStart, Ticket, Trash2, TramFront, TrendingUp, Undo2, Upload, User, Users, UsersRound, Wallet, WandSparkles, X } from "lucide-react";
+import { AlignVerticalJustifyCenter, ArrowRight, ArrowUp, Armchair, BarChart3, Bell, Bookmark, Building, CalendarDays, Camera, Car, Check, ChevronRight, CircleAlert, Clock, CloudRain, CloudSun, CreditCard, Ellipsis, Eye, Group, Heart, House, Info, Layers, LocateFixed, Lock, Mail, MapPin, Medal, Megaphone, MessageCircle, Minus, Navigation, PenLine, Percent, PersonStanding, Plus, RefreshCw, Repeat2, ScanQrCode, Search, Send, Settings, ShieldCheck, SlidersHorizontal, Sparkles, SquarePlus, SquareStack, Star, Sun, Tag, Target, TextAlignCenter, TextAlignStart, Ticket, Trash2, TramFront, TrendingUp, Undo2, Upload, User, Users, UsersRound, Wallet, WandSparkles, X } from "lucide-react";
 
 export type TabIcon = "feed" | "search" | "create" | "map" | "plans" | "profile" | "dashboard" | "events" | "promo" | "finance";
 
@@ -25,10 +25,10 @@ const TAB_GLYPHS: Record<TabIcon, LucideIcon> = {
   map: MapPin,
   plans: Bookmark,
   profile: User,
-  dashboard: ChartColumn,
+  dashboard: House,
   events: CalendarDays,
   promo: Megaphone,
-  finance: Wallet,
+  finance: CreditCard,
 };
 
 /**

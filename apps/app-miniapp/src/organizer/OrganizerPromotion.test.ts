@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { EMPTY_PROMO_DRAFT, PROMO_COUNTERS, PROMO_TOOL_CARDS, promoToolBlock, promoToolNotice, OrganizerPromotion } from "./OrganizerPromotion";
+import { EMPTY_PROMO_DRAFT, PROMO_CAMPAIGNS, PROMO_HOME_TOOLS, PROMO_TOOL_CARDS, promoToolBlock, promoToolNotice, OrganizerPromotion } from "./OrganizerPromotion";
 
 describe("promoToolBlock", () => {
   it("asks for a campaign name and a whole-ruble budget", () => {
@@ -20,18 +20,28 @@ describe("promoToolBlock", () => {
 });
 
 describe("OrganizerPromotion", () => {
-  it("draws the four tools and the promotion counters from the mock", () => {
+  it("draws the promotion home screen from the mock", () => {
     const html = renderToStaticMarkup(createElement(OrganizerPromotion));
+    const home = PROMO_HOME_TOOLS.map((id) => PROMO_TOOL_CARDS.find((card) => card.id === id));
 
     expect(html).toContain("Продвижение");
+    expect(html).toContain("Мои кампании");
+    expect(html).toContain("Активные");
+    expect(html).toContain("Запланированные");
+    expect(html).not.toContain("Инструменты");
+    expect(html).not.toContain("Рекламная кампания");
     expect(html).not.toContain("Продвигайте свои события и привлекайте больше гостей");
-    expect(html).toContain("Инструменты");
-    expect(html).toContain("Аналитика");
-    expect(PROMO_TOOL_CARDS.map((card) => card.action).every((action) => html.includes(action))).toBe(true);
-    expect(html).toContain("Реклама и охваты");
-    expect(html).toContain(PROMO_COUNTERS[0].value);
-    expect(html).toContain("+32%");
-    expect(html).toContain("Охваты (лента)");
-    expect(html).toContain("Подписчики");
+    for (const card of home) {
+      expect(card).toBeDefined();
+      expect(html).toContain(card?.title);
+      expect(html).toContain(card?.text);
+    }
+    for (const campaign of PROMO_CAMPAIGNS) {
+      expect(html).toContain(campaign.title);
+      expect(html).toContain(campaign.meta);
+    }
+    expect(html).toContain("Опубликована");
+    expect(html).toContain("Скидка 20%");
+    expect(html).toContain("/covers/promo-jazz.jpg");
   });
 });
