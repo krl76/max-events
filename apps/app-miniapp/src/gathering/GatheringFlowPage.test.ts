@@ -48,6 +48,7 @@ describe("GatheringFlowView", () => {
 
     expect(html).toContain(FRIENDS_GRAPH_EMPTY_TEXT);
     expect(html).toContain("Собрать компанию");
+    expect(html).toContain("Пригласить в MAX");
     expect(html).not.toContain("Выбрать людей");
   });
 

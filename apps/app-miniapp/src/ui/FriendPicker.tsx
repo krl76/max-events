@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Переиспользуемое всплывающее окно выбора друга: поиск по имени, выбор одного или нескольких, подтверждение и отмена. Открывается по «Добавить друга» в календаре; тем же контрактом пользуются сбор компании, приглашение в план и голосование.
-// SCOPE: Презентационно поверх готового Friend[] — окно ничего не грузит и никуда не ходит: список приносит вызывающий, он же решает, что делать с выбором. Клавиатура живёт здесь: Escape, ловушка фокуса внутри окна и возврат фокуса на кнопку-открывашку.
-// DEPENDS: react, @max-events/api-contracts (Friend), ./icons.js (ActionIcon), ./theme.css
+// SCOPE: Презентационно поверх готового Friend[] — окно ничего не грузит и никуда не ходит: список приносит вызывающий, он же решает, что делать с выбором. Пустой список предлагает «Пригласить в MAX». Клавиатура живёт здесь: Escape, ловушка фокуса внутри окна и возврат фокуса на кнопку-открывашку.
+// DEPENDS: react, @max-events/api-contracts (Friend), ../friends/invite.js, ./icons.js (ActionIcon), ./theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { Friend } from "@max-events/api-contracts";
 import { PersonAvatar } from "../friends/avatar";
+import { FriendsInviteButton, useInviteFriends } from "../friends/invite";
 import { friendHandle } from "./friend-handle";
 import { ActionIcon } from "./icons";
 import { useSheetSwipe } from "./sheet";
@@ -70,6 +71,7 @@ export function FriendPicker({ friends, title = "Выбери друга", hint 
   const sheet = useRef<HTMLDivElement | null>(null);
   const search = useRef<HTMLInputElement | null>(null);
   const swipe = useSheetSwipe(onClose);
+  const inviteFriends = useInviteFriends();
 
   // Фокус уезжает в окно на открытии и возвращается на открывашку на закрытии. Без возврата
   // клавиатура и экранный диктор оказываются в начале страницы — окно как будто отбросило их назад.
@@ -115,7 +117,10 @@ export function FriendPicker({ friends, title = "Выбери друга", hint 
         {hint !== null && <p className="app-fpick-hint">{hint}</p>}
         <input ref={search} className="app-fpick-search" type="text" value={query} aria-label="Поиск по имени" placeholder="Имя друга" onChange={(change) => setQuery(change.target.value)} />
         {shown.length === 0 ? (
-          <p className="app-fpick-empty">{query.trim() === "" ? emptyText : "Никого не нашлось."}</p>
+          <div className="app-fpick-empty-block">
+            <p className="app-fpick-empty">{query.trim() === "" ? emptyText : "Никого не нашлось."}</p>
+            {query.trim() === "" && <FriendsInviteButton onClick={inviteFriends} />}
+          </div>
         ) : (
           <ul className="app-fpick-list">
             {shown.map((friend) => {

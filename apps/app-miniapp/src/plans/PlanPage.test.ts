@@ -134,6 +134,14 @@ describe("PlanView", () => {
     }
   });
 
+  it("invites people from MAX when the host has nobody left to add", () => {
+    const { card } = ready(0);
+    const html = renderToStaticMarkup(createElement(PlanView, { state: { status: "ready", card }, timeline: LOADING_TIMELINE, budget: HIDDEN_BUDGET, editingParty: true, viewerId: card.plan.hostUserId, invitable: [] }));
+
+    expect(html).toContain("Звать больше некого");
+    expect(html).toContain("Пригласить в MAX");
+  });
+
   it("renders declined and invited statuses with their modifier classes", () => {
     const { card } = ready(1);
     const html = renderToStaticMarkup(createElement(PlanView, { state: { status: "ready", card }, timeline: LOADING_TIMELINE, budget: HIDDEN_BUDGET, editingParty: true }));

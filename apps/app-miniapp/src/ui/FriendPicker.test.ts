@@ -82,6 +82,7 @@ describe("FriendPicker", () => {
     const html = render({ friends: [], emptyText: "Все друзья уже в этом календаре." });
 
     expect(html).toContain("Все друзья уже в этом календаре.");
+    expect(html).toContain("Пригласить в MAX");
     expect(html).not.toContain("app-fpick-row");
   });
 

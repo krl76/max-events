@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 15 «План на вечер»: шапка с днём и размером компании, таймлайн точек с переездами, расходы и сумма на человека, компания с приглашением, чипы уточнений и низ с чатом плана, отправкой в MAX и записью в календарь.
 // SCOPE: Данные через apiClient.getPlan / getPlanTimeline / getPlanBudget; приглашение — apiClient.addPlanParticipant и listFriends (реальные эндпоинты бэкенда), «В календарь» — apiClient.createBooking, «Отправить в чат MAX» — shareResult из ../max/bridge.js, чат плана — apiClient.createPlanChat (мок до P1-7-b). Полный редактор расходов и долгов (#218) остаётся за раскрывающимся блоком «Расходы и долги».
-// DEPENDS: ../api/client.js (apiClient, ApiError, PlanTimeline), ../auth/AuthContext.js, @max-events/api-contracts (Friend, PlanBudget, PlanCancelScope, PlanCard, PlanParticipantStatus), ./BudgetSection.js, ./PlanCreatePage.js (planRepeatLabel), ./PlanTimeline.js, ../max/bridge.js (openChatLink, shareResult, webApp), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, ApiError, PlanTimeline), ../auth/AuthContext.js, @max-events/api-contracts (Friend, PlanBudget, PlanCancelScope, PlanCard, PlanParticipantStatus), ./BudgetSection.js, ./PlanCreatePage.js (planRepeatLabel), ./PlanTimeline.js, ../friends/invite.js, ../max/bridge.js (openChatLink, shareResult, webApp), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -21,6 +21,7 @@ import { useEffect, useState } from "react";
 import type { Friend, PlanBudget, PlanCancelScope, PlanCard, PlanParticipantStatus } from "@max-events/api-contracts";
 import { ApiError, apiClient, isEndpointMissing, type PlanTimeline } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { FriendsInviteButton, useInviteFriends } from "../friends/invite";
 import { openChatLink, shareResult, webApp } from "../max/bridge";
 import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
@@ -91,6 +92,7 @@ interface PlanViewProps {
 }
 
 export function PlanView({ state, timeline, budget, onOpenEvent = () => {}, onAsk = () => {}, onChat = () => {}, onShare = () => {}, onCalendar = () => {}, notice = null, editingParty = false, onEditParty = () => {}, invitable = [], onInvite = () => {}, viewerId = null, cancelling = false, cancelFailed = false, onCancelStart = () => {}, onCancelDismiss = () => {}, onCancel = () => {} }: PlanViewProps) {
+  const inviteFriends = useInviteFriends();
   if (state.status === "loading")
     return (
       <div className="app-plan" aria-busy="true">
@@ -146,7 +148,10 @@ export function PlanView({ state, timeline, budget, onOpenEvent = () => {}, onAs
             </ul>
             {viewerId === plan.hostUserId &&
               (invitable.length === 0 ? (
-                <p className="app-plan-repeat">Звать больше некого — все друзья уже в плане.</p>
+                <div className="app-plan-invite-empty">
+                  <p className="app-plan-repeat">Звать больше некого — все друзья уже в плане.</p>
+                  <FriendsInviteButton onClick={inviteFriends} />
+                </div>
               ) : (
                 <ul className="app-plan-participants" aria-label="Кого позвать">
                   {invitable.map((friend) => (

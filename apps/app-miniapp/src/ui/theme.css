@@ -14399,6 +14399,16 @@ button.app-poll-result {
   margin: 0;
 }
 
+.app-plan-invite-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-plan-invite-empty .app-friends-invite {
+  margin: 0;
+}
+
 .app-plan-money {
   border-top: var(--app-hairline);
   display: flex;
@@ -21206,11 +21216,21 @@ button.app-cal-peer-chip {
   padding: 8px 12px;
 }
 
+.app-fpick-empty-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--app-space-l) 0;
+}
+
+.app-fpick-empty-block .app-friends-invite {
+  margin: 0;
+}
+
 .app-fpick-empty {
-  color: var(--app-text-secondary);
+  color: var(--app-text);
   font-size: var(--app-font-size-callout);
   margin: 0;
-  padding: var(--app-space-l) 0;
   text-align: center;
 }
 

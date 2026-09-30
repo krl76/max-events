@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: «Собрать компанию» flow: pick friends in the FriendPicker sheet (avatar, nick, search), propose a meeting time, launch the gathering.
-// SCOPE: Data via apiClient.getEvent + apiClient.getFriendAvailability(eventId), local selection state, launch via apiClient.createGathering, then navigation to the gathering screen; an empty friend graph says why instead of showing an empty picker.
-// DEPENDS: ../api/client.js (apiClient, FriendAvailability), ../friends/avatar.js, ../friends/friends-empty.js, ../routing/router.js, ../ui/FriendPicker.js, ../ui/WhenField.js, ../ui/theme.css
+// SCOPE: Data via apiClient.getEvent + apiClient.getFriendAvailability(eventId), local selection state, launch via apiClient.createGathering, then navigation to the gathering screen; an empty friend graph offers «Пригласить в MAX» instead of a dead picker.
+// DEPENDS: ../api/client.js (apiClient, FriendAvailability), ../friends/avatar.js, ../friends/friends-empty.js, ../friends/invite.js, ../routing/router.js, ../ui/FriendPicker.js, ../ui/WhenField.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
@@ -18,6 +18,7 @@ import { apiClient } from "../api/client";
 import type { Friend, FriendAvailability } from "@max-events/api-contracts";
 import { PersonAvatar } from "../friends/avatar";
 import { FRIENDS_GRAPH_EMPTY_TEXT } from "../friends/friends-empty";
+import { FriendsInviteButton, useInviteFriends } from "../friends/invite";
 import { useRoute } from "../routing/router";
 import { friendHandle } from "../ui/friend-handle";
 import { FriendPicker } from "../ui/FriendPicker";
@@ -48,6 +49,7 @@ interface GatheringFlowViewProps {
 }
 
 export function GatheringFlowView({ state, selected, meetingAt, submitting, failed, picking, onSelected, onMeetingAt, onLaunch, onOpenPicker, onClosePicker }: GatheringFlowViewProps) {
+  const inviteFriends = useInviteFriends();
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить друзей.</AppState>;
   const friends = gatheringFriends(state.friends);
@@ -59,7 +61,10 @@ export function GatheringFlowView({ state, selected, meetingAt, submitting, fail
       </AppTitle>
       <p className="app-gathering-hint">{state.eventTitle}</p>
       {friends.length === 0 ? (
-        <AppState>{FRIENDS_GRAPH_EMPTY_TEXT}</AppState>
+        <>
+          <AppState>{FRIENDS_GRAPH_EMPTY_TEXT}</AppState>
+          <FriendsInviteButton onClick={inviteFriends} />
+        </>
       ) : (
         <>
           {picked.length > 0 && (

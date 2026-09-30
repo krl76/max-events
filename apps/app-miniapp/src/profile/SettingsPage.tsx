@@ -1,7 +1,7 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Экран 41 «Настройки»: the MAX identity row and the grouped sections — Приложение, Приватность, Близкие, Уведомления, Мини-приложение — plus «Отключить мини-приложение». Organizer settings only when organizer mode is already on. Close friends are assembled from people who follow the viewer.
 // SCOPE: The settings screen only. What the Profile contract carries (city, interests, privacy, smart alerts) is written with apiClient.updateProfile; the rest is apiClient.getAppSettings/updateAppSettings; the colour scheme is the useAppTheme preference, not a server field. Pickers are inline disclosures — no separate screen per row. Close friends open the same bottom sheet as friend pickers.
-// DEPENDS: ../api/client.js (apiClient, AppSettings), ../auth/AuthContext.js, ../max/bridge.js (getWebApp), ../onboarding/onboarding.js (ONBOARDING_CITIES, ONBOARDING_INTERESTS), ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.js (useAppTheme, ThemePreference), @max-events/api-contracts (Profile, UpdateProfile, User), ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, AppSettings), ../auth/AuthContext.js, ../friends/invite.js, ../max/bridge.js (getWebApp), ../onboarding/onboarding.js (ONBOARDING_CITIES, ONBOARDING_INTERESTS), ../catalog/format.js (pluralRu), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, ../ui/theme.js (useAppTheme, ThemePreference), @max-events/api-contracts (Profile, UpdateProfile, User), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 //
@@ -41,6 +41,7 @@ import { isCustomProfileAvatar } from "./ProfilePage";
 import { pluralRu } from "../catalog/format";
 import { readFeedPhoto } from "../feed/photo";
 import { PersonAvatar } from "../friends/avatar";
+import { FriendsInviteButton, useInviteFriends } from "../friends/invite";
 import { getWebApp } from "../max/bridge";
 import { friendHandle } from "../ui/friend-handle";
 import { requestViewerOrigin } from "../geo/viewer-origin";
@@ -200,6 +201,7 @@ export function CloseFriendsDialog({ closeFriends, followers, loading = false, o
   const [query, setQuery] = useState("");
   const sheet = useRef<HTMLDivElement | null>(null);
   const search = useRef<HTMLInputElement | null>(null);
+  const inviteFriends = useInviteFriends();
   const rows = closeFriendRows(closeFriends, followers);
   const shown = filterCloseFriends(
     rows.map((row) => row.person),
@@ -252,7 +254,10 @@ export function CloseFriendsDialog({ closeFriends, followers, loading = false, o
         <p className="app-fpick-hint">Только из тех, кто добавил вас</p>
         <input ref={search} className="app-fpick-search" type="text" value={query} aria-label="Поиск по имени или нику" placeholder="Имя или ник" onChange={(change) => setQuery(change.target.value)} />
         {visible.length === 0 ? (
-          <p className="app-fpick-empty">{empty}</p>
+          <div className="app-fpick-empty-block">
+            <p className="app-fpick-empty">{empty}</p>
+            {!loading && query.trim() === "" && followers.length === 0 && closeFriends.length === 0 && <FriendsInviteButton onClick={inviteFriends} />}
+          </div>
         ) : (
           <ul className="app-fpick-list">
             {visible.map(({ person, close }) => (

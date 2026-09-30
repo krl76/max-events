@@ -189,6 +189,7 @@ describe("CloseFriendsDialog", () => {
     const html = renderToStaticMarkup(createElement(CloseFriendsDialog, { closeFriends: [], followers: [], onToggle: () => {}, onClose: () => {} }));
 
     expect(html).toContain("Вас пока никто не добавил.");
+    expect(html).toContain("Пригласить в MAX");
     expect(html).not.toContain("Добавить");
   });
 });
