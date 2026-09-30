@@ -563,7 +563,6 @@ export function OrganizerFinance() {
           </ul>
         )}
       </article>
-      <PeriodSwitch period={period} onPeriod={setPeriod} />
     </section>
   );
 }

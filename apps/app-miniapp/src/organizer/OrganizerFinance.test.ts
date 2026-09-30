@@ -83,7 +83,8 @@ describe("OrganizerFinance", () => {
     expect(html).toContain("Выплачено");
     expect(html).toContain("Списано");
     expect(html).toContain("Год");
-    expect(html.match(/aria-pressed="true"/g)).toHaveLength(3);
+    expect(html.match(/aria-pressed="true"/g)).toHaveLength(2);
+    expect(html.match(/class="app-fin-switch"/g)).toHaveLength(1);
     expect(html).not.toContain("К выводу");
     expect(html).not.toContain("Вывести средства");
   });
