@@ -25,7 +25,7 @@
 // - EventDraftForm - presentational event form with inline errors, create and edit modes
 // - PlaceDraftForm - presentational place twin
 // - OrganizerListStatus - presentational loading/error/empty line for a list state
-// - CabinetListSwitch - «События» / «Места» in the same sliding pill as the profile tabs
+// - CabinetListSwitch - «События» / «Места» as catalog AppChip toggles
 // - OrganizerPanel - panel keyed by the organization id: events/places tabs, data loading, create/publish/edit mutations; renders the own-rating card and per-event stats/promotion addons from ./OrganizerAddons.js (#196/#199/#206)
 // - OrganizerPage - legacy route stub: the panel lives in the organizer space (./OrganizerSpace.js) behind the organizer login
 // END_MODULE_MAP
@@ -33,9 +33,8 @@
 import { useEffect, useRef, useState } from "react";
 import { EventCategorySchema, PlaceCategorySchema, type CreateEvent, type CreatePlace, type EventCategory, type PlaceCategory, type UpdateOrganizerEventOptions } from "@max-events/api-contracts";
 import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganizerEvent } from "../api/client";
-import { CATEGORY_LABELS } from "../catalog/CatalogPage";
-import { posterHighlight } from "../search/EventPoster";
-import { pictured } from "../ui/photos";
+import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
+import { eventFillLabel, pictured } from "../ui/photos";
 import { CABINET_EVENTS, mergeCabinetEvents } from "./cabinet-catalog";
 import { weeklySeriesUntil } from "./OrganizerEventForm";
 import { SettingsSwitchRow } from "../profile/SettingsPage";
@@ -278,23 +277,26 @@ export function splitOrganizerEvents(items: OrganizerEvent[], now = Date.now()):
   return { drafts, upcoming, past };
 }
 
-export function OrganizerEventCard({ item, placeTitle = null, failed, onOpen }: { item: OrganizerEvent; placeTitle?: string | null; publishing?: boolean; failed: boolean; onOpen?: () => void; onPublish?: () => void; onEdit?: () => void }) {
-  const when = new Date(item.startsAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-  const highlight = posterHighlight({ event: item, distanceKm: null, rating: null, placeTitle });
+export function eventSeatCaption(item: OrganizerEvent, booked: number): string {
+  if (item.draft) return "Ещё не в афише";
+  return eventFillLabel({ capacity: item.capacity, bookedCount: booked }) ?? "Без лимита мест";
+}
+
+export function OrganizerEventCard({ item, booked = 0, placeTitle = null, failed, onOpen }: { item: OrganizerEvent; booked?: number; placeTitle?: string | null; publishing?: boolean; failed: boolean; onOpen?: () => void; onPublish?: () => void; onEdit?: () => void }) {
   const where = placeTitle !== null && placeTitle !== "" ? placeTitle : item.city;
+  const past = new Date(item.endsAt ?? item.startsAt).getTime() < Date.now();
+  const status = item.draft ? "Черновик" : past ? "Завершено" : "В афише";
   const face = (
     <>
       <span className="app-poster-photo">
         <img alt="" src={pictured(item.id, item.coverUrl)} />
       </span>
       <span className="app-poster-copy">
-        {item.draft ? <span className="app-poster-host">Черновик</span> : item.organizerName ? <span className="app-poster-host">{item.organizerName}</span> : null}
+        <span className="app-poster-host">{status}</span>
         <span className="app-poster-title">{item.title}</span>
-        <span className="app-poster-meta">
-          {when}
-          {where !== "" ? ` · ${where}` : ""}
-        </span>
-        {highlight !== null && <span className="app-poster-highlight">{highlight}</span>}
+        <span className="app-poster-meta">{formatStartsAt(item.startsAt)}</span>
+        {where !== "" && <span className="app-poster-meta">{where}</span>}
+        <span className="app-poster-highlight">{eventSeatCaption(item, booked)}</span>
       </span>
     </>
   );
@@ -750,45 +752,16 @@ function upsert<T extends { id: string }>(items: T[], item: T): T[] {
 
 export type CabinetListTab = "events" | "places";
 
-/** Same sliding pill as the profile «Посты / Места / Сохранённое» switch, with two labels. */
+/** Catalog chips: the same AppChip pair as «Список / Карта». */
 export function CabinetListSwitch({ tab, onTab }: { tab: CabinetListTab; onTab: (tab: CabinetListTab) => void }) {
-  const tabs: CabinetListTab[] = ["events", "places"];
   return (
-    <div
-      className="app-me-tabs"
-      role="tablist"
-      aria-label="События и места"
-      style={{ ["--me-tabs" as string]: 2, ["--me-tab" as string]: tab === "places" ? 1 : 0, marginTop: 0 }}
-      onPointerDown={(event) => {
-        const host = event.currentTarget;
-        const pick = (clientX: number) => {
-          const box = host.getBoundingClientRect();
-          const next = Math.min(tabs.length - 1, Math.max(0, Math.floor(((clientX - box.left) / Math.max(box.width, 1)) * tabs.length)));
-          const chosen = tabs[next];
-          if (chosen !== undefined) onTab(chosen);
-        };
-        host.setPointerCapture(event.pointerId);
-        pick(event.clientX);
-        const move = (pointer: PointerEvent) => {
-          if (pointer.pointerId !== event.pointerId) return;
-          pick(pointer.clientX);
-        };
-        const up = (pointer: PointerEvent) => {
-          if (pointer.pointerId !== event.pointerId) return;
-          host.removeEventListener("pointermove", move);
-          host.removeEventListener("pointerup", up);
-        };
-        host.addEventListener("pointermove", move);
-        host.addEventListener("pointerup", up);
-      }}
-    >
-      <span className="app-me-tab-pill" aria-hidden="true" />
-      <button type="button" role="tab" aria-selected={tab === "events"} className={tab === "events" ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onTab("events")}>
+    <div className="app-filters-chips" role="group" aria-label="События и места">
+      <AppChip pressed={tab === "events"} onClick={() => onTab("events")}>
         События
-      </button>
-      <button type="button" role="tab" aria-selected={tab === "places"} className={tab === "places" ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onTab("places")}>
+      </AppChip>
+      <AppChip pressed={tab === "places"} onClick={() => onTab("places")}>
         Места
-      </button>
+      </AppChip>
     </div>
   );
 }
@@ -1043,80 +1016,49 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
   const matchesQuery = (item: OrganizerEvent) => item.title.toLowerCase().includes(eventQuery.trim().toLowerCase());
   const visibleEvents = groups === null ? [] : (eventFilter === "drafts" ? groups.drafts : eventFilter === "archive" ? groups.past : eventFilter === "published" ? groups.upcoming : merged).filter(matchesQuery);
   const renderEvents = (items: OrganizerEvent[]) => (
-    <div className="app-evt-list">
-      {items.map((item) => {
-        const sold = seatsSold(item);
-        const when = new Date(item.startsAt);
-        const past = new Date(item.endsAt ?? item.startsAt).getTime() < Date.now();
-        const status = item.draft ? "Черновик" : past ? "Архив" : "Опубликовано";
-        return (
-          <button
-            key={item.id}
-            type="button"
-            className="app-evt-card"
-            onClick={() => onOpenEvent?.(item)}
-          >
-            <span className="app-evt-photo">
-              <img alt="" src={pictured(item.id, item.coverUrl)} />
-            </span>
-            <span className="app-evt-copy">
-              <span className="app-evt-title">{item.title}</span>
-              <span className="app-evt-meta">
-                {when.toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {item.city}
-              </span>
-              <span className="app-evt-meta">
-                {item.capacity === null ? "Без лимита" : `${item.capacity} мест`} · Продано: {sold}
-              </span>
-              <span className={item.draft ? "app-evt-status app-evt-status--draft" : past ? "app-evt-status app-evt-status--archive" : "app-evt-status"}>{status}</span>
-            </span>
-          </button>
-        );
-      })}
+    <div className="app-poster-stack">
+      {items.map((item) => (
+        <OrganizerEventCard key={item.id} item={item} booked={seatsSold(item)} failed={false} onOpen={() => onOpenEvent?.(item)} />
+      ))}
     </div>
   );
 
   return (
-    <section className="app-gathering app-evt-home">
-      <h1 className="app-fin-title">События</h1>
+    <section className="app-gathering">
+      <h1 className="app-section-title">События</h1>
       <CabinetListSwitch tab={tab} onTab={setTab} />
       {tab === "events" && (
         <>
-          <button type="button" className="app-fin-withdraw" onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
-            <span className="app-fin-withdraw-plus" aria-hidden="true">
-              +
-            </span>
+          <AppButton stretched onClick={() => openEventForm({ mode: "create", draft: EMPTY_EVENT_DRAFT })}>
             Создать событие
-          </button>
+          </AppButton>
           <input className="app-profile-input" aria-label="Поиск" placeholder="Поиск" value={eventQuery} onChange={(change) => setEventQuery(change.target.value)} />
-          <div className="app-evt-filters" role="tablist" aria-label="Состояние событий">
+          <div className="app-filters-chips" role="group" aria-label="Состояние событий">
             {(
               [
-                ["all", "Все", merged.length],
-                ["published", "Опубликованные", groups?.upcoming.length ?? 0],
-                ["drafts", "Черновики", groups?.drafts.length ?? 0],
-                ["archive", "Архив", groups?.past.length ?? 0],
+                ["all", "Все"],
+                ["published", "В афише"],
+                ["drafts", "Черновики"],
+                ["archive", "Архив"],
               ] as const
-            ).map(([id, label, count]) => (
-              <button key={id} type="button" role="tab" aria-selected={eventFilter === id} className={eventFilter === id ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => setEventFilter(id)}>
-                {label} {count}
-              </button>
+            ).map(([id, label]) => (
+              <AppChip key={id} pressed={eventFilter === id} onClick={() => setEventFilter(id)}>
+                {label}
+              </AppChip>
             ))}
           </div>
           <OrganizerListStatus state={events} emptyText="Пока нет событий — создайте первое." />
           {events.status === "ready" && events.items.length > 0 && visibleEvents.length === 0 && (
-            <>
-              <p className="app-gathering-hint">Ничего не найдено. Фильтр и поиск сохранены.</p>
-              <AppButton
-                tone="secondary"
-                stretched
-                onClick={() => {
-                  setEventQuery("");
-                  setEventFilter("all");
-                }}
-              >
-                Сбросить
-              </AppButton>
-            </>
+            <AppButton
+              tone="secondary"
+              stretched
+              onClick={() => {
+                setEventQuery("");
+                setEventFilter("all");
+              }}
+            >
+              Сбросить
+            </AppButton>
           )}
           {renderEvents(visibleEvents)}
         </>
@@ -1140,14 +1082,10 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
       )}
       {tab === "places" && placeFocus === null && (
         <>
-          <button type="button" className="app-fin-withdraw" onClick={() => openPlaceForm({ mode: "create", draft: EMPTY_PLACE_DRAFT })}>
-            <span className="app-fin-withdraw-plus" aria-hidden="true">
-              +
-            </span>
+          <AppButton stretched onClick={() => openPlaceForm({ mode: "create", draft: EMPTY_PLACE_DRAFT })}>
             Добавить место
-          </button>
+          </AppButton>
           <input className="app-profile-input" aria-label="Поиск" placeholder="Поиск" value={placeQuery} onChange={(change) => setPlaceQuery(change.target.value)} />
-          <p className="app-gathering-hint">Место можно завести отдельно от события. Нажмите карточку — откроется управление местом.</p>
           <OrganizerListStatus state={places} emptyText="Пока нет мест. Площадка нужна, чтобы гости видели адрес." />
           {places.status === "ready" && places.items.filter((item) => item.title.toLowerCase().includes(placeQuery.trim().toLowerCase())).map((item) => <OrganizerPlaceCard key={item.id} item={item} publishing={publishingId === item.id} failed={publishErrorId === item.id} onPublish={() => publishPlace(item.id)} onOpen={() => setPlaceFocus(item.id)} />)}
         </>

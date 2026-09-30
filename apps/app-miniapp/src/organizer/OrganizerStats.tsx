@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiClient, type OrganizerSummary } from "../api/client";
-import { AppSkeletonList, AppState } from "../ui/primitives";
-import { PROMO_PERIODS, TRAFFIC_SOURCE_LABELS, WEEKDAY_LABELS, barHeights, formatCount, formatDelta, periodQueryFor, trafficLead } from "./OrganizerDashboard";
+import { AppChip, AppSkeletonList, AppState } from "../ui/primitives";
+import { PROMO_PERIODS, TRAFFIC_SOURCE_LABELS, WEEKDAY_LABELS, barHeights, formatCount, periodQueryFor, trafficLead } from "./OrganizerDashboard";
 
 export function OrganizerStats({ embedded = false }: { embedded?: boolean } = {}) {
   const [days, setDays] = useState(30);
@@ -29,12 +29,11 @@ export function OrganizerStats({ embedded = false }: { embedded?: boolean } = {}
   return (
     <section className="app-gathering" aria-label="Источники регистраций">
       {!embedded && <h1 className="app-section-title">Источники регистраций</h1>}
-      <p className="app-gathering-hint">Откуда гости находят события организации в MAX: чаты, лента и поиск.</p>
-      <div className="app-evt-filters" role="tablist" aria-label="Период">
+      <div className="app-filters-chips" role="group" aria-label="Период">
         {PROMO_PERIODS.map((period) => (
-          <button key={period.days} type="button" role="tab" aria-selected={days === period.days} className={days === period.days ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => setDays(period.days)}>
+          <AppChip key={period.days} pressed={days === period.days} onClick={() => setDays(period.days)}>
             {period.label}
-          </button>
+          </AppChip>
         ))}
       </div>
       {failed && <AppState error>Не удалось загрузить источники регистраций.</AppState>}
@@ -43,21 +42,17 @@ export function OrganizerStats({ embedded = false }: { embedded?: boolean } = {}
         <>
           <div className="app-org-tiles">
             <div className="app-org-tile">
-              <span className="app-org-tile-label">Регистрации за период</span>
+              <span className="app-org-tile-label">Регистрации</span>
               <span className="app-org-tile-big">{formatCount(summary.bookings)}</span>
-              <span className="app-org-tile-note">{formatDelta(summary.bookingsDeltaPercent)}</span>
             </div>
             <div className="app-org-tile">
               <span className="app-org-tile-label">Дошли до входа</span>
-              <span className="app-org-tile-big">{summary.attendedPercent === null ? "Нет данных" : `${summary.attendedPercent}%`}</span>
-              <span className="app-org-tile-note">по контролю входа</span>
+              <span className="app-org-tile-big">{summary.attendedPercent === null ? "—" : `${summary.attendedPercent}%`}</span>
             </div>
           </div>
           {lead !== null && (
             <div className="app-org-sources">
               <span className="app-org-chart-title">{lead.lead}</span>
-              {lead.rest !== "" && <span className="app-org-tile-note">{lead.rest}</span>}
-              {summary.bookings === 0 && <span className="app-org-tile-note">За период регистраций нет: это измеренный ноль, а не отсутствие учёта.</span>}
               {summary.sources.map((row) => (
                 <div key={row.source} className="app-org-source">
                   <span className="app-org-source-label">{TRAFFIC_SOURCE_LABELS[row.source]}</span>

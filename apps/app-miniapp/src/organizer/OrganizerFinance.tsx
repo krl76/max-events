@@ -15,7 +15,9 @@
 // END_MODULE_MAP
 
 import { useState } from "react";
+import { SettingsGroup } from "../profile/SettingsPage";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { AppButton, AppChip } from "../ui/primitives";
 import { useOrganizerNativeBack } from "./organizer-native-back";
 
 export type FinanceScope = "all" | "events" | "promocodes";
@@ -356,15 +358,15 @@ function OperationRow({ row, onOpen }: { row: FinanceOperation; onOpen?: () => v
 
 export function OrganizerFinance() {
   const [period, setPeriod] = useState<FinancePeriod>(30);
-  const [flow, setFlow] = useState<"all" | "in" | "out">("all");
+  const [scope, setScope] = useState<FinanceScope>("all");
   const [screen, setScreen] = useState<"home" | "detail" | "withdraw">("home");
   const [opened, setOpened] = useState<FinanceOperation | null>(null);
   const [withdrawals, setWithdrawals] = useState<FinanceOperation[]>([]);
   const [amount, setAmount] = useState("");
   const [block, setBlock] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const view = financeView("all", period, withdrawals);
-  const operations = view.operations.filter((row) => (flow === "in" ? row.amountRub > 0 : flow === "out" ? row.amountRub < 0 : true));
+  const view = financeView(scope, period, withdrawals);
+  const operations = view.operations;
   useOrganizerNativeBack(screen !== "home", () => {
     setScreen("home");
     setOpened(null);
@@ -387,26 +389,25 @@ export function OrganizerFinance() {
 
   if (screen === "detail" && opened !== null) {
     return (
-      <section className="app-fin" aria-label="Операция">
-        <p className="app-fin-lead">{KIND_LABEL[opened.kind]}</p>
+      <section className="app-gathering" aria-label="Операция">
+        <h1 className="app-section-title">{KIND_LABEL[opened.kind]}</h1>
         <p className="app-fin-available">{formatRub(opened.amountRub, true)}</p>
-        <h1 className="app-fin-title">{opened.title}</h1>
-        <p className="app-fin-lead">{opened.when}</p>
-        <p className="app-gathering-hint">{operationHint(opened.kind)}</p>
+        <p className="app-section-title">{opened.title}</p>
+        <p>{opened.when}</p>
+        <p>{operationHint(opened.kind)}</p>
       </section>
     );
   }
 
   if (screen === "withdraw") {
     return (
-      <section className="app-fin" aria-label="Вывести средства">
-        <h1 className="app-fin-title">Вывести средства</h1>
-        <p className="app-fin-lead">Доступно к выводу</p>
+      <section className="app-gathering" aria-label="Вывести средства">
+        <h1 className="app-section-title">Вывести средства</h1>
         <p className="app-fin-available">{formatRub(view.availableRub)}</p>
-        <label className="app-fin-field">
-          <span className="app-fin-field-label">Сумма</span>
+        <label className="app-org-field">
+          <span className="app-org-field-label">Сумма</span>
           <input
-            className="app-fin-field-input"
+            className="app-profile-input"
             inputMode="numeric"
             placeholder="0"
             value={amount}
@@ -417,71 +418,81 @@ export function OrganizerFinance() {
           />
         </label>
         {block !== null && <p className="app-fin-block">{block}</p>}
-        <button type="button" className="app-fin-withdraw" onClick={submitWithdrawal}>
-          <span className="app-fin-withdraw-plus" aria-hidden="true">
-            <ActionIcon name="plus" size={16} strokeWidth={2.6} />
-          </span>
+        <AppButton stretched onClick={submitWithdrawal}>
           Вывести
-        </button>
+        </AppButton>
       </section>
     );
   }
 
   return (
-    <section className="app-fin" aria-label="Финансы">
-      <h1 className="app-fin-title">Финансы</h1>
+    <section className="app-gathering" aria-label="Финансы">
+      <h1 className="app-section-title">Финансы</h1>
       {notice !== null && <p className="app-fin-notice">{notice}</p>}
-      <p className="app-fin-lead">Доступно к выводу</p>
-      <p className="app-fin-available">{formatRub(view.availableRub)}</p>
-      <div className="app-evt-filters" role="tablist" aria-label="Период">
+      <div className="app-org-tiles">
+        <button type="button" className="app-org-tile" onClick={() => setScreen("withdraw")}>
+          <span className="app-org-tile-label">К выводу</span>
+          <span className="app-org-tile-big">{formatRub(view.availableRub)}</span>
+        </button>
+        <button type="button" className="app-org-tile" onClick={() => setScope("all")}>
+          <span className="app-org-tile-label">Учтено</span>
+          <span className="app-org-tile-big">{formatRub(view.totalRub)}</span>
+        </button>
+      </div>
+      <div className="app-filters-chips" role="group" aria-label="Период">
         {FINANCE_PERIODS.map((item) => (
-          <button key={item} type="button" role="tab" aria-selected={period === item} className={period === item ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => setPeriod(item)}>
+          <AppChip key={item} pressed={period === item} onClick={() => setPeriod(item)}>
             {item} дней
+          </AppChip>
+        ))}
+      </div>
+      <div className="app-org-tiles">
+        {view.tiles.map((tile) => (
+          <button
+            key={tile.id}
+            type="button"
+            className="app-org-tile"
+            onClick={() => setScope(tile.tone === "promo" ? "promocodes" : tile.tone === "event" ? "events" : "all")}
+          >
+            <span className="app-org-tile-label">{tile.label}</span>
+            <span className="app-org-tile-big">{formatRub(tile.amountRub)}</span>
           </button>
         ))}
       </div>
-      <div className="app-evt-filters" role="tablist" aria-label="Операции">
-        {(
-          [
-            ["all", "Все"],
-            ["in", "Поступления"],
-            ["out", "Выплаты"],
-          ] as const
-        ).map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={flow === id} className={flow === id ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => setFlow(id)}>
-            {label}
+      <SettingsGroup title="Операции">
+        {operations.length === 0 && (
+          <div className="app-set-row">
+            <span className="app-set-row-text">
+              <span className="app-set-row-title">За этот период пусто</span>
+            </span>
+          </div>
+        )}
+        {operations.map((row) => (
+          <button
+            key={row.id}
+            type="button"
+            className="app-set-row"
+            onClick={() => {
+              setOpened(row);
+              setScreen("detail");
+            }}
+          >
+            <span className="app-set-row-text">
+              <span className="app-set-row-title">{row.title}</span>
+            </span>
+            <span className={row.amountRub > 0 ? "app-fin-op-amount app-fin-op-amount--in" : "app-fin-op-amount"}>{formatRub(row.amountRub, true)}</span>
           </button>
         ))}
-      </div>
-      {operations.length === 0 ? (
-        <p className="app-fin-empty">Операций за этот период нет.</p>
-      ) : (
-        <ul className="app-fin-ops">
-          {operations.map((row) => (
-            <OperationRow
-              key={row.id}
-              row={row}
-              onOpen={() => {
-                setOpened(row);
-                setScreen("detail");
-              }}
-            />
-          ))}
-        </ul>
-      )}
-      <button
-        type="button"
-        className="app-fin-withdraw"
+      </SettingsGroup>
+      <AppButton
+        stretched
         onClick={() => {
           setBlock(null);
           setScreen("withdraw");
         }}
       >
-        <span className="app-fin-withdraw-plus" aria-hidden="true">
-          <ActionIcon name="plus" size={16} strokeWidth={2.6} />
-        </span>
         Вывести средства
-      </button>
+      </AppButton>
     </section>
   );
 }

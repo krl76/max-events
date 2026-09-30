@@ -6,26 +6,28 @@
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
-// - OrganizerProfileTab - events | places
+// - OrganizerProfilePane - home | reviews | team | complaints
 // - OrganizerProfileList - subscriptions | followers, or none
-// - OrganizerProfileView - the screen
+// - OrganizerProfileView - the screen: public org chrome, rating, reviews, team, complaints
 // - OrganizerProfile - loads the organization's own data
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Friend, OrganizerRating, Subscription } from "@max-events/api-contracts";
-import { apiClient, type OrganizerEvent, type OrganizerPlace } from "../api/client";
+import { apiClient, type OrganizerEvent, type OrganizerEventReview, type OrganizerPlace } from "../api/client";
 import { pluralRu } from "../catalog/format";
 import { readFeedPhoto } from "../feed/photo";
 import { isCustomProfileAvatar, ProfileMediaDialog } from "../profile/ProfilePage";
-import { ActionIcon } from "../ui/icons";
-import { pictured, showPhoto } from "../ui/photos";
-import { AppMedia, AppState } from "../ui/primitives";
+import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { showPhoto } from "../ui/photos";
+import { AppState } from "../ui/primitives";
+import { REVIEW_FACT_LABELS, reviewVerdict } from "./OrganizerEventManage";
 import { useOrganizerNativeBack } from "./organizer-native-back";
 import { ORGANIZER_ACTIVITY_OPTIONS } from "./organizer-onboarding";
 
-export type OrganizerProfileTab = "events" | "places";
+export type OrganizerProfilePane = "home" | "reviews" | "team" | "complaints";
 export type OrganizerProfileList = "subscriptions" | "followers" | null;
+export type OrganizerProfileReview = OrganizerEventReview & { eventTitle: string };
 
 const MEDIA_KEY = "max-events:org-media:";
 
@@ -48,22 +50,35 @@ function writeMedia(organizationId: string, media: OrgMedia) {
   localStorage.setItem(MEDIA_KEY + organizationId, JSON.stringify(media));
 }
 
-const PROFILE_TABS: ReadonlyArray<{ id: OrganizerProfileTab; label: string; icon: "calendar" | "pin" }> = [
-  { id: "events", label: "События", icon: "calendar" },
-  { id: "places", label: "Места", icon: "pin" },
-];
-
-const PROFILE_SHORTCUTS: ReadonlyArray<{ id: "settings" | "events" | "places" | "promo"; label: string; icon: "settings" | "calendar" | "pin" | "megaphone" }> = [
+const PROFILE_SHORTCUTS: ReadonlyArray<{ id: OrganizerProfilePane | "settings"; label: string; icon: ActionIconName }> = [
   { id: "settings", label: "Настройки", icon: "settings" },
-  { id: "events", label: "События", icon: "calendar" },
-  { id: "places", label: "Места", icon: "pin" },
-  { id: "promo", label: "Продвижение", icon: "megaphone" },
+  { id: "reviews", label: "Отзывы", icon: "star" },
+  { id: "team", label: "Команда", icon: "users" },
+  { id: "complaints", label: "Жалобы", icon: "alert" },
 ];
 
-export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events, places, subscriptions, followers, rating, tab, list, failed, onTab, onList, onOpenEvent, onOpenEvents, onOpenPlaces, onOpenPromo, onSettings, onPickAvatar, onPickCover, onResetAvatar, onResetCover }: { name: string; about: string; avatarUrl: string | null; coverUrl: string | null; events: OrganizerEvent[]; places: OrganizerPlace[]; subscriptions: Subscription[] | null; followers: Friend[] | null; rating: OrganizerRating | null; tab: OrganizerProfileTab; list: OrganizerProfileList; failed: boolean; onTab: (tab: OrganizerProfileTab) => void; onList: (list: OrganizerProfileList) => void; onOpenEvent: (event: OrganizerEvent) => void; onOpenEvents: () => void; onOpenPlaces: () => void; onOpenPromo: () => void; onSettings: () => void; onPickAvatar: () => void; onPickCover: () => void; onResetAvatar: () => void; onResetCover: () => void }) {
+function ReviewCard({ row }: { row: OrganizerProfileReview }) {
+  return (
+    <article className="app-set-group">
+      <div className="app-set-row">
+        <span className="app-set-row-text">
+          <span className="app-set-row-title">{row.name}</span>
+          <span className="app-set-row-title">{reviewVerdict(row.stars, row.wouldGoAgain)}</span>
+        </span>
+      </div>
+      <p>{row.eventTitle}</p>
+      {row.factTags.length > 0 && <p>{row.factTags.map((tag) => REVIEW_FACT_LABELS[tag] ?? tag).join(", ")}</p>}
+      {row.text !== null && row.text !== "" && <p>{row.text}</p>}
+    </article>
+  );
+}
+
+export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, subscriptions, followers, rating, reviews, pane, list, failed, onPane, onList, onSettings, onPickAvatar, onPickCover, onResetAvatar, onResetCover }: { name: string; about: string; avatarUrl: string | null; coverUrl: string | null; events: OrganizerEvent[]; places: OrganizerPlace[]; subscriptions: Subscription[] | null; followers: Friend[] | null; rating: OrganizerRating | null; reviews: OrganizerProfileReview[]; pane: OrganizerProfilePane; list: OrganizerProfileList; failed: boolean; onPane: (pane: OrganizerProfilePane) => void; onList: (list: OrganizerProfileList) => void; onSettings: () => void; onPickAvatar: () => void; onPickCover: () => void; onResetAvatar: () => void; onResetCover: () => void }) {
   const [mediaMenu, setMediaMenu] = useState<"avatar" | "cover" | null>(null);
-  useOrganizerNativeBack(list !== null, () => onList(null));
-  const published = events.filter((item) => !item.draft);
+  useOrganizerNativeBack(pane !== "home" || list !== null, () => {
+    if (list !== null) onList(null);
+    else onPane("home");
+  });
   const initial = name.trim().slice(0, 1).toUpperCase() || "О";
   const customAvatar = isCustomProfileAvatar(avatarUrl);
   const customCover = coverUrl !== null;
@@ -172,12 +187,58 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events,
             {list === "followers" && followers !== null && followers.length === 0 && <AppState>Подписчиков пока нет.</AppState>}
           </div>
         )}
-        {list === null && (
+        {list === null && pane === "team" && (
           <>
+            <h2 className="app-me-name">Команда</h2>
+            <AppState>Сотрудников пока нет.</AppState>
+          </>
+        )}
+        {list === null && pane === "complaints" && (
+          <>
+            <h2 className="app-me-name">Жалобы</h2>
+            <AppState>Открытых жалоб нет.</AppState>
+          </>
+        )}
+        {list === null && pane === "reviews" && (
+          <>
+            <h2 className="app-me-name">Отзывы гостей</h2>
+            {reviews.length === 0 ? <AppState>Гости оставляют отзыв после события, на котором были.</AppState> : reviews.map((row) => <ReviewCard key={row.id} row={row} />)}
+          </>
+        )}
+        {list === null && pane === "home" && (
+          <>
+            {rating !== null && (
+              <div className="app-org-tiles">
+                <button type="button" className="app-org-tile" onClick={() => onPane("reviews")}>
+                  <span className="app-org-tile-label">Оценка</span>
+                  <span className="app-org-tile-big">{rating.averageStars.toFixed(1).replace(".", ",")}</span>
+                </button>
+                <button type="button" className="app-org-tile" onClick={() => onPane("reviews")}>
+                  <span className="app-org-tile-label">Рекомендуют</span>
+                  <span className="app-org-tile-big">{Math.round(rating.recommendPercent)}%</span>
+                </button>
+                <div className="app-org-tile">
+                  <span className="app-org-tile-label">Визиты</span>
+                  <span className="app-org-tile-big">{rating.visitsCount}</span>
+                </div>
+                <div className="app-org-tile">
+                  <span className="app-org-tile-label">В афише</span>
+                  <span className="app-org-tile-big">{rating.eventsCount}</span>
+                </div>
+              </div>
+            )}
             <div className="app-me-dashboard" aria-label="Разделы профиля">
               <section className="app-me-card app-me-shortcuts">
                 {PROFILE_SHORTCUTS.map((row) => (
-                  <button key={row.id} type="button" className="app-me-shortcut" onClick={row.id === "settings" ? onSettings : row.id === "events" ? onOpenEvents : row.id === "places" ? onOpenPlaces : onOpenPromo}>
+                  <button
+                    key={row.id}
+                    type="button"
+                    className="app-me-shortcut"
+                    onClick={() => {
+                      if (row.id === "settings") onSettings();
+                      else onPane(row.id);
+                    }}
+                  >
                     <span className="app-me-shortcut-icon" aria-hidden="true">
                       <ActionIcon name={row.icon} size={18} strokeWidth={2.1} />
                     </span>
@@ -186,51 +247,9 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events,
                   </button>
                 ))}
               </section>
-              {rating !== null && (
-                <button type="button" className="app-me-card app-me-ach" onClick={onSettings}>
-                  <span className="app-me-card-head">
-                    <span className="app-me-card-title">Рейтинг</span>
-                    <ActionIcon name="chevron" size={16} />
-                  </span>
-                  <span className="app-me-ach-hint">
-                    {rating.averageStars.toFixed(1).replace(".", ",")} · {Math.round(rating.recommendPercent)}% рекомендуют
-                  </span>
-                </button>
-              )}
             </div>
-            <div className="app-me-tabs" role="tablist" aria-label="Что показывать" style={{ ["--me-tabs" as string]: 2, ["--me-tab" as string]: tab === "places" ? 1 : 0 }}>
-              <span className="app-me-tab-pill" aria-hidden="true" />
-              {PROFILE_TABS.map((candidate) => (
-                <button key={candidate.id} type="button" role="tab" aria-selected={tab === candidate.id} className={tab === candidate.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onTab(candidate.id)}>
-                  <ActionIcon name={candidate.icon} size={15} />
-                  {candidate.label}
-                </button>
-              ))}
-            </div>
-            {tab === "events" && published.length === 0 && <AppState>Опубликованных событий пока нет.</AppState>}
-            {tab === "events" && published.length > 0 && (
-              <div className="app-me-posts">
-                {published.map((item) => (
-                  <button key={item.id} type="button" className="app-me-post" aria-label={item.title} onClick={() => onOpenEvent(item)}>
-                    <AppMedia category={item.category} src={pictured(item.id, item.coverUrl)} className="app-me-post-media" />
-                  </button>
-                ))}
-              </div>
-            )}
-            {tab === "places" && places.length === 0 && <AppState>Мест пока нет.</AppState>}
-            {tab === "places" && places.length > 0 && (
-              <div className="app-me-grid">
-                {places.map((place, index) => (
-                  <div key={place.id} className={`app-me-cell app-me-cell--${(index % 4) + 1}`}>
-                    <span className="app-me-cell-blob" aria-hidden="true" />
-                    <span className="app-me-cell-veil">
-                      <span className="app-me-cell-title">{place.title}</span>
-                      <span className="app-me-cell-visits">{place.city}</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {reviews.length > 0 && reviews.slice(0, 3).map((row) => <ReviewCard key={row.id} row={row} />)}
+            {reviews.length === 0 && rating === null && <AppState>Гости оставляют отзыв после события, на котором были.</AppState>}
           </>
         )}
       </div>
@@ -238,16 +257,17 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, events,
   );
 }
 
-export function OrganizerProfile({ organizationId, organizationName, onOpenEvent, onOpenEvents, onOpenPlaces, onOpenPromo, onSettings }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onOpenEvents: () => void; onOpenPlaces: () => void; onOpenPromo: () => void; onSettings: () => void }) {
+export function OrganizerProfile({ organizationId, organizationName, onSettings }: { organizationId: string; organizationName: string; onOpenEvent: (event: OrganizerEvent) => void; onSettings: () => void }) {
   const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [places, setPlaces] = useState<OrganizerPlace[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[] | null>(null);
   const [followers, setFollowers] = useState<Friend[] | null>(null);
   const [about, setAbout] = useState("");
   const [rating, setRating] = useState<OrganizerRating | null>(null);
+  const [reviews, setReviews] = useState<OrganizerProfileReview[]>([]);
   const [failed, setFailed] = useState(false);
   const [media, setMedia] = useState<OrgMedia>({ avatarUrl: null, coverUrl: null });
-  const [tab, setTab] = useState<OrganizerProfileTab>("events");
+  const [pane, setPane] = useState<OrganizerProfilePane>("home");
   const [list, setList] = useState<OrganizerProfileList>(null);
   const avatarRef = useRef<HTMLInputElement | null>(null);
   const coverRef = useRef<HTMLInputElement | null>(null);
@@ -260,7 +280,21 @@ export function OrganizerProfile({ organizationId, organizationName, onOpenEvent
     let alive = true;
     apiClient.listOrganizerEvents().then(
       (items) => {
-        if (alive) setEvents(items);
+        if (!alive) return;
+        setEvents(items);
+        void Promise.all(
+          items
+            .filter((item) => !item.draft)
+            .slice(0, 8)
+            .map((item) =>
+              apiClient.listOrganizerEventReviews(item.id).then(
+                (rows) => rows.map((row) => ({ ...row, eventTitle: item.title })),
+                () => [] as OrganizerProfileReview[],
+              ),
+            ),
+        ).then((groups) => {
+          if (alive) setReviews(groups.flat());
+        });
       },
       () => {
         if (alive) setFailed(true);
@@ -347,18 +381,15 @@ export function OrganizerProfile({ organizationId, organizationName, onOpenEvent
         subscriptions={subscriptions}
         followers={followers}
         rating={rating}
-        tab={tab}
+        reviews={reviews}
+        pane={pane}
         list={list}
         failed={failed}
-        onTab={(next) => {
+        onPane={(next) => {
           setList(null);
-          setTab(next);
+          setPane(next);
         }}
         onList={setList}
-        onOpenEvent={onOpenEvent}
-        onOpenEvents={onOpenEvents}
-        onOpenPlaces={onOpenPlaces}
-        onOpenPromo={onOpenPromo}
         onSettings={onSettings}
         onPickAvatar={() => avatarRef.current?.click()}
         onPickCover={() => coverRef.current?.click()}

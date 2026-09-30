@@ -74,10 +74,9 @@ describe("OrganizerFinance", () => {
     const html = renderToStaticMarkup(createElement(OrganizerFinance));
 
     expect(html).toContain("Финансы");
-    expect(html).toContain("Доступно к выводу");
+    expect(html).toContain("К выводу");
     expect(html).toContain(formatRub(128_400));
-    expect(html).toContain("Поступления");
-    expect(html).toContain("Выплаты");
+    expect(html).toContain("Учтено");
     expect(html).toContain("Вывести средства");
     expect(html).toContain("Билет на событие «Джаз»");
     expect(html).toContain("Комиссия Stripe");

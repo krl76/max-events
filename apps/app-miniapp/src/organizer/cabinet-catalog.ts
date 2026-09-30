@@ -114,8 +114,20 @@ export interface CabinetFillRow {
   startsAt: string;
 }
 
-export function fillCaption(booked: number, capacity: number, fill: number): string {
-  return `заполнено ${fill}% · ${booked} из ${capacity} мест`;
+export function fillCaption(booked: number, capacity: number, _fill?: number): string {
+  if (capacity <= 0) return "Без лимита мест";
+  if (booked <= 0) return `свободны все ${capacity} мест`;
+  if (booked >= capacity) return "мест нет";
+  return `занято ${booked} из ${capacity}`;
+}
+
+export function cabinetWeekdayBookings(events: CabinetEvent[], from: Date, to: Date): number[] {
+  const days = [0, 0, 0, 0, 0, 0, 0];
+  for (const event of cabinetInRange(events, from, to).filter((item) => !item.draft)) {
+    const weekday = (new Date(event.startsAt).getDay() + 6) % 7;
+    days[weekday] += cabinetSold(event);
+  }
+  return days;
 }
 
 export function cabinetFillRows(events: CabinetEvent[], from: Date, to: Date): CabinetFillRow[] {

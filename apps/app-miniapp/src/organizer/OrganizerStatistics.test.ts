@@ -36,7 +36,7 @@ describe("cabinetStats", () => {
 
 describe("fillCaption", () => {
   it("names the occupancy so the numbers are not a bare fraction", () => {
-    expect(fillCaption(64, 80, 80)).toBe("заполнено 80% · 64 из 80 мест");
+    expect(fillCaption(64, 80, 80)).toBe("занято 64 из 80");
   });
 });
 
@@ -48,7 +48,8 @@ describe("OrganizerStatistics", () => {
     expect(html).toContain("Регистрации");
     expect(html).toContain("Заполняемость");
     expect(html).toContain("Источники регистраций");
-    expect(html).toContain("заполнено");
+    expect(html).toContain("занято");
+    expect(html).not.toContain("к прошлому периоду");
     expect(html).not.toContain("Откуда записи");
     expect(html).not.toContain("Динамика дохода");
     expect(html).not.toContain("Общий доход");

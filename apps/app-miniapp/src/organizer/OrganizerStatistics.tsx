@@ -7,24 +7,33 @@
 
 import { useState } from "react";
 import type { OrganizerEvent } from "../api/client";
+import { formatStartsAt } from "../catalog/format";
 import { SettingsGroup } from "../profile/SettingsPage";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
-import { AppMedia, AppState } from "../ui/primitives";
-import { CABINET_EVENTS, cabinetAsOrganizerEvent, cabinetFillRows, cabinetStats, defaultStatsRange, fillCaption, type CabinetFillRow } from "./cabinet-catalog";
+import { AppChip, AppMedia, AppState } from "../ui/primitives";
+import { CABINET_EVENTS, cabinetAsOrganizerEvent, cabinetFillRows, cabinetStats, cabinetWeekdayBookings, defaultStatsRange, fillCaption, type CabinetFillRow } from "./cabinet-catalog";
 import { useOrganizerNativeBack } from "./organizer-native-back";
 import { OrganizerStats } from "./OrganizerStats";
+
+const WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"] as const;
 
 function countLabel(value: number): string {
   return value.toLocaleString("ru-RU").replace(/\s/g, "\u00a0");
 }
 
-function signedDelta(percent: number): string {
-  return `${percent > 0 ? "+" : ""}${percent}% к прошлому периоду`;
-}
-
 function weakFill(row: CabinetFillRow): boolean {
   return row.capacity > 0 && row.fill < 40;
+}
+
+function occupancyBars(values: number[]): Array<{ height: number; accent: boolean }> {
+  const max = Math.max(...values, 0);
+  const ranked = [...values].sort((a, b) => b - a);
+  const accentFrom = ranked[1] ?? ranked[0] ?? 0;
+  return values.map((value) => ({
+    height: max === 0 ? 8 : Math.max(8, Math.round((value / max) * 100)),
+    accent: value > 0 && value >= accentFrom,
+  }));
 }
 
 export type StatsWindow = 7 | 30 | 90;
@@ -187,6 +196,7 @@ function FillEventCard({ row, onOpen }: { row: CabinetFillRow; onOpen?: (event: 
       <AppMedia category={row.category} src={pictured(row.id, event.coverUrl)} className="app-org-event-media" />
       <span className="app-org-event-body">
         <span className="app-org-event-title">{row.title}</span>
+        <span className="app-org-event-meta">{formatStartsAt(row.startsAt)}</span>
         <span className="app-org-event-meta">{fillCaption(row.booked, row.capacity, row.fill)}</span>
         <span className="app-org-progress" aria-hidden="true">
           <span className="app-org-progress-fill" style={{ width: `${row.fill}%` }} />
@@ -210,12 +220,13 @@ export function OrganizerStatistics({ onOpenEvent, onCheckIn, onShowDrafts }: { 
   const drafts = CABINET_EVENTS.filter((item) => item.draft).length;
   useOrganizerNativeBack(pane !== "home", () => setPane("home"));
 
+  const weekdays = cabinetWeekdayBookings(CABINET_EVENTS, new Date(`${from}T00:00:00+03:00`), new Date(`${to}T23:59:59+03:00`));
   const periods = (
-    <div className="app-evt-filters" role="tablist" aria-label="Период">
+    <div className="app-filters-chips" role="group" aria-label="Период">
       {STATS_WINDOWS.map((item) => (
-        <button key={item} type="button" role="tab" aria-selected={days === item} className={days === item ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => setDays(item)}>
+        <AppChip key={item} pressed={days === item} onClick={() => setDays(item)}>
           {item} дней
-        </button>
+        </AppChip>
       ))}
     </div>
   );
@@ -251,7 +262,6 @@ export function OrganizerStatistics({ onOpenEvent, onCheckIn, onShowDrafts }: { 
     return (
       <section className="app-gathering" aria-label="Заполняемость">
         <h1 className="app-section-title">Заполняемость</h1>
-        <p className="app-gathering-hint">Сколько мест занято на каждом событии периода. Карточка открывает управление событием.</p>
         {periods}
         {fills.length === 0 ? (
           <AppState>За этот период опубликованных событий нет.</AppState>
@@ -279,36 +289,43 @@ export function OrganizerStatistics({ onOpenEvent, onCheckIn, onShowDrafts }: { 
         <button type="button" className="app-org-tile" onClick={() => setPane("fill")}>
           <span className="app-org-tile-label">Регистрации</span>
           <span className="app-org-tile-big">{countLabel(snapshot.tickets)}</span>
-          <span className="app-org-tile-note">{signedDelta(snapshot.ticketsDelta)}</span>
         </button>
         <button type="button" className="app-org-tile" onClick={() => setPane("fill")}>
           <span className="app-org-tile-label">Заполняемость</span>
           <span className="app-org-tile-big">{snapshot.conversion}%</span>
-          <span className="app-org-tile-note">мест занято · {signedDelta(snapshot.conversionDelta)}</span>
         </button>
         <button type="button" className="app-org-tile" onClick={() => setPane("sources")}>
           <span className="app-org-tile-label">Источники</span>
           <span className="app-org-tile-big">3 канала</span>
-          <span className="app-org-tile-note">чаты MAX, лента, поиск</span>
         </button>
         <div className="app-org-tile">
-          <span className="app-org-tile-label">Событий в периоде</span>
+          <span className="app-org-tile-label">События</span>
           <span className="app-org-tile-big">{snapshot.events}</span>
-          <span className="app-org-tile-note">{signedDelta(snapshot.eventsDelta)}</span>
         </div>
+      </div>
+      <div className="app-org-chart">
+        <span className="app-org-chart-title">Регистрации по дням недели</span>
+        <span className="app-org-chart-bars" aria-hidden="true">
+          {occupancyBars(weekdays).map((bar, index) => (
+            <span key={WEEKDAYS[index]} className={bar.accent ? "app-org-bar app-org-bar--on" : "app-org-bar"} style={{ height: `${bar.height}%` }} />
+          ))}
+        </span>
+        <span className="app-org-chart-days" aria-hidden="true">
+          {WEEKDAYS.map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+        </span>
       </div>
       <SettingsGroup title="Разбор">
         <button type="button" className="app-set-row" onClick={() => setPane("fill")}>
           <span className="app-set-row-text">
             <span className="app-set-row-title">Заполняемость</span>
-            <span className="app-set-row-hint">{fills.length === 0 ? "Нет событий за период" : fillCaption(fills[0].booked, fills[0].capacity, fills[0].fill)}</span>
           </span>
           <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
         </button>
         <button type="button" className="app-set-row" onClick={() => setPane("sources")}>
           <span className="app-set-row-text">
             <span className="app-set-row-title">Источники регистраций</span>
-            <span className="app-set-row-hint">Чаты MAX, лента и поиск</span>
           </span>
           <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
         </button>
@@ -316,29 +333,25 @@ export function OrganizerStatistics({ onOpenEvent, onCheckIn, onShowDrafts }: { 
           <button type="button" className="app-set-row" onClick={onShowDrafts}>
             <span className="app-set-row-text">
               <span className="app-set-row-title">Черновики</span>
-              <span className="app-set-row-hint">{drafts} ещё не в афише</span>
             </span>
             <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
           </button>
         )}
       </SettingsGroup>
-      {weak.length > 0 && (
-        <>
-          <h2 className="app-section-title">Слабая заполняемость</h2>
-          <p className="app-gathering-hint">Меньше 40% мест. Карточка открывает событие: оттуда можно продвинуть его в ленте.</p>
-          <div className="app-org-events">
-            {weak.map((row) => (
-              <FillEventCard key={row.id} row={row} onOpen={onOpenEvent} />
-            ))}
-          </div>
-        </>
+      {fills.length > 0 && (
+        <div className="app-org-events">
+          {(weak.length > 0 ? weak : fills.slice(0, 3)).map((row) => (
+            <FillEventCard key={row.id} row={row} onOpen={onOpenEvent} />
+          ))}
+        </div>
       )}
       {today !== undefined && onCheckIn !== undefined && (
         <button type="button" className="app-org-event" onClick={() => onCheckIn(cabinetAsOrganizerEvent(today))}>
           <AppMedia category={today.category} src={pictured(today.id, null)} className="app-org-event-media" />
           <span className="app-org-event-body">
             <span className="app-org-event-title">{today.title}</span>
-            <span className="app-org-event-meta">Сегодня · контроль входа</span>
+            <span className="app-org-event-meta">Сегодня</span>
+            <span className="app-org-event-meta">Контроль входа</span>
           </span>
         </button>
       )}

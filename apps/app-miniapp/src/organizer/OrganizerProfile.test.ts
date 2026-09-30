@@ -18,15 +18,12 @@ describe("OrganizerProfileView", () => {
         subscriptions: [],
         followers: [],
         rating: null,
-        tab: "events",
+        reviews: [],
+        pane: "home",
         list: null,
         failed: false,
-        onTab: noop,
+        onPane: noop,
         onList: noop,
-        onOpenEvent: noop,
-        onOpenEvents: noop,
-        onOpenPlaces: noop,
-        onOpenPromo: noop,
         onSettings: noop,
         onPickAvatar: noop,
         onPickCover: noop,
@@ -36,13 +33,13 @@ describe("OrganizerProfileView", () => {
     );
 
     expect(html).toContain("Парк Горького");
-    expect(html).toContain("События");
-    expect(html).toContain("Места");
     expect(html).toContain("подписок");
     expect(html).toContain("подписчиков");
     expect(html).toContain("Шапка");
     expect(html).toContain("Настройки");
-    expect(html).toContain("Места");
-    expect(html).toContain("Продвижение");
+    expect(html).toContain("Отзывы");
+    expect(html).toContain("Команда");
+    expect(html).toContain("Жалобы");
+    expect(html).not.toContain("Продвижение");
   });
 });

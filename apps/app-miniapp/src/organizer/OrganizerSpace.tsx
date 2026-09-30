@@ -138,7 +138,7 @@ export function OrganizerSectionContent({ section, organizationId, organizationN
   if (section === "dashboard") return <OrganizerDashboard organizationId={organizationId} organizationName={organizationName} onOpenEvent={onManage} onCreateEvent={onCreateEvent} onOpenOrganization={onOpenOrganization} onStats={onOpenStats} onPlaces={onOpenPlaces} onCheckIn={onCheckIn} onShowDrafts={onShowDrafts} />;
   if (section === "finance") return <OrganizerFinance />;
   if (section === "promo") return <OrganizerPromo organizationName={organizationName} intent={promoIntent} eventId={promoEventId} onOpenEvent={() => onSection("events")} />;
-  if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onOpenEvents={() => onSection("events")} onOpenPlaces={onOpenPlaces} onOpenPromo={() => onSection("promo")} onSettings={onOpenSettings} />;
+  if (section === "profile") return <OrganizerProfile organizationId={organizationId} organizationName={organizationName} onOpenEvent={onOpenEvent} onSettings={onOpenSettings} />;
   return <OrganizerPanel organizationId={organizationId} createOnMount={createEvent} onOpenEvent={onOpenEvent} onComposer={onComposer} closeComposerTick={closeComposerTick} editRequestId={editRequestId} onEditHandled={onEditHandled} placesTick={placesTick} draftsTick={draftsTick} />;
 }
 
@@ -249,7 +249,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
   const ownChrome = (section === "profile" || section === "finance" || section === "dashboard" || section === "promo" || section === "events") && !pushed;
-  const flush = composerTitle !== null || (ownChrome && (section === "finance" || section === "promo"));
+  const flush = composerTitle !== null || (ownChrome && section === "promo");
   const manageTitle = manageScreen === "checkin" ? "Контроль входа" : manageScreen === "participants" ? "Участники" : manageScreen === "tickets" ? "Билеты и регистрация" : manageScreen === "stats" ? "Статистика" : manageScreen === "reviews" ? "Отзывы" : "Событие";
   const title = composerTitle ?? (statsOpen ? "Статистика" : manage !== null ? manageTitle : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
   const hideTabs = composerTitle !== null || (manage !== null && manageScreen === "checkin");

@@ -161,7 +161,7 @@ describe("OrganizerEventCard", () => {
     expect(html).toContain("Черновик");
     expect(html).not.toContain("Изменить");
     expect(html).toContain(draftEvent.title);
-    expect(html).toContain("0 из 40 · свободно 40 мест");
+    expect(html).toContain("Ещё не в афише");
   });
 
   it("shows the inline publish failure message without dropping the card", () => {
@@ -253,16 +253,15 @@ describe("EventDraftForm", () => {
 });
 
 describe("CabinetListSwitch", () => {
-  it("uses the profile pill for events and places", () => {
+  it("uses catalog chips for events and places", () => {
     const events = renderToStaticMarkup(createElement(CabinetListSwitch, { tab: "events", onTab: noop }));
-    expect(events).toContain("app-me-tabs");
-    expect(events).toContain("app-me-tab-pill");
+    expect(events).toContain("app-chip");
     expect(events).toContain("События");
     expect(events).toContain("Места");
-    expect(events).toMatch(/app-me-tab--active[^>]*>События/);
-    expect(events).not.toContain("app-chip");
+    expect(events).toContain("app-chip--on");
+    expect(events).not.toContain("app-me-tabs");
     const places = renderToStaticMarkup(createElement(CabinetListSwitch, { tab: "places", onTab: noop }));
-    expect(places).toMatch(/app-me-tab--active[^>]*>Места/);
+    expect(places).toContain("Места");
   });
 });
 

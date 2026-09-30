@@ -16955,7 +16955,8 @@ button.app-cal-peer-chip {
 }
 
 .app-org-form .app-org-tiles,
-.app-gathering .app-org-tiles {
+.app-gathering .app-org-tiles,
+.app-me .app-org-tiles {
   padding: 0;
 }
 
@@ -26231,19 +26232,19 @@ html:not([data-theme="dark"]) .app-when-sheet {
   padding: 4px 0 4px 12px;
 }
 
-/* Кабинет организатора, вкладка «Финансы»: светлый холст макета, свои карточки и градиент дохода. */
+/* Кабинет организатора, вкладка «Финансы»: белый рабочий холст. */
 .app-fin {
-  background: #f4f6fb;
+  background: transparent;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-height: 100%;
-  padding: 12px 16px 12px;
+  padding: 0;
 }
 
 .app-fin-title {
-  color: #16181d;
+  color: var(--app-text);
   font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -26252,7 +26253,7 @@ html:not([data-theme="dark"]) .app-when-sheet {
 }
 
 .app-fin-lead {
-  color: #8b93a7;
+  color: var(--app-text-secondary);
   font-size: 14px;
   font-weight: 500;
   margin: 0;
@@ -26659,14 +26660,14 @@ button.app-fin-op--btn {
 }
 
 .app-fin-op-amount {
-  color: #e5484d;
+  color: var(--app-danger);
   flex: none;
   font-size: 14px;
   font-weight: 800;
 }
 
 .app-fin-op-amount--in {
-  color: #1f9d55;
+  color: var(--app-text);
 }
 
 .app-fin-withdraw {
@@ -26698,7 +26699,7 @@ button.app-fin-op--btn {
 }
 
 .app-fin-available {
-  color: #16181d;
+  color: var(--app-text);
   font-size: 32px;
   font-weight: 800;
   letter-spacing: -0.04em;
@@ -29707,12 +29708,12 @@ button.app-pcodes-iconbtn {
   width: 100%;
 }
 
-/* Вкладка «События»: тот же холст и крупный заголовок, что у финансов, статистики и продвижения. */
+/* Вкладка «События»: белый рабочий холст, отступы даёт app-content. */
 .app-evt-home {
-  background: #f4f6fb;
+  background: transparent;
   box-sizing: border-box;
   min-height: 100%;
-  padding: 12px 16px 20px;
+  padding: 0;
 }
 
 .app-evt-filters {
