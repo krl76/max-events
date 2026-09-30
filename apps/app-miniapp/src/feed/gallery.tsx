@@ -3,6 +3,14 @@ import { createPortal } from "react-dom";
 import { ActionIcon } from "../ui/icons";
 import { showPhoto } from "../ui/photos";
 
+/** A missing file keeps the frame, not the browser's broken-image glyph. */
+function FeedPhoto({ src, className = "app-feed-photo" }: { src: string; className?: string }) {
+  const [failed, setFailed] = useState(false);
+  const href = showPhoto(src) ?? src;
+  if (failed) return <span className={`${className} app-feed-photo--missing`} aria-hidden="true" />;
+  return <img className={className} src={href} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />;
+}
+
 /** Swipeable photos. A tap opens them full screen, outside the post. */
 export function PhotoGallery({ photos }: { photos: string[] }) {
   const scroller = useRef<HTMLDivElement | null>(null);
@@ -29,7 +37,7 @@ export function PhotoGallery({ photos }: { photos: string[] }) {
               }}
               aria-label={`Открыть фото ${position + 1} из ${photos.length}`}
             >
-              <img className="app-feed-photo" src={showPhoto(photo) ?? photo} alt="" />
+              <FeedPhoto src={photo} />
             </button>
           ))}
         </div>
@@ -74,7 +82,7 @@ function PhotoLightbox({ photos, index, onClose }: { photos: string[]; index: nu
       >
         {photos.map((photo, position) => (
           <div key={`${position}-${photo.slice(-12)}`} className="app-photo-lightbox-slide">
-            <img src={showPhoto(photo) ?? photo} alt="" />
+            <FeedPhoto src={photo} />
           </div>
         ))}
       </div>

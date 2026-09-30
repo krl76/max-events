@@ -704,6 +704,15 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
       // The chip stays on the map with «—»; a failed now-cast must not hide it.
       () => {},
     );
+    return () => {
+      alive = false;
+    };
+  }, [weatherCity, originPoint]);
+
+  useEffect(() => {
+    if (!weatherOpen) return;
+    let alive = true;
+    const point = { latitude: originPoint[0], longitude: originPoint[1] };
     const range = mapHourlyWindow();
     apiClient.getMapHourlyWeather(point, range.from, range.to).then(
       (loaded) => {
@@ -716,7 +725,7 @@ export function MapScreen({ events, onOpenEvent, onOpenPlace, city = "Москв
     return () => {
       alive = false;
     };
-  }, [weatherCity, originPoint]);
+  }, [weatherOpen, originPoint]);
 
   const readyPlaces = places.status === "ready" ? places.places : [];
   const needle = query.trim().toLowerCase();

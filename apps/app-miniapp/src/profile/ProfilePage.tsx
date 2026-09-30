@@ -1,5 +1,5 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Экран 36 «Профиль»: обложка со шапкой и меню, аватар без бейджа, имя и строка подписок, для своего профиля — переходы в календарь, планы и брони, карточки достижений и сообщества, затем вкладки «Посты» / «Места» / «Сохранённое». Чужой профиль вместо карточек показывает действия с человеком.
+// PURPOSE: Экран 36 «Профиль»: обложка со шапкой и меню, аватар без бейджа, имя и строка подписок, для своего профиля — строчные переходы в календарь, планы, брони, достижения, группы и друзья, затем вкладки «Посты» / «Места» / «Сохранённое». Чужой профиль вместо переходов показывает действия с человеком.
 // SCOPE: The profile screen only — data via apiClient.getProfile/getProfileCounters/listUserPosts/listVisitedPlaces/listLists/listSubscriptions/listFollowing/listFollowers/getAchievements/listWeGroups/listFriends; secondary blocks stay silent when their request fails. Editing lives on the settings route (./SettingsPage.tsx), the follow lists on ../subscriptions/.
 // DEPENDS: ../api/client.js (apiClient, ListSummary, ProfileCounters, ProfilePost, VisitedPlace), ../auth/AuthContext.js, ../catalog/format.js (pluralRu), ../feed/photo.js (readFeedPhoto), ../max/bridge.js (shareResult, webApp), ../routing/router.js, ../ui/icons.js, ../ui/primitives.js, @max-events/api-contracts (Achievement, Friend, Profile, Subscription, User, WeGroupScreen), ../ui/theme.css
 // LINKS: M-APP-MINIAPP
@@ -24,7 +24,7 @@
 // - communityLetters - до четырёх букв названий живых компаний для стопки в карточке сообщества
 // - AchievementSeal - кольцо прогресса с медалью вместо ленты на аватаре
 // - QuietImage - фото карточки, которое при ошибке загрузки не оставляет значок битого файла
-// - ProfileDashboard - переходы своего профиля: календарь, планы, брони, достижения, сообщество
+// - ProfileDashboard - строчные переходы своего профиля: календарь, планы, брони, достижения, группы, друзья
 // - ProfilePostGrid - сетка постов профиля: плитки со статой, приглашение опубликовать, плейсхолдеры загрузки
 // - ProfileEntries - куда ведут счётчики, карточки и сетки экрана 36
 // - isCustomProfileAvatar - in-app pick is /api/uploads or a data URL; MAX photo_url is another https host
@@ -315,26 +315,9 @@ const TAB_ICON = { posts: "cards", places: "pin", saved: "bookmark" } as const;
 
 const PROFILE_SHORTCUTS = [
   { id: "calendar", label: "Календарь", icon: "calendar" },
-  { id: "plan-new", label: "Создать план", icon: "plus" },
   { id: "plans", label: "Все планы", icon: "bookmark" },
   { id: "bookings", label: "Все брони", icon: "ticket" },
 ] as const;
-
-/** Кольцо собранного и медаль. Ленту на фото не ставим — плашка живёт в своей карточке. */
-function AchievementSeal({ progress, size = 40 }: { progress: number | null; size?: number }) {
-  const radius = 16;
-  const circ = 2 * Math.PI * radius;
-  const amount = (progress ?? 0) * circ;
-  return (
-    <span className="app-me-seal" style={{ width: size, height: size }} aria-hidden="true">
-      <svg className="app-me-seal-ring" viewBox="0 0 40 40">
-        <circle cx="20" cy="20" r={radius} />
-        {amount > 0 && <circle cx="20" cy="20" r={radius} strokeDasharray={`${amount} ${circ}`} transform="rotate(-90 20 20)" />}
-      </svg>
-      <ActionIcon name="medal" size={Math.round(size * 0.4)} strokeWidth={2.2} />
-    </span>
-  );
-}
 
 /** Фото, которое не открылось, не рисуем: под ним остаётся заливка карточки, а не значок битого файла. */
 function QuietImage({ src, className }: { src: string; className: string }) {
@@ -343,13 +326,16 @@ function QuietImage({ src, className }: { src: string; className: string }) {
   return <img className={className} alt="" src={src} onError={() => setFailedSrc(src)} />;
 }
 
-function ProfileDashboard({ achievements, weGroups, friendsCount, onPlans, onCreatePlan, onBookings, onCalendar, onAchievements, onWeGroups, onFriends }: { achievements: Achievement[] | null; weGroups: WeGroupScreen[] | null; friendsCount: number | null; onPlans: () => void; onCreatePlan: () => void; onBookings: () => void; onCalendar: () => void; onAchievements: () => void; onWeGroups: () => void; onFriends: () => void }) {
+function ProfileDashboard({ achievements, weGroups, friendsCount, onPlans, onBookings, onCalendar, onAchievements, onWeGroups, onFriends }: { achievements: Achievement[] | null; weGroups: WeGroupScreen[] | null; friendsCount: number | null; onPlans: () => void; onBookings: () => void; onCalendar: () => void; onAchievements: () => void; onWeGroups: () => void; onFriends: () => void }) {
   const hint = achievements === null ? null : achievementsHint(achievements);
-  const progress = achievementsProgress(achievements);
-  const letters = communityLetters(weGroups);
   const groupsLine = weGroups === null ? null : weGroupsHint(weGroups);
   const friendsLine = friendsCount === null ? null : friendsHint(friendsCount);
-  const openShortcut = { calendar: onCalendar, "plan-new": onCreatePlan, plans: onPlans, bookings: onBookings };
+  const openShortcut = { calendar: onCalendar, plans: onPlans, bookings: onBookings };
+  const extra = [
+    { id: "achievements", label: "Достижения", icon: "medal" as const, hint, onClick: onAchievements },
+    { id: "groups", label: "Группы", icon: "group" as const, hint: groupsLine, onClick: onWeGroups },
+    { id: "friends", label: "Друзья", icon: "users" as const, hint: friendsLine, onClick: onFriends },
+  ];
   return (
     <div className="app-me-dashboard" aria-label="Разделы профиля">
       <section className="app-me-card app-me-shortcuts">
@@ -362,56 +348,17 @@ function ProfileDashboard({ achievements, weGroups, friendsCount, onPlans, onCre
             <ActionIcon name="chevron" size={16} />
           </button>
         ))}
-      </section>
-      <div className="app-me-pair">
-        <button type="button" className="app-me-card app-me-ach" onClick={onAchievements}>
-          <span className="app-me-card-head">
-            <span className="app-me-card-title">Достижения</span>
+        {extra.map((row) => (
+          <button key={row.id} type="button" className="app-me-shortcut" onClick={row.onClick}>
+            <span className="app-me-shortcut-icon" aria-hidden="true">
+              <ActionIcon name={row.icon} size={18} strokeWidth={2.1} />
+            </span>
+            <span className="app-me-shortcut-label">{row.label}</span>
+            {row.hint !== null && <span className="app-me-shortcut-hint">{row.hint}</span>}
             <ActionIcon name="chevron" size={16} />
-          </span>
-          <span className={hint === null ? "app-me-ach-body app-me-ach-body--solo" : "app-me-ach-body"}>
-            {hint !== null && (
-              <span className="app-me-ach-copy">
-                <span className="app-me-ach-hint">{hint}</span>
-                <span className="app-me-ach-track" aria-hidden="true">
-                  <span className="app-me-ach-fill" style={{ width: `${Math.round((progress ?? 0) * 100)}%` }} />
-                </span>
-              </span>
-            )}
-            <AchievementSeal progress={hint === null ? null : progress} size={hint === null ? 56 : 40} />
-          </span>
-        </button>
-        <section className="app-me-card app-me-community">
-          <h2 className="app-me-card-title">Моё сообщество</h2>
-          <div className="app-me-community-actions">
-            <button type="button" className="app-me-community-act" onClick={onWeGroups}>
-              <span className="app-me-faces" aria-hidden="true">
-                {letters.length === 0 ? (
-                  <span className="app-me-face app-me-face--0">
-                    <ActionIcon name="group" size={14} />
-                  </span>
-                ) : (
-                  letters.map((letter, index) => (
-                    <span key={`${letter}-${index}`} className={`app-me-face app-me-face--${index}`}>
-                      {letter}
-                    </span>
-                  ))
-                )}
-              </span>
-              <span className="app-me-community-label">Группы</span>
-              {groupsLine !== null && <span className="app-me-subhint">{groupsLine}</span>}
-            </button>
-            <button type="button" className="app-me-community-act" onClick={onFriends}>
-              <span className="app-me-friends-mark" aria-hidden="true">
-                <ActionIcon name="users" size={18} />
-                {friendsCount !== null && <span className="app-me-friends-num">{friendsCount}</span>}
-              </span>
-              <span className="app-me-community-label">Друзья</span>
-              {friendsLine !== null && <span className="app-me-subhint">{friendsLine}</span>}
-            </button>
-          </div>
-        </section>
-      </div>
+          </button>
+        ))}
+      </section>
     </div>
   );
 }
@@ -571,7 +518,7 @@ export function ProfileView({ user, profile, lists, subscriptions, following, fo
           </div>
         )}
         {!own && <p className="app-me-link-hint">Добавьте человека или позовите ссылкой в MAX. Друзья — когда добавление взаимное.</p>}
-        {own && <ProfileDashboard achievements={achievements} weGroups={weGroups} friendsCount={friendsCount} onPlans={entries.onPlans} onCreatePlan={entries.onCreatePlan} onBookings={entries.onBookings} onCalendar={entries.onCalendar} onAchievements={entries.onAchievements} onWeGroups={entries.onWeGroups} onFriends={entries.onFriends} />}
+        {own && <ProfileDashboard achievements={achievements} weGroups={weGroups} friendsCount={friendsCount} onPlans={entries.onPlans} onBookings={entries.onBookings} onCalendar={entries.onCalendar} onAchievements={entries.onAchievements} onWeGroups={entries.onWeGroups} onFriends={entries.onFriends} />}
         <div
           className="app-me-tabs"
           role="tablist"

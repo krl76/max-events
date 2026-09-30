@@ -23,6 +23,7 @@ import { useRoute } from "../routing/router";
 import { PromotionSections } from "../promo/PromoSections";
 import { FeedScreen } from "../feed/FeedScreen";
 import { MicroEventCreatePage } from "../micro/MicroEvents";
+import { ScreenErrorBoundary } from "../ui/ErrorBoundary";
 import { AppSkeleton } from "../ui/primitives";
 
 /** Component type without the intrinsic (string) constituent of ElementType, i.e. any React component regardless of props. */
@@ -90,7 +91,9 @@ export function HomePage() {
   return (
     <>
       {/* Макет, экран 03: сторис, «Куда пойдём?» и посты. MAX, микро-события и «После меня» — на поиске. */}
-      <FeedScreen />
+      <ScreenErrorBoundary label="feed crashed">
+        <FeedScreen />
+      </ScreenErrorBoundary>
       <PromotionSections />
     </>
   );

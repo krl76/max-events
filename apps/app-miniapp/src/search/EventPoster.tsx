@@ -27,7 +27,7 @@ export function EventPoster({ card, reason, onOpen }: { card: CatalogCard; reaso
   return (
     <button type="button" className="app-poster" onClick={() => onOpen(event.id)}>
       <span className="app-poster-photo">
-        <img alt="" src={photo} />
+        <img alt="" src={photo} loading="lazy" decoding="async" />
       </span>
       <span className="app-poster-copy">
         {host !== null && host !== undefined && host !== "" && <span className="app-poster-host">{host}</span>}
