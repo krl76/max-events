@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { SlotBookingScreen } from "../api/client";
 import { mockPlaces } from "../api/mock";
-import { BookingTicketView, chatMembersLabel, inviteLine, partyLabel, ticketPlaceLine, ticketShareText, ticketWhen } from "./BookingTicketPage";
+import { BookingTicketView, chatFaceItems, chatMembersLabel, inviteLine, partyLabel, ticketPlaceLine, ticketShareText, ticketWhen } from "./BookingTicketPage";
 
 const park = mockPlaces[0];
 
@@ -68,7 +68,7 @@ describe("partyLabel and inviteLine", () => {
   });
 });
 
-describe("chatMembersLabel", () => {
+describe("chatMembersLabel and chatFaceItems", () => {
   it("names the company and ends with the venue, which is always in the chat", () => {
     expect(chatMembersLabel([])).toBe("Ты и площадка");
     expect(
@@ -77,6 +77,12 @@ describe("chatMembersLabel", () => {
         { id: "f2", name: "Дима Кузнецов", avatarUrl: null },
       ]),
     ).toBe("Ты, Анна, Дима и площадка");
+  });
+
+  it("keeps four faces and counts the rest", () => {
+    expect(chatFaceItems(screen().company)).toEqual({ initials: ["Я", "А", "Д"], overflow: 0 });
+    const many = Array.from({ length: 6 }, (_, index) => ({ id: `f${index}`, name: `Имя ${index}`, avatarUrl: null }));
+    expect(chatFaceItems(many)).toEqual({ initials: ["Я", "И", "И", "И"], overflow: 3 });
   });
 });
 
@@ -87,26 +93,35 @@ describe("ticketShareText", () => {
 });
 
 describe("BookingTicketView", () => {
-  it("renders the confirmation, the code, the four facts and the chat", () => {
+  it("renders the photo header, the code, the four facts and the chat row", () => {
     const html = viewHtml();
 
-    expect(html).toContain("Бронь подтверждена");
-    expect(html).toContain("Суббота, 19 сентября · 17:30");
+    expect(html).toContain("Слот забронирован");
     expect(html).toContain("Беседка №4 у залива");
-    expect(html).toContain("Парк Горького · 2,4 км · 15 мин");
+    expect(html).toContain('class="app-ticket-place">Парк Горького</p>');
+    expect(html).toContain("беседка №4 у залива");
     expect(html).toContain("MAX-4821-19SB");
     expect(html).toContain("Покажите код на входе");
+    expect(html).toContain("Построить маршрут");
+    expect(html).toContain("Добавить в календарь");
+    expect(html).toContain("Дата и время");
+    expect(html).toContain("Сб, 19 сентября");
     expect(html).toContain("17:30 – 20:30");
-    expect(html).toContain("3 человека");
+    expect(html).toContain("Оплачено");
     expect(html).toContain("3 000 ₽");
-    expect(html).toContain("до 12:00");
-    expect(html).toContain("Маршрут");
-    expect(html).toContain("В календарь");
+    expect(html).toContain("Место");
+    expect(html).toContain("Посетителей");
+    expect(html).toContain("3 человека");
+    expect(html).toContain("Ты, Анна и Дима");
     expect(html).toContain("Чат брони");
-    expect(html).toContain("Ты, Анна, Дима и площадка");
-    expect(html).toContain("Беседка будет открыта с 17:20");
+    expect(html).toContain("В чате можно обсудить детали посещения с участниками");
     expect(html).toContain("Стол на 12, свободно 9 мест");
     expect(html).toContain("Отменить бронь");
+    expect(html).not.toContain("Бронь подтверждена");
+    expect(html).not.toContain(">Маршрут<");
+    expect(html).not.toContain("В календарь");
+    expect(html).not.toContain("Беседка будет открыта с 17:20");
+    expect(html).not.toContain("Ты, Анна, Дима и площадка");
   });
 
   it("arms the cancellation before it performs it", () => {
@@ -120,7 +135,9 @@ describe("BookingTicketView", () => {
     expect(html).not.toContain("Отменить бронь");
   });
 
-  it("says the chat is empty instead of drawing an empty block", () => {
-    expect(viewHtml({ chat: [] })).toContain("В чате пока тихо.");
+  it("still shows the chat row when there are no messages", () => {
+    const html = viewHtml({ chat: [] });
+    expect(html).toContain("В чате можно обсудить детали посещения с участниками");
+    expect(html).not.toContain("В чате пока тихо.");
   });
 });
