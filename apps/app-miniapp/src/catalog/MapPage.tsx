@@ -24,7 +24,24 @@ const NO_EVENTS: Event[] = [];
 const NO_WALK_MARKERS: MapMarker[] = [];
 
 function defaultLoadEvents(): Promise<Event[]> {
-  return apiClient.listEvents({});
+  const requests = (["afisha", "tourism", "sport", "volunteering"] as const).map((category) => apiClient.listEvents({ category, limit: 100 }));
+  return Promise.allSettled(requests).then((pages) => {
+    const seen = new Set<string>();
+    const events: Event[] = [];
+    for (const page of pages) {
+      if (page.status !== "fulfilled") continue;
+      for (const event of page.value) {
+        if (seen.has(event.id)) continue;
+        seen.add(event.id);
+        events.push(event);
+      }
+    }
+    if (events.length === 0 && pages.every((page) => page.status === "rejected")) {
+      const first = pages[0];
+      throw first.status === "rejected" ? first.reason : new Error("events failed");
+    }
+    return events;
+  });
 }
 
 function defaultLoadWalk(id: string): Promise<CityWalk> {

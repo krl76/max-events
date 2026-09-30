@@ -55,18 +55,46 @@ function normalize(title: string): string {
   return title.toLowerCase().replace(/[«»"'.,]/g, "").replace(/\s+/g, " ").trim();
 }
 
-/** A photograph for the venue: stored logo, then a known Moscow cover, then the category. */
-export function placePhotoUrl(place: { title: string; category?: string; logoUrl?: string | null }): string {
-  if (place.logoUrl && place.logoUrl.trim() !== "") return place.logoUrl;
-  const key = normalize(place.title);
-  const exact = PLACE_LOGOS[place.title];
-  if (exact) return exact;
-  for (const [title, url] of Object.entries(PLACE_LOGOS)) {
-    if (normalize(title) === key) return url;
+function isAppPhoto(url: string): boolean {
+  return url.startsWith("/") && !url.startsWith("//");
+}
+
+function kudagoCoverProxy(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:" && parsed.hostname === "media.kudago.com") {
+      return `/api/media/cover?src=${encodeURIComponent(url)}`;
+    }
+  } catch {
+    return null;
   }
-  for (const [title, url] of Object.entries(PLACE_LOGOS)) {
-    const known = normalize(title);
+  return null;
+}
+
+function knownCover(title: string): string | null {
+  const key = normalize(title);
+  const exact = PLACE_LOGOS[title];
+  if (exact) return exact;
+  for (const [knownTitle, url] of Object.entries(PLACE_LOGOS)) {
+    if (normalize(knownTitle) === key) return url;
+  }
+  for (const [knownTitle, url] of Object.entries(PLACE_LOGOS)) {
+    const known = normalize(knownTitle);
     if (known.length >= 6 && (key.includes(known) || known.includes(key))) return url;
+  }
+  return null;
+}
+
+/** A photograph for the venue: same-origin stored logo, then a known Moscow cover, then a proxied KudaGo image, then the category. */
+export function placePhotoUrl(place: { title: string; category?: string; logoUrl?: string | null }): string {
+  const stored = place.logoUrl?.trim() ?? "";
+  if (stored !== "" && isAppPhoto(stored)) return stored;
+  const known = knownCover(place.title);
+  if (known) return known;
+  if (stored !== "") {
+    const proxied = kudagoCoverProxy(stored);
+    if (proxied) return proxied;
+    return stored;
   }
   return CATEGORY_PHOTOS[place.category ?? ""] ?? "/onboarding/gorky.jpg";
 }

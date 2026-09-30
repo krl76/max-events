@@ -11,6 +11,7 @@ export function showPhoto(url: string | null | undefined): string | null {
   const trimmed = url.trim();
   const upload = UPLOAD.exec(trimmed);
   if (upload) return upload[1];
+  if (/^https:\/\/media\.kudago\.com\//i.test(trimmed)) return `/api/media/cover?src=${encodeURIComponent(trimmed)}`;
   const match = PICSUM.exec(trimmed);
   if (!match) return trimmed;
   const width = match[2] ?? "800";

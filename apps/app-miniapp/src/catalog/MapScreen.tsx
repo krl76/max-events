@@ -25,7 +25,7 @@
 // - MapNoticeInput - everything the one line over the canvas has to weigh: failures, emptiness, filters, geolocation
 // - MAP_EVENT_CATEGORIES - «Афиша», «Туризм», «Спорт», «Волонтёрство» on the map filter row
 // - filterMapEvents - event pins after the category chip and the map search
-// - filterMapPlaces - venue pins stay only when the category chip is «Все»; a category hides them so the map actually filters
+// - filterMapPlaces - venue pins of the matching family stay with a category chip (museums with афиша, arenas with спорт)
 // - mapNotice - the single line the map says about itself; null when there is nothing to explain
 // - MapView - the data the map is drawn from: markers, viewer origin, route, selected key, the basemap the tiles come from and the rendered colour scheme
 // - MapCallbacks - what the map calls back into React: open event, open place, select a pin, report dead tiles, fall back from a vector basemap that could not mount
@@ -235,10 +235,28 @@ export function basemapShot(basemap: MapBasemap): string | null {
   return basemap.url.replaceAll("{s}", "a").replace("{z}", "11").replace("{x}", "1238").replace("{y}", "639");
 }
 
-const MAP_SPORT = /спорт|футбол|йог|пробеж|воркаут|трениров|теннис|стритбол|кроссфит|плаван|офп/;
-const MAP_VOLUNTEER = /волонт|волонтер|субботник/;
-const MAP_BILL = /афиш|концерт|музык|джаз|кино|лекци/;
-const MAP_TRIP = /туризм|экскурс|поход|прогул/;
+const MAP_SPORT = /спорт|футбол|йог|пробеж|воркаут|трениров|теннис|стритбол|кроссфит|плаван|офп|матч|забег|вело|баскет|волейбол|хокке|фитнес/;
+const MAP_VOLUNTEER = /волонт|волонтер|субботник|приют|благотвор/;
+const MAP_BILL = /афиш|концерт|музык|джаз|кино|лекци|выставк|театр|спектакл|фестивал|оркестр/;
+const MAP_TRIP = /туризм|экскурс|поход|прогул|маршрут|гид/;
+
+const PLACE_FOR_EVENT: Record<EventCategory, ReadonlySet<Place["category"]>> = {
+  afisha: new Set(["museum", "other"]),
+  tourism: new Set(["park"]),
+  sport: new Set(["sport"]),
+  volunteering: new Set(["park", "other"]),
+};
+
+/** Chip «Спорт» also keeps an афиша-row whose title is a match, so imported cards are not stuck in one bucket. */
+export function eventMatchesMapCategory(item: Pick<Event, "category" | "title" | "description">, category: EventCategory): boolean {
+  if (item.category === category) return true;
+  const blob = `${item.title} ${item.description}`.toLowerCase();
+  if (category === "sport") return MAP_SPORT.test(blob);
+  if (category === "volunteering") return MAP_VOLUNTEER.test(blob);
+  if (category === "afisha") return MAP_BILL.test(blob);
+  if (category === "tourism") return MAP_TRIP.test(blob);
+  return false;
+}
 
 /** Event pins only. A category word, including a colloquial stem, matches that category. AI picks replace the local guess once they arrive. */
 export function filterMapEvents(events: readonly Event[], category: EventCategory | undefined, needle: string, aiIds?: ReadonlySet<string> | null): Event[] {
@@ -246,25 +264,27 @@ export function filterMapEvents(events: readonly Event[], category: EventCategor
   const named = query.replaceAll("ё", "е");
   const picked = aiIds != null && aiIds.size > 0 ? aiIds : null;
   return events.filter((item) => {
-    if (category !== undefined && item.category !== category) return false;
+    if (category !== undefined && !eventMatchesMapCategory(item, category)) return false;
     if (query === "") return true;
     if (picked !== null) return picked.has(item.id);
     const blob = `${item.title} ${item.description}`.toLowerCase();
     if (blob.includes(query)) return true;
-    if (MAP_SPORT.test(named) && (item.category === "sport" || MAP_SPORT.test(blob))) return true;
-    if (MAP_VOLUNTEER.test(named) && (item.category === "volunteering" || MAP_VOLUNTEER.test(blob))) return true;
-    if (MAP_BILL.test(named) && (item.category === "afisha" || MAP_BILL.test(blob))) return true;
-    if (MAP_TRIP.test(named) && (item.category === "tourism" || MAP_TRIP.test(blob))) return true;
+    if (MAP_SPORT.test(named) && eventMatchesMapCategory(item, "sport")) return true;
+    if (MAP_VOLUNTEER.test(named) && eventMatchesMapCategory(item, "volunteering")) return true;
+    if (MAP_BILL.test(named) && eventMatchesMapCategory(item, "afisha")) return true;
+    if (MAP_TRIP.test(named) && eventMatchesMapCategory(item, "tourism")) return true;
     return false;
   });
 }
 
-/** Venue pins stay on «Все». A category chip is about events, so places would keep the map looking unfiltered. */
+/** Venues of the same family stay on a category chip: museums with афиша, parks with туризм, arenas with спорт. */
 export function filterMapPlaces(places: readonly Place[], category: EventCategory | undefined, needle: string): Place[] {
-  if (category !== undefined) return [];
   const query = needle.trim().toLowerCase();
-  if (query === "") return [...places];
-  return places.filter((item) => `${item.title} ${item.address}`.toLowerCase().includes(query));
+  return places.filter((item) => {
+    if (category !== undefined && !PLACE_FOR_EVENT[category].has(item.category)) return false;
+    if (query === "") return true;
+    return `${item.title} ${item.address}`.toLowerCase().includes(query);
+  });
 }
 
 function popupNode(marker: MapMarker, onOpenEvent: (id: string) => void, onOpenPlace: (id: string) => void): HTMLElement {

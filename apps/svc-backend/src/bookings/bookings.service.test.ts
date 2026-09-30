@@ -180,6 +180,13 @@ describe("BookingsService", () => {
     expect(events[0]?.bookedCount).toBe(1);
   });
 
+  it("records a free booking when a paid flag has no price", async () => {
+    const { service } = createService(seedEvent({ isPaid: true, priceRub: null, paymentUrl: null, capacity: null }));
+    const booking = await service.create(userA, eventId);
+    expect(booking.status).toBe("active");
+    expect(booking.payment).toBeNull();
+  });
+
   it("rejects a second active booking by the same user", async () => {
     const { service } = createService();
     await service.create(userA, eventId);
@@ -280,10 +287,12 @@ describe("BookingsService", () => {
     expect(paymentCalls).toEqual([]);
   });
 
-  it("rejects a paid event without a price before taking a seat", async () => {
+  it("records a booking when a paid flag has no price and leaves payment empty", async () => {
     const { service, events, paymentCalls } = createService(seedEvent({ isPaid: true, priceRub: null, paymentUrl: "https://pay.example/jazz" }));
-    await expect(service.create(userA, eventId)).rejects.toBeInstanceOf(BadRequestException);
-    expect(events[0]?.bookedCount).toBe(0);
+    const booking = await service.create(userA, eventId);
+    expect(booking.status).toBe("active");
+    expect(booking.payment).toBeNull();
+    expect(events[0]?.bookedCount).toBe(1);
     expect(paymentCalls).toEqual([]);
   });
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mockEvents, mockPlaces } from "../api/mock";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { escapeHtml, filterMapEvents, filterMapPlaces, formatDrawnRoute, formatMapChange, formatMapHour, formatMapTemperature, formatTravelOption, MapSelectionCard, mapFriendsLine, mapHourGlyph, mapHourlyWindow, MAP_HOURLY_COLUMNS, mapNotice, mapRainHint, mapWeatherChipText, routeGlyphs, type MapNoticeInput } from "./MapScreen";
+import { escapeHtml, eventMatchesMapCategory, filterMapEvents, filterMapPlaces, formatDrawnRoute, formatMapChange, formatMapHour, formatMapTemperature, formatTravelOption, MapSelectionCard, mapFriendsLine, mapHourGlyph, mapHourlyWindow, MAP_HOURLY_COLUMNS, mapNotice, mapRainHint, mapWeatherChipText, routeGlyphs, type MapNoticeInput } from "./MapScreen";
 
 const NOTICE: MapNoticeInput = { mapFailed: false, tilesFailed: false, vectorFallback: false, loading: false, placesFailed: false, eventsFailed: false, markerCount: 4, query: "", anyLayerOn: true, geoDenied: false, locateOn: false };
 
@@ -10,22 +10,31 @@ describe("filterMapEvents", () => {
   it("keeps one category and still matches the map search", () => {
     const sport = mockEvents.filter((item) => item.category === "sport");
     expect(sport.length).toBeGreaterThan(0);
-    expect(filterMapEvents(mockEvents, "sport", "").every((item) => item.category === "sport")).toBe(true);
+    expect(filterMapEvents(mockEvents, "sport", "").every((item) => eventMatchesMapCategory(item, "sport"))).toBe(true);
+    expect(filterMapEvents(mockEvents, "sport", "").some((item) => item.category === "sport")).toBe(true);
     expect(filterMapEvents(mockEvents, undefined, "").length).toBe(mockEvents.length);
     const titled = sport[0];
-    expect(filterMapEvents(mockEvents, "sport", titled.title.slice(0, 4)).every((item) => item.category === "sport" && item.title.toLowerCase().includes(titled.title.slice(0, 4).toLowerCase()))).toBe(true);
+    expect(filterMapEvents(mockEvents, "sport", titled.title.slice(0, 4)).every((item) => eventMatchesMapCategory(item, "sport") && item.title.toLowerCase().includes(titled.title.slice(0, 4).toLowerCase()))).toBe(true);
     expect(filterMapEvents(mockEvents, "volunteering", "этот запрос ничему не равен")).toEqual([]);
-    expect(filterMapEvents(mockEvents, undefined, "спортик").every((item) => item.category === "sport")).toBe(true);
-    expect(filterMapEvents(mockEvents, undefined, "спортик").length).toBe(sport.length);
+    expect(filterMapEvents(mockEvents, undefined, "спортик").every((item) => eventMatchesMapCategory(item, "sport"))).toBe(true);
     const picked = sport[0];
     expect(filterMapEvents(mockEvents, undefined, "что угодно", new Set([picked.id])).map((item) => item.id)).toEqual([picked.id]);
+  });
+
+  it("keeps an афиша card whose title is a sport match", () => {
+    const football = { ...mockEvents[0], title: "Футбол во дворе", category: "afisha" as const };
+    expect(eventMatchesMapCategory(football, "sport")).toBe(true);
+    expect(filterMapEvents([football], "sport", "").map((item) => item.id)).toEqual([football.id]);
   });
 });
 
 describe("filterMapPlaces", () => {
-  it("drops venues while a category chip is on", () => {
+  it("keeps venues of the matching family on a category chip", () => {
     expect(filterMapPlaces(mockPlaces, undefined, "").length).toBe(mockPlaces.length);
-    expect(filterMapPlaces(mockPlaces, "sport", "")).toEqual([]);
+    expect(filterMapPlaces(mockPlaces, "sport", "").map((item) => item.title)).toEqual(["«Лужники»"]);
+    expect(filterMapPlaces(mockPlaces, "afisha", "").map((item) => item.category)).toEqual(["museum"]);
+    expect(filterMapPlaces(mockPlaces, "tourism", "").map((item) => item.title)).toEqual(["Парк Горького"]);
+    expect(filterMapPlaces(mockPlaces, "volunteering", "").every((item) => item.category === "park" || item.category === "other")).toBe(true);
     expect(filterMapPlaces(mockPlaces, "afisha", "парк")).toEqual([]);
     expect(filterMapPlaces(mockPlaces, undefined, "этот запрос ничему не равен")).toEqual([]);
   });

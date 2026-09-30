@@ -9,7 +9,7 @@
 // - BotMedia - public origin + bot name; absoluteCover/heroUrl/bannerUrl/coverUrls turn stored paths into URLs MAX can fetch
 // - CATEGORY_LABELS - ru labels per event category, same words the mini-app shows
 // - eventCard - one event as a markdown block: title, category, when, price, optional context labels
-// - welcomeMessage - first hello: open the mini-app (onboarding lives there), then chat + slash-command hint; no Назад
+// - welcomeMessage - first hello: invite into the mini-app, then say both the app and the bot work; no Назад
 // - menuMessage - the main keyboard: today, where-to, plans, bookings, help, open app, Назад
 // - todayMessage - TodayService digest: summary counters + top cards with their context labels
 // - wheretoQuestion - one step of the guided picker with its answer buttons
@@ -201,13 +201,7 @@ export function withBack(keyboard: BotKeyboard, payload: BotPayload = { id: "sta
 
 export function welcomeMessage(media: BotMedia, firstName: string | null): BotMessageBody {
   const name = firstName ? `, ${firstName}` : "";
-  const text = [
-    `# Привет${name}`,
-    "",
-    "Открой афишу в приложении — онбординг уже там.",
-    "",
-    "Здесь подберу событие словами и запишу в чат. Набери **/** — появятся команды.",
-  ].join("\n");
+  const text = [`# Привет${name}`, "", "Открой афишу в приложении.", "", "Можно в мини-приложении и прямо здесь, в боте."].join("\n");
   const keyboard: BotKeyboard = [[openApp(media, "Открыть афишу в приложении", null)], ...menuKeyboard(media)];
   return botRich(text, { keyboard, markdown: true });
 }

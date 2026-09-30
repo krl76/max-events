@@ -43,9 +43,6 @@ export class BookingsService {
         if (event.capacity !== null && event.bookedCount >= event.capacity) {
           throw new ConflictException("No seats left");
         }
-        if (event.isPaid && (event.priceRub == null || event.priceRub <= 0)) {
-          throw new BadRequestException("Paid event requires a price");
-        }
 
         const booking = await manager.save(BookingEntity, manager.create(BookingEntity, { userId, eventId, status: "active", promoCode: applied, source: source ?? null }));
         await this.promo.recordFulfillmentInTransaction(manager, event, userId, booking.id, referralCode ?? undefined, now);
@@ -148,8 +145,7 @@ export class BookingsService {
   }
 
   private async paymentFor(event: EventEntity, bookingId: string, skipIfCancelled: boolean): Promise<Payment | null> {
-    if (!event.isPaid) return null;
-    if (event.priceRub == null || event.priceRub <= 0) throw new BadRequestException("Paid event requires a price");
+    if (!event.isPaid || event.priceRub == null || event.priceRub <= 0) return null;
     const live = await this.dataSource.transaction(async (manager) => manager.findOne(BookingEntity, { where: { id: bookingId } }));
     if (!live || live.status !== "active") {
       if (skipIfCancelled) return null;
