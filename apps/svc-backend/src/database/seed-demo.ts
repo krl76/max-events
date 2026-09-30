@@ -1610,6 +1610,86 @@ async function resolveRows<T extends ObjectLiteral>(repo: Repository<T>, rows: T
   return { inserted, idMap };
 }
 
+async function resolveCastUsers(repo: Repository<UserEntity>, rows: UserEntity[]): Promise<{ inserted: number; idMap: Map<string, string> }> {
+  const idMap = new Map<string, string>();
+  let inserted = 0;
+  for (const row of rows) {
+    const existing = await repo.findOneBy({ maxUserId: row.maxUserId });
+    if (existing) {
+      existing.firstName = row.firstName;
+      existing.lastName = row.lastName;
+      existing.username = row.username;
+      if (!existing.avatarCustom) existing.avatarUrl = row.avatarUrl;
+      await repo.save(existing);
+      idMap.set(row.id, existing.id);
+      continue;
+    }
+    try {
+      await repo.insert(row);
+      inserted += 1;
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      const found = await repo.findOneBy({ maxUserId: row.maxUserId });
+      if (!found) throw error;
+      idMap.set(row.id, found.id);
+    }
+  }
+  return { inserted, idMap };
+}
+
+function remapUserIds(data: DemoData, idMap: Map<string, string>): void {
+  const real = (id: string): string => idMap.get(id) ?? id;
+  const realOpt = (id: string | null | undefined): string | null => (id == null ? null : real(id));
+  for (const profile of data.profiles) profile.userId = real(profile.userId);
+  for (const row of data.friendships) {
+    row.userId = real(row.userId);
+    row.friendUserId = real(row.friendUserId);
+  }
+  for (const place of data.places) place.organizerUserId = realOpt(place.organizerUserId);
+  for (const event of data.events) event.organizerUserId = realOpt(event.organizerUserId);
+  for (const row of data.promoCodes) row.organizerUserId = real(row.organizerUserId);
+  for (const row of data.promoCampaigns) row.organizerUserId = real(row.organizerUserId);
+  for (const row of data.promotionCampaigns) row.organizerUserId = real(row.organizerUserId);
+  for (const row of data.participations) row.userId = real(row.userId);
+  for (const row of data.bookings) row.userId = real(row.userId);
+  for (const row of data.checkIns) row.userId = real(row.userId);
+  for (const row of data.stories) row.userId = real(row.userId);
+  for (const row of data.feedPosts) {
+    row.authorUserId = real(row.authorUserId);
+    row.taggedFriendIds = (row.taggedFriendIds ?? []).map(real);
+  }
+  for (const row of data.reviews) row.userId = real(row.userId);
+  for (const row of data.subscriptions) {
+    row.userId = real(row.userId);
+    row.organizerUserId = realOpt(row.organizerUserId);
+    row.targetUserId = realOpt(row.targetUserId);
+  }
+  for (const row of data.pageViews) row.userId = real(row.userId);
+  for (const row of data.lists) row.userId = real(row.userId);
+  for (const row of data.votes) row.hostUserId = real(row.hostUserId);
+  for (const row of data.voteParticipants) row.userId = real(row.userId);
+  for (const row of data.voteBallots) row.userId = real(row.userId);
+  for (const row of data.weGroups) row.ownerUserId = real(row.ownerUserId);
+  for (const row of data.weGroupMembers) row.userId = real(row.userId);
+  for (const row of data.weGroupPhotos) row.userId = real(row.userId);
+  for (const row of data.gatherings) row.hostUserId = real(row.hostUserId);
+  for (const row of data.gatheringInvitees) row.userId = real(row.userId);
+  for (const row of data.microEvents) row.authorId = real(row.authorId);
+  for (const row of data.microEventParticipants) row.userId = real(row.userId);
+  for (const row of data.plans) row.hostUserId = real(row.hostUserId);
+  for (const row of data.planParticipants) row.userId = real(row.userId);
+  for (const row of data.planExpenses) {
+    row.payerUserId = real(row.payerUserId);
+    row.shareUserIds = row.shareUserIds.map(real);
+  }
+  for (const row of data.feedLikes) row.userId = real(row.userId);
+  for (const row of data.feedComments) row.authorUserId = real(row.authorUserId);
+  for (const row of data.waitlistEntries) row.userId = real(row.userId);
+  for (const row of data.userAchievements) row.userId = real(row.userId);
+  for (const row of data.reports) row.userId = real(row.userId);
+  for (const row of data.cityWalks) row.userId = real(row.userId);
+}
+
 function remapPlaceIds(data: DemoData, idMap: Map<string, string>): void {
   const real = (id: string | null): string | null => (id === null ? null : (idMap.get(id) ?? id));
   for (const event of data.events) event.placeId = real(event.placeId);
@@ -1831,8 +1911,28 @@ export async function seedDemoDatabase(dataSource: DataSource, options: DemoSeed
   // вставка площадок до людей падает по FK_places_organizer. Раньше порядок сходил с рук только
   // потому, что на обжитой базе площадки находились уже существующими и не вставлялись вовсе.
   const inserted: Record<string, number> = {};
-  inserted.users = await insertRows(usersRepo, data.users);
-  inserted.profiles = await insertRows(dataSource.getRepository(ProfileEntity), data.profiles);
+  const users = await resolveCastUsers(usersRepo, data.users);
+  remapUserIds(data, users.idMap);
+  inserted.users = users.inserted;
+  const profilesRepo = dataSource.getRepository(ProfileEntity);
+  let profilesInserted = 0;
+  for (const profile of data.profiles) {
+    const existing = await profilesRepo.findOneBy({ userId: profile.userId });
+    if (existing) {
+      existing.city = profile.city;
+      existing.interests = profile.interests;
+      existing.bio = profile.bio;
+      await profilesRepo.save(existing);
+      continue;
+    }
+    try {
+      await profilesRepo.insert(profile);
+      profilesInserted += 1;
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+    }
+  }
+  inserted.profiles = profilesInserted;
   inserted.friendships = await insertRows(dataSource.getRepository(FriendshipEntity), data.friendships);
 
   const places = await resolveRows(dataSource.getRepository(PlaceEntity), data.places, (place) => ({ title: place.title, address: place.address, city: place.city }));
