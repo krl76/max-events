@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AssistDayResponse, CityWalk, ComposeCityWalkWrite } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { pluralRu } from "../catalog/format";
-import { genitiveCity, prepositionalCity } from "../geo/city-case";
+import { genitiveCity } from "../geo/city-case";
 import { announceShare, getWebApp, shareResult } from "../max/bridge";
 import { sharePayload } from "../max/links";
 import { useRoute } from "../routing/router";
@@ -51,8 +51,8 @@ export function walkClock(at: string): string {
   return new Date(parsed).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function walkWaitTitle(city: string): string {
-  return `Прокладываю маршрут по ${prepositionalCity(city)}`;
+export function walkWaitTitle(_city?: string): string {
+  return "Прокладываю маршрут";
 }
 
 export function walkWaitSubtitle(durationMinutes: number): string {
@@ -61,10 +61,10 @@ export function walkWaitSubtitle(durationMinutes: number): string {
 
 export type WalkState = { status: "loading" } | { status: "error" } | { status: "ready"; day: AssistDayResponse };
 
-export function WalkView({ city, state, onAnother }: { readonly city: string; readonly state: WalkState; readonly onAnother: () => void }) {
+export function WalkView({ city: _city, state, onAnother }: { readonly city: string; readonly state: WalkState; readonly onAnother: () => void }) {
   return (
     <section className="app-walk">
-      <h1 className="app-walk-title">Маршрут выходного дня: {city}</h1>
+      <h1 className="app-walk-title">Маршрут выходного дня</h1>
       {state.status === "loading" && <AppState>Собираем прогулку по достопримечательностям.</AppState>}
       {state.status === "error" && <AppState error>Не удалось собрать прогулку.</AppState>}
       {state.status === "ready" && <WalkDraft day={state.day} onAnother={onAnother} />}
@@ -117,7 +117,7 @@ function WalkDraft({ day, onAnother }: { readonly day: AssistDayResponse; readon
 
 export function WalkPage({ city: initialCity, compose = (body) => apiClient.composeCityWalk(body), initialChoice = EMPTY_WALK_CHOICE }: { readonly city: string; readonly compose?: (body: ComposeCityWalkWrite) => Promise<CityWalk>; readonly initialChoice?: WalkChoice }) {
   const { navigate } = useRoute();
-  const [city, setCity] = useState(initialCity);
+  const city = initialCity;
   const [choice, setChoice] = useState(initialChoice);
   const [excludeKeys, setExcludeKeys] = useState<readonly string[]>([]);
   const [phase, setPhase] = useState<"form" | "wait" | "ready">("form");
@@ -173,7 +173,7 @@ export function WalkPage({ city: initialCity, compose = (body) => apiClient.comp
     return (
       <section className="app-walk">
         <header className="app-walk-head">
-          <h1 className="app-walk-title">Прогулка: {city}</h1>
+          <h1 className="app-walk-title">Прогулка</h1>
         </header>
         <div className="app-walk-wait" aria-live="polite">
           <div className="app-walk-trail" aria-hidden="true">
@@ -226,10 +226,6 @@ export function WalkPage({ city: initialCity, compose = (body) => apiClient.comp
       choice={choice}
       onChange={setChoice}
       notice={error}
-      onCity={(next) => {
-        if (next === city) return;
-        setCity(next);
-      }}
       onCompose={() => {
         void onCompose();
       }}

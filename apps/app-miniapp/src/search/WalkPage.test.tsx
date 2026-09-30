@@ -18,7 +18,7 @@ describe("city walk query", () => {
     expect(cityWalkAsk("Тула")).toContain("достопримечательностям");
     expect(nextWalkAsk("Тула")).toContain("другой");
     expect(nextWalkAsk("Тула")).not.toBe(cityWalkAsk("Тула"));
-    expect(walkWaitTitle("Москва")).toBe("Прокладываю маршрут по Москве");
+    expect(walkWaitTitle("Москва")).toBe("Прокладываю маршрут");
   });
 });
 
@@ -58,7 +58,8 @@ describe("WalkView", () => {
       }),
     );
 
-    expect(html).toContain("Маршрут выходного дня: Тула");
+    expect(html).toContain("Маршрут выходного дня");
+    expect(html).not.toContain("Маршрут выходного дня: Тула");
     expect(html).toContain("Тульский кремль");
     expect(html).toContain("Хочу новую прогулку");
   });
@@ -78,7 +79,9 @@ describe("walk wizard", () => {
     expect(html).not.toContain("Собираем прогулку");
     expect(html).not.toContain("Бесплатно");
     expect(html).not.toContain("Мои прогулки");
-    expect(html).toContain('aria-label="Город"');
+    expect(html).not.toContain('aria-label="Город"');
+    expect(html).not.toContain("Прогулка: Тула");
+    expect(html).toContain(">Прогулка<");
     expect(html).not.toContain("app-walk-back");
   });
 
@@ -226,7 +229,8 @@ describe("composed walk", () => {
     await act(async () => {
       clickText(host, "Собрать прогулку");
     });
-    expect(host.textContent).toContain("Прокладываю маршрут по Туле");
+    expect(host.textContent).toContain("Прокладываю маршрут");
+    expect(host.textContent).not.toContain("по Туле");
     expect(host.textContent).toContain("проверяю реальные места и расстояния");
     await act(async () => {
       release(sampleWalk());
@@ -325,14 +329,16 @@ describe("composed walk", () => {
     host.remove();
   });
 
-  it("advances time and budget only with Далее and lets the city chip pick a city", async () => {
-    const cities: string[] = [];
+  it("advances time and budget only with Далее and does not show a city chip", async () => {
     function Harness() {
       const [choice, setChoice] = useState(EMPTY_WALK_CHOICE);
-      return createElement(WalkWizard, { city: "Тула", choice, onChange: setChoice, onCity: (city) => cities.push(city) });
+      return createElement(WalkWizard, { city: "Тула", choice, onChange: setChoice });
     }
     const { host, root } = await mount(createElement(Harness));
     expect(host.textContent).not.toContain("Мои прогулки");
+    expect(host.querySelector('button[aria-label="Город"]')).toBeNull();
+    expect(host.textContent).toContain("Прогулка");
+    expect(host.textContent).not.toContain("Прогулка: Тула");
     await act(async () => {
       clickText(host, "2 часа");
     });
@@ -350,56 +356,26 @@ describe("composed walk", () => {
       clickText(host, "Далее");
     });
     expect(host.textContent).toContain("Культурные");
-    await act(async () => {
-      (host.querySelector('button[aria-label="Город"]') as HTMLButtonElement).click();
-    });
-    await act(async () => {
-      clickText(host, "Москва");
-    });
-    expect(cities).toEqual(["Москва"]);
     root.unmount();
     host.remove();
   });
 
-  it("keeps the time step and selection when the city chip changes city", async () => {
-    const { host, root } = await mount(createElement(WalkPage, { city: "Тула" }));
-    await act(async () => {
-      clickText(host, "2 часа");
-    });
-    await act(async () => {
-      (host.querySelector('button[aria-label="Город"]') as HTMLButtonElement).click();
-    });
-    await act(async () => {
-      clickText(host, "Москва");
-    });
-    expect(host.textContent).toContain("Прогулка: Москва");
-    expect(host.textContent).toContain("Сколько времени");
-    expect(host.textContent).not.toContain("Бюджет маршрута");
-    expect(host.querySelector(".app-walk-tile--selected")?.textContent).toContain("2 часа");
-    root.unmount();
-    host.remove();
-  });
-
-  it("composes the walk for the city picked on the chip", async () => {
+  it("composes the walk for the city from the route", async () => {
     const calls: ComposeCityWalkWrite[] = [];
     const compose = (body: ComposeCityWalkWrite): Promise<CityWalk> => {
       calls.push(body);
       return Promise.resolve({ ...sampleWalk(), city: body.city });
     };
-    const { host, root } = await mount(createElement(WalkPage, { city: "Москва", initialChoice: readyChoice(), compose }));
-    await act(async () => {
-      (host.querySelector('button[aria-label="Город"]') as HTMLButtonElement).click();
-    });
-    await act(async () => {
-      clickText(host, "Казань");
-    });
-    expect(host.textContent).toContain("Прогулка: Казань");
+    const { host, root } = await mount(createElement(WalkPage, { city: "Казань", initialChoice: readyChoice(), compose }));
+    expect(host.querySelector('button[aria-label="Город"]')).toBeNull();
+    expect(host.textContent).not.toContain("Прогулка: Казань");
     await act(async () => {
       clickText(host, "Собрать прогулку");
     });
     expect(calls).toHaveLength(1);
     expect(calls[0]?.city).toBe("Казань");
-    expect(host.textContent).toContain("Прогулка: Казань");
+    expect(host.textContent).toContain("Прогулка");
+    expect(host.textContent).not.toContain("Прогулка: Казань");
     root.unmount();
     host.remove();
   });
