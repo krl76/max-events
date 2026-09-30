@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CABINET_EVENTS, cabinetOccupancy, cabinetStats, cabinetTrafficLead, cabinetWeakUpcoming, defaultStatsRange, fillCaption } from "./cabinet-catalog";
-import { chartPeak, periodCaption, OrganizerStatistics, shownViews } from "./OrganizerStatistics";
+import { chartPeak, periodCaption, OrganizerStatistics } from "./OrganizerStatistics";
 
 const noop = () => {};
 
@@ -61,25 +61,13 @@ describe("cabinetWeakUpcoming", () => {
   });
 });
 
-describe("shownViews", () => {
-  it("keeps a tracked reach that covers the bookings and substitutes one when the counter is below them", () => {
-    expect(shownViews(50, 1)).toBe(280);
-    expect(Math.round((50 / shownViews(50, 1)) * 100)).toBe(18);
-    expect(shownViews(50, null)).toBe(280);
-    expect(shownViews(50, 0)).toBe(280);
-    expect(shownViews(0, 0)).toBe(0);
-    expect(shownViews(245, 1240)).toBe(1240);
-  });
-});
-
 describe("OrganizerStatistics", () => {
   it("opens as a light CRM infographic: occupancy track, guest funnel, sources, no event catalog or money", () => {
     const html = renderToStaticMarkup(createElement(OrganizerStatistics, { onCreateEvent: noop, onPromote: noop }));
 
     expect(html).toContain("Статистика");
     expect(html).toContain("app-cab-page-title");
-    expect(html).toMatch(/app-org-kpi-label">брон(ь|и|ей)/);
-    expect(html).not.toContain("регистрации");
+    expect(html).toContain("регистрации");
     expect(html).toContain("из просмотров");
     expect(html).toContain("Путь гостя");
     expect(html).toContain("Просмотры");

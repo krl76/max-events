@@ -1,13 +1,12 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Organizer «Статистика» tab — CRM home: period, registrations, guest funnel, occupancy, returning guests, weekday chart, traffic sources, lead time, today’s door, and cabinet actions. The header bell is the visitor one and opens the same inbox.
 // SCOPE: Presentational screen over GET /organizer/summary with cabinet fallback. Occupancy is one aggregate visual; per-event fill lives on the event hub. Rubles stay on Finance. The bell count is the MAX user's unread summary.
-// DEPENDS: react, ../api/client.js, ../catalog/format.js, ../ui/icons.js, ../ui/theme.css, ./cabinet-catalog.js
+// DEPENDS: react, ../api/client.js, ../ui/icons.js, ../ui/theme.css, ./cabinet-catalog.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 
 import { useEffect, useState } from "react";
 import { apiClient, type OrganizerEvent, type OrganizerLeadShare, type OrganizerSummary, type OrganizerTrafficShare } from "../api/client";
-import { pluralRu } from "../catalog/format";
 import { SettingsGroup } from "../profile/SettingsPage";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
@@ -44,12 +43,6 @@ function periodQueryFor(days: number, now = new Date()): { from: string; to: str
 function shareOf(value: number, max: number): number {
   if (max <= 0) return 0;
   return Math.max(6, Math.round((value / max) * 100));
-}
-
-/** Views below the booking count paint thousands of percent. The offline reach is about 5.6 views per booking. */
-export function shownViews(bookings: number, tracked: number | null): number {
-  if (tracked !== null && tracked >= bookings && (tracked > 0 || bookings === 0)) return tracked;
-  return cabinetViews(bookings);
 }
 
 function StatTrack({ label, value, width }: { label: string; value: string; width: number }) {
@@ -233,8 +226,8 @@ export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote, onNoti
   const attendedPercent = summary?.attendedPercent ?? CABINET_ATTENDED_PERCENT;
   const cancelledPercent = summary?.cancelledPercent ?? CABINET_CANCELLED_PERCENT;
   const repeatPercent = summary?.repeatGuestPercent ?? CABINET_REPEAT_PERCENT;
-  const views = shownViews(bookings, summary === null ? null : summary.views);
-  const conversion = views <= 0 ? null : Math.round((bookings / views) * 100);
+  const views = summary?.views ?? cabinetViews(bookings);
+  const conversion = summary?.conversionPercent ?? (views <= 0 ? null : Math.round((bookings / views) * 100));
   const bookingsDelta = summary?.bookingsDeltaPercent ?? snapshot.ticketsDelta;
   const waitlist = summary?.waitlist ?? 0;
   const uniqueGuests = summary?.uniqueGuests ?? Math.max(0, Math.round(bookings * 0.85));
@@ -293,7 +286,7 @@ export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote, onNoti
       </div>
       <div className="app-org-kpi">
         <span className="app-org-kpi-value">{countLabel(bookings)}</span>
-        <span className="app-org-kpi-label">{pluralRu(bookings, "бронь", "брони", "броней")}</span>
+        <span className="app-org-kpi-label">регистрации</span>
         {(conversion !== null || bookingsDelta !== null) && (
           <span className="app-org-kpi-note">
             {conversion !== null && <span>{conversion}% из просмотров</span>}
