@@ -10,6 +10,13 @@
 
 Основной пользовательский сценарий проверяется в клиенте MAX. Docker поднимает ту же мини-аппу и API локально для разбора стека. Платформу MAX внутри Docker воспроизвести нельзя — условия проверки описаны в разделе про внешние сервисы.
 
+<p align="center">
+  <img src="docs/screens/feed.png" width="180" alt="Лента города">
+  <img src="docs/screens/search.png" width="180" alt="Поиск и афиша">
+  <img src="docs/screens/event.png" width="180" alt="Карточка события">
+  <img src="docs/screens/map.png" width="180" alt="Карта рядом">
+</p>
+
 ---
 
 ## Назначение решения
@@ -54,6 +61,91 @@
 6. Увидеть запись в «Мои брони» (в приложении и командой `/bookings` в чате).
 
 Локальный Docker повторяет мини-приложение и API в браузере. Чат-бот, вебхук и вход через MAX проверяются только в мессенджере на `https://events.versacegus.cc`.
+
+### Чат-бот
+
+<p align="center">
+  <img src="docs/screens/bot.png" width="280" alt="Чат-бот афиша MAX">
+</p>
+
+Старт в MAX: приветствие, кнопка «Открыть афишу» в мини-приложение, пункты «Что сегодня», «Куда пойти», планы и брони. Свободный запрос в чате («джаз вечером») подбирает карточки из каталога и записывает прямо здесь.
+
+### Мини-приложение: гость
+
+<table>
+  <tr>
+    <td align="center" width="25%" valign="top">
+      <img src="docs/screens/feed.png" alt="Лента города">
+      <br><strong>Лента</strong><br>Истории друзей, посты с мест и вход в «Куда пойдём?» — три вопроса и план на вечер.
+    </td>
+    <td align="center" width="25%" valign="top">
+      <img src="docs/screens/search.png" alt="Поиск">
+      <br><strong>Поиск</strong><br>Хабы «Спросить», свайпы, карта, «Куда», рядом. «Популярное» и ближайшие события с датой в будущем.
+    </td>
+    <td align="center" width="25%" valign="top">
+      <img src="docs/screens/event.png" alt="Карточка события">
+      <br><strong>Карточка</strong><br>Дата, место, кто идёт, маршрут. Бесплатное событие записывается в приложении; платное открывает ссылку оплаты.
+    </td>
+    <td align="center" width="25%" valign="top">
+      <img src="docs/screens/map.png" alt="Карта">
+      <br><strong>Карта</strong><br>Пины площадок рядом, погода, время пешком / на транспорте и построение маршрута.
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="25%" valign="top">
+      <img src="docs/screens/whereto.png" alt="Куда пойдём">
+      <br><strong>Куда пойдём?</strong><br>Компания → настроение → бюджет. Тот же мастер, что команда `/whereto` в боте.
+    </td>
+    <td align="center" width="25%" valign="top">
+      <img src="docs/screens/swipes.png" alt="Свайпы мест">
+      <br><strong>Свайпы</strong><br>Подбор мест жестом: вправо — в избранное, влево — мимо.
+    </td>
+    <td align="center" width="25%" valign="top">
+      <img src="docs/screens/assist.png" alt="MAX AI ассистент">
+      <br><strong>Ассистент</strong><br>Свободный запрос («что-нибудь со спортом») и карточки из своего каталога, не из генерации.
+    </td>
+    <td align="center" width="25%" valign="top">
+      <img src="docs/screens/walk.png" alt="Городская прогулка">
+      <br><strong>Прогулка</strong><br>Время, бюджет, интересы. Точки маршрута — Wikidata и места каталога.
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td align="center" width="33%" valign="top">
+      <img src="docs/screens/create.png" alt="Создать">
+      <br><strong>Создать</strong><br>История, пост к событию, план вечера и короткое микро-событие со своими.
+    </td>
+    <td align="center" width="33%" valign="top">
+      <img src="docs/screens/profile.png" alt="Профиль гостя">
+      <br><strong>Профиль</strong><br>Календарь, прогулки, планы, брони, достижения, группы и друзья. Запись видна и командой `/bookings`.
+    </td>
+    <td align="center" width="33%" valign="top">
+      <img src="docs/screens/calendar.png" alt="Календарь с другом">
+      <br><strong>Календарь</strong><br>Свой день и общий с другом: планы, сборы, ссылка, чтобы добавить компанию.
+    </td>
+  </tr>
+</table>
+
+### Кабинет организатора
+
+<table>
+  <tr>
+    <td align="center" width="33%" valign="top">
+      <img src="docs/screens/organizer-stats.png" alt="Статистика кабинета">
+      <br><strong>Статистика</strong><br>Путь гостя: просмотры, записи, дошли, отмены. Источники: чаты MAX, лента, поиск.
+    </td>
+    <td align="center" width="33%" valign="top">
+      <img src="docs/screens/organizer-event.png" alt="Событие в кабинете">
+      <br><strong>Событие</strong><br>Публикация в той же мини-аппе: места, билеты, редактирование карточки.
+    </td>
+    <td align="center" width="33%" valign="top">
+      <img src="docs/screens/organizer-finance.png" alt="Финансы кабинета">
+      <br><strong>Финансы</strong><br>Доход, выплаты, промокоды. Эквайринг платформы в MVP не подключён — гость платит по `paymentUrl`.
+    </td>
+  </tr>
+</table>
 
 ---
 
