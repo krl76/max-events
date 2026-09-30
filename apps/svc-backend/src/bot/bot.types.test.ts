@@ -39,6 +39,12 @@ describe("parseUpdates", () => {
     expect(parseUpdates([started])).toHaveLength(1);
   });
 
+  it("accepts a single Update — that is what MAX POSTs to the webhook", () => {
+    const inbound = parseUpdates(started);
+    expect(inbound).toHaveLength(1);
+    expect(inbound[0]).toMatchObject({ kind: "start", maxUserId: "67890", userName: "Михаил", chatId: 555, startPayload: "event-abc" });
+  });
+
   it("drops updates it does not act on instead of failing the page", () => {
     const inbound = parseUpdates({ updates: [{ update_type: "message_edited", message: created.message }, started] });
     expect(inbound).toHaveLength(1);

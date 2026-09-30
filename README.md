@@ -18,7 +18,14 @@ bun run check                # гейт: test:quality + secrets + format + lint 
 
 Бот `t691_hakaton_max_bot` — гостевой ассистент в диалоге: приветствие с фото, «Что сегодня», «Куда пойти», поиск словами, запись и лист ожидания, планы и брони. Кнопка `open_app` открывает мини-приложение.
 
-На проде ничего сверх уже стоящего `MAX_BOT_TOKEN` не нужно: origin картинок и вебхука — `https://events.versacegus.cc`, секрет вебхука считается из токена, при старте бэкенд сам подписывает `POST /subscriptions`. Стенд `dev.events.versacegus.cc` вебхук живого бота не перехватывает.
+На проде в `/opt/max-events/.env` рядом с `MAX_BOT_TOKEN`:
+
+```
+BOT_PUBLIC_URL=https://events.versacegus.cc
+BOT_WEBHOOK_SECRET=<openssl rand -hex 32>
+```
+
+После рестарта бэкенда процесс сам подписывает `https://events.versacegus.cc/api/bot/webhook`. Стенд `dev.events.versacegus.cc` вебхук живого бота не перехватывает.
 
 Проверка: написать боту «Начать» → welcome с фото; «Что сегодня»; гид «Куда пойти»; «джаз вечером до 3000»; записаться из чата. Локально без публичного HTTPS: `BOT_LONGPOLL=true` (не вместе с webhook).
 

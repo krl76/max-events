@@ -22,9 +22,12 @@
 
 import { z } from "zod";
 
+/** MAX may send int64 ids as a number or a decimal string. */
+const MaxIdSchema = z.union([z.number().int(), z.string().regex(/^\d+$/)]).transform((value) => (typeof value === "number" ? value : Number(value)));
+
 /** A MAX user as the bot sees it. user_id is the same numeric id mini-app initData carries. */
 export const MaxUserSchema = z.object({
-  user_id: z.number().int(),
+  user_id: MaxIdSchema,
   first_name: z.string().nullish(),
   username: z.string().nullish(),
 });
@@ -37,7 +40,7 @@ const MessageBodySchema = z.object({
 
 /** recipient.chat_id — where a dialog message lives; null for group/channel rows we ignore. */
 const RecipientSchema = z.object({
-  chat_id: z.number().int().nullish(),
+  chat_id: MaxIdSchema.nullish(),
   chat_type: z.string().nullish(),
 });
 
@@ -60,15 +63,18 @@ const CallbackSchema = z.object({
  */
 const UpdateSchema = z.object({
   update_type: z.string(),
-  chat_id: z.number().int().nullish(),
+  chat_id: MaxIdSchema.nullish(),
   user: MaxUserSchema.nullish(),
   payload: z.string().nullish(),
   message: MessageSchema.nullish(),
   callback: CallbackSchema.nullish(),
 });
 
-/** The webhook body is `{ updates: [...] }` on delivery and a bare array in some long-poll shapes. */
-const WebhookBodySchema = z.union([z.object({ updates: z.array(UpdateSchema) }), z.array(UpdateSchema)]);
+/**
+ * Long poll is `{ updates: [...] }`. The webhook POSTs one Update object (official MAX client
+ * JSON.parse's the body as a single Update). A bare array is accepted too.
+ */
+const WebhookBodySchema = z.union([z.object({ updates: z.array(UpdateSchema) }), z.array(UpdateSchema), UpdateSchema]);
 
 export type BotInboundKind = "start" | "text" | "callback";
 
@@ -145,7 +151,8 @@ function toInbound(update: z.infer<typeof UpdateSchema>): BotInbound | null {
 export function parseUpdates(body: unknown): BotInbound[] {
   const parsed = WebhookBodySchema.safeParse(body);
   if (!parsed.success) return [];
-  const rows = Array.isArray(parsed.data) ? parsed.data : parsed.data.updates;
+  const data = parsed.data;
+  const rows = Array.isArray(data) ? data : "updates" in data ? data.updates : [data];
   const inbound: BotInbound[] = [];
   for (const row of rows) {
     const normalized = toInbound(row);

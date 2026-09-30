@@ -85,6 +85,7 @@ describe("isMenuWord / commandOf", () => {
     expect(commandOf("куда сходить вечером")).toBeNull();
     expect(isMenuWord("привет")).toBe(true);
     expect(isMenuWord("/help")).toBe(true);
+    expect(isMenuWord("начать")).toBe(true);
     expect(isMenuWord("что ты умеешь")).toBe(true);
     expect(isMenuWord("найди джаз")).toBe(false);
   });
@@ -106,6 +107,16 @@ describe("BotService.handleInbound", () => {
     expect(typing).toEqual([555]);
     expect(sent).toHaveLength(1);
     expect(sent[0]?.body.text).toContain("Михаил");
+  });
+
+  it("treats /start and Начать as the welcome card", async () => {
+    const slash = createHarness();
+    await slash.service.handleInbound(textInbound("/start"));
+    expect(slash.sent[0]?.body.text).toContain("Привет");
+
+    const startButton = createHarness();
+    await startButton.service.handleInbound(textInbound("Начать"));
+    expect(startButton.sent[0]?.body.text).toContain("Привет");
   });
 
   it("ignores an update from a group chat — a DM reply would address everyone", async () => {

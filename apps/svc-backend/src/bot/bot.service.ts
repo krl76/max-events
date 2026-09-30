@@ -43,7 +43,9 @@ export const BOT_COMMANDS: ReadonlyArray<{ name: string; description: string }> 
 ];
 
 /** One-word greetings and menu words. A multi-word message is an NL request, so it never lands here. */
-const GREETING_WORDS = new Set(["start", "help", "menu", "меню", "помощь", "привет", "здравствуй", "здравствуйте", "хай", "бот"]);
+const GREETING_WORDS = new Set(["start", "help", "menu", "меню", "помощь", "привет", "здравствуй", "здравствуйте", "хай", "бот", "начать", "старт"]);
+/** First-open words: MAX's «Начать» button and /start should get the welcome card, not a search. */
+const START_WORDS = new Set(["start", "начать", "старт"]);
 /** Phrases people type to ask what the bot does. Checked against the whole trimmed message, so word order does not matter. */
 const MENU_PHRASES = ["что умеешь", "что ты умеешь", "что можешь", "помоги", "как пользоваться"];
 
@@ -111,15 +113,15 @@ export class BotService {
     const media = this.media();
     if (inbound.kind === "start") return welcomeMessage(media, inbound.userName);
     if (inbound.kind === "callback") return this.routeCallback(userId, inbound.callbackPayload);
-    return this.routeText(userId, inbound.text);
+    return this.routeText(userId, inbound.text, inbound.userName);
   }
 
-  private async routeText(userId: string, raw: string): Promise<BotMessageBody> {
+  private async routeText(userId: string, raw: string, userName: string | null): Promise<BotMessageBody> {
     const media = this.media();
     const text = raw.trim();
-    if (text === "" || isMenuWord(text)) return menuMessage(media);
-
     const command = commandOf(text);
+    if (command !== null && START_WORDS.has(command)) return welcomeMessage(media, userName);
+    if (text === "" || isMenuWord(text)) return menuMessage(media);
     if (command === "today") return this.todayCard(userId);
     if (command === "plans") return this.plansCard(userId);
     if (command === "bookings") return this.bookingsCard(userId);
