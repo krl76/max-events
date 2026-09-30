@@ -112,7 +112,7 @@ export class BotService {
   private async route(userId: string, inbound: BotInbound): Promise<BotMessageBody> {
     const media = this.media();
     if (inbound.kind === "start") return welcomeMessage(media, inbound.userName);
-    if (inbound.kind === "callback") return this.routeCallback(userId, inbound.callbackPayload);
+    if (inbound.kind === "callback") return this.routeCallback(userId, inbound.callbackPayload, inbound.userName);
     return this.routeText(userId, inbound.text, inbound.userName);
   }
 
@@ -142,11 +142,13 @@ export class BotService {
     }
   }
 
-  private async routeCallback(userId: string, raw: string): Promise<BotMessageBody> {
+  private async routeCallback(userId: string, raw: string, userName: string | null): Promise<BotMessageBody> {
     const media = this.media();
     const payload = parseBotPayload(raw);
     if (payload === null) return menuMessage(media);
     switch (payload.id) {
+      case "start":
+        return welcomeMessage(media, userName);
       case "menu":
         return menuMessage(media);
       case "help":

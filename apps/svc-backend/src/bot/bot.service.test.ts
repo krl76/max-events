@@ -125,6 +125,13 @@ describe("BotService.handleInbound", () => {
     expect(sent).toHaveLength(0);
   });
 
+  it("returns to the welcome card from Назад", async () => {
+    const { service, answered } = createHarness();
+    await service.handleInbound({ ...callbackInbound(botPayload({ id: "start" })), userName: "Михаил" });
+    expect(answered[0]?.body.text).toContain("Привет");
+    expect(answered[0]?.body.text).toContain("Михаил");
+  });
+
   it("answers a button press by editing the pressed message in place", async () => {
     const { service, sent, answered } = createHarness();
     await service.handleInbound(callbackInbound(botPayload({ id: "today" })));

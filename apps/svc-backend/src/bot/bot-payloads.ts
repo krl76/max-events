@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Encode and decode the compact callback payloads the bot puts on inline-keyboard buttons, so a press carries its whole context back without server-side session state.
-// SCOPE: botPayload/parseBotPayload over a fixed command vocabulary (menu, today, whereto chain, plans, bookings, help, book confirm/yes, waitlist, open event). The whereto chain accumulates its answers in the payload itself: step names the next question ("company" asks the first, "mood" carries the company, "budget" carries both, "go" carries all three and triggers the search). startAppPayload builds the miniapp start_param for open_app buttons, which MAX constrains to ^[\w-]*$ — exactly the prefix-id shape the miniapp router already reads.
+// SCOPE: botPayload/parseBotPayload over a fixed command vocabulary (start, menu, today, whereto chain, plans, bookings, help, book confirm/yes, waitlist, open event). "start" is the welcome card — the Назад target once the person has left it. The whereto chain accumulates its answers in the payload itself: step names the next question ("company" asks the first, "mood" carries the company, "budget" carries both, "go" carries all three and triggers the search). startAppPayload builds the miniapp start_param for open_app buttons, which MAX constrains to ^[\w-]*$ — exactly the prefix-id shape the miniapp router already reads.
 // DEPENDS: none
 // LINKS: M-SVC-BACKEND, https://dev.max.ru/docs-api/use-cases/sending-messages/keyboard
 // END_MODULE_CONTRACT
@@ -27,7 +27,7 @@ export type WheretoBudget = "free" | "under_3000" | "any";
 /** Which question a whereto payload asks next; "go" means every answer is in and the search runs. */
 export type WheretoStep = "company" | "mood" | "budget" | "go";
 
-export type BotPayload = { id: "menu" | "today" | "plans" | "bookings" | "help" } | { id: "whereto"; step: "company" } | { id: "whereto"; step: "mood"; company: WheretoCompany } | { id: "whereto"; step: "budget"; company: WheretoCompany; mood: WheretoMood } | { id: "whereto"; step: "go"; company: WheretoCompany; mood: WheretoMood; budget: WheretoBudget } | { id: "confirm-book" | "book" | "waitlist"; eventId: string };
+export type BotPayload = { id: "start" | "menu" | "today" | "plans" | "bookings" | "help" } | { id: "whereto"; step: "company" } | { id: "whereto"; step: "mood"; company: WheretoCompany } | { id: "whereto"; step: "budget"; company: WheretoCompany; mood: WheretoMood } | { id: "whereto"; step: "go"; company: WheretoCompany; mood: WheretoMood; budget: WheretoBudget } | { id: "confirm-book" | "book" | "waitlist"; eventId: string };
 
 export const WHERETO_COMPANIES: readonly WheretoCompany[] = ["alone", "friends", "partner", "kids"];
 export const WHERETO_MOODS: readonly WheretoMood[] = ["active", "calm", "unusual"];
@@ -40,6 +40,7 @@ const SEP = ":";
 
 export function botPayload(payload: BotPayload): string {
   switch (payload.id) {
+    case "start":
     case "menu":
     case "today":
     case "plans":
@@ -78,7 +79,7 @@ export function parseBotPayload(raw: string): BotPayload | null {
   if (payload === "" || payload.length > PAYLOAD_MAX) return null;
   const parts = payload.split(SEP);
   const id = parts[0];
-  if (id === "menu" || id === "today" || id === "plans" || id === "bookings" || id === "help") {
+  if (id === "start" || id === "menu" || id === "today" || id === "plans" || id === "bookings" || id === "help") {
     return parts.length === 1 ? { id } : null;
   }
   if (id === "whereto") return parseWhereto(parts.slice(1));
