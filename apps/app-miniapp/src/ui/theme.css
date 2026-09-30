@@ -16985,6 +16985,181 @@ button.app-cal-peer-chip {
   font-weight: 700;
 }
 
+.app-org-kpi {
+  align-items: baseline;
+  display: flex;
+  gap: var(--app-space-s);
+}
+
+.app-org-kpi-value {
+  font-size: var(--app-font-size-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.app-org-kpi-label {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  font-weight: 700;
+}
+
+.app-org-ways {
+  display: flex;
+  gap: 10px;
+}
+
+.app-org-way {
+  background: none;
+  border: var(--app-hairline);
+  border-radius: var(--app-radius-card);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 14px;
+}
+
+.app-org-way--dark {
+  background: var(--app-confirm);
+  border-color: transparent;
+  color: var(--app-confirm-contrast);
+}
+
+.app-org-way-head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.app-org-way-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-org-ring-wrap {
+  flex: none;
+  height: 64px;
+  position: relative;
+  width: 64px;
+}
+
+.app-org-ring {
+  display: block;
+  height: 64px;
+  transform: rotate(-90deg);
+  width: 64px;
+}
+
+.app-org-ring-track,
+.app-org-ring-fill {
+  fill: none;
+  stroke-width: 7;
+}
+
+.app-org-ring-track {
+  stroke: rgba(255, 255, 255, 0.22);
+}
+
+.app-org-ring-fill {
+  stroke: var(--brand-white);
+  stroke-linecap: round;
+}
+
+.app-org-ring-value {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.app-org-way-value {
+  font-size: var(--app-font-size-headline);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.app-org-way-label {
+  font-size: var(--app-font-size-callout);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.app-org-way > .app-org-way-label {
+  margin-top: 10px;
+}
+
+.app-org-way-note {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-description);
+  margin-top: 2px;
+}
+
+.app-org-way--dark .app-org-way-note {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.app-org-now {
+  background: none;
+  border: none;
+  border-radius: var(--app-radius-card);
+  color: var(--brand-white);
+  cursor: pointer;
+  font: inherit;
+  height: 180px;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  text-align: left;
+  width: 100%;
+}
+
+.app-org-now-media {
+  aspect-ratio: auto;
+  height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.app-org-now-veil {
+  background: linear-gradient(180deg, rgba(6, 7, 8, 0), rgba(6, 7, 8, 0.82));
+  inset: 0;
+  position: absolute;
+}
+
+.app-org-now-copy {
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  left: 0;
+  padding: 14px;
+  position: absolute;
+  right: 0;
+}
+
+.app-org-now-chip {
+  background: rgba(6, 7, 8, 0.45);
+  border-radius: var(--app-radius-pill);
+  font-size: var(--app-font-size-caption);
+  font-weight: 700;
+  padding: 4px 8px;
+  width: fit-content;
+}
+
+.app-org-now-title {
+  font-size: var(--app-font-size-title);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
 /* Столбики недели: пик — акцентом, остальное — нейтральной прозрачностью */
 .app-org-bars,
 .app-org-chart-bars {
@@ -16997,7 +17172,7 @@ button.app-cal-peer-chip {
 
 .app-org-chart-bars {
   gap: 5px;
-  height: 80px;
+  height: 96px;
   margin-top: 14px;
 }
 
@@ -17763,7 +17938,7 @@ button.app-cal-peer-chip {
 }
 
 .app-org-source-fill--search {
-  background: var(--app-status);
+  background: rgba(var(--app-scheme-neutral), 0.35);
 }
 
 .app-org-source-value {

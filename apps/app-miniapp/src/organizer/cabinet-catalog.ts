@@ -121,6 +121,46 @@ export function fillCaption(booked: number, capacity: number, _fill?: number): s
   return `занято ${booked} из ${capacity}`;
 }
 
+export const CABINET_TRAFFIC: Array<{ source: "chats" | "feed" | "search"; percent: number }> = [
+  { source: "chats", percent: 62 },
+  { source: "feed", percent: 24 },
+  { source: "search", percent: 14 },
+];
+
+export const CABINET_ATTENDED_PERCENT = 74;
+
+export const CABINET_TRAFFIC_LABELS: Record<(typeof CABINET_TRAFFIC)[number]["source"], string> = {
+  chats: "Чаты MAX",
+  feed: "Лента",
+  search: "Поиск",
+};
+
+export function cabinetTrafficLead(sources: typeof CABINET_TRAFFIC = CABINET_TRAFFIC): string {
+  const lead = [...sources].sort((left, right) => right.percent - left.percent)[0];
+  if (lead === undefined) return "Пока не из чего считать";
+  return `${lead.percent}% ${lead.source === "chats" ? "из чатов" : lead.source === "feed" ? "из ленты" : "из поиска"}`;
+}
+
+export function cabinetOccupancy(events: CabinetEvent[], from: Date, to: Date): { booked: number; capacity: number; fill: number } {
+  const rows = cabinetFillRows(events, from, to);
+  const booked = rows.reduce((sum, row) => sum + row.booked, 0);
+  const capacity = rows.reduce((sum, row) => sum + row.capacity, 0);
+  return { booked, capacity, fill: capacity === 0 ? 0 : Math.round((booked / capacity) * 100) };
+}
+
+/** Upcoming published events under 60% full — one CRM nudge, not a second catalog. */
+export function cabinetWeakUpcoming(events: CabinetEvent[], now: Date): CabinetFillRow[] {
+  return events
+    .filter((event) => !event.draft && new Date(event.startsAt).getTime() >= now.getTime())
+    .map((event) => {
+      const booked = cabinetSold(event);
+      const fill = event.capacity <= 0 ? 0 : Math.round((booked / event.capacity) * 100);
+      return { id: event.id, title: event.title, booked, capacity: event.capacity, fill, category: event.category, startsAt: event.startsAt };
+    })
+    .filter((row) => row.capacity > 0 && row.fill < 60)
+    .sort((a, b) => a.fill - b.fill || a.title.localeCompare(b.title, "ru"));
+}
+
 export function cabinetWeekdayBookings(events: CabinetEvent[], from: Date, to: Date): number[] {
   const days = [0, 0, 0, 0, 0, 0, 0];
   for (const event of cabinetInRange(events, from, to).filter((item) => !item.draft)) {

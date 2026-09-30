@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { CABINET_EVENTS, cabinetStats, defaultStatsRange, fillCaption } from "./cabinet-catalog";
+import { CABINET_EVENTS, cabinetOccupancy, cabinetStats, cabinetTrafficLead, cabinetWeakUpcoming, defaultStatsRange, fillCaption } from "./cabinet-catalog";
 import { chartPeak, periodCaption, OrganizerStatistics } from "./OrganizerStatistics";
 
 const noop = () => {};
@@ -40,21 +40,48 @@ describe("fillCaption", () => {
   });
 });
 
+describe("cabinetOccupancy", () => {
+  it("sums seats for the period instead of listing events", () => {
+    const range = defaultStatsRange();
+    const occupancy = cabinetOccupancy(CABINET_EVENTS, new Date(`${range.from}T00:00:00+03:00`), new Date(`${range.to}T23:59:59+03:00`));
+
+    expect(occupancy.capacity).toBeGreaterThan(0);
+    expect(occupancy.booked).toBeGreaterThan(0);
+    expect(occupancy.fill).toBeGreaterThan(0);
+    expect(occupancy.fill).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("cabinetWeakUpcoming", () => {
+  it("returns the thin upcoming events as a CRM nudge, not the period catalog", () => {
+    const weak = cabinetWeakUpcoming(CABINET_EVENTS, new Date("2026-09-26T12:00:00+03:00"));
+
+    expect(weak[0]?.title).toBe("Беседка в Сокольниках");
+    expect(weak.every((row) => row.fill < 60)).toBe(true);
+  });
+});
+
 describe("OrganizerStatistics", () => {
-  it("opens on occupancy and traffic, not a second events catalog or a money chart", () => {
-    const html = renderToStaticMarkup(createElement(OrganizerStatistics, { onCreateEvent: noop }));
+  it("opens as a CRM infographic: occupancy once, sources on home, no event catalog or money", () => {
+    const html = renderToStaticMarkup(createElement(OrganizerStatistics, { onCreateEvent: noop, onPromote: noop }));
 
     expect(html).toContain("Статистика");
-    expect(html).toContain("Регистрации");
+    expect(html).toContain("регистрации");
     expect(html).toContain("Заполняемость");
+    expect(html).toContain("Дошли до входа");
     expect(html).toContain("Источники регистраций");
+    expect(html).toContain(cabinetTrafficLead());
     expect(html).toContain("занято");
+    expect(html).toContain("Продвинуть");
+    expect(html).toContain("Уведомления");
+    expect(html).not.toContain("Разбор");
+    expect(html).not.toContain("Органный вечер в соборе");
     expect(html).not.toContain("к прошлому периоду");
     expect(html).not.toContain("Откуда записи");
     expect(html).not.toContain("Динамика дохода");
     expect(html).not.toContain("Общий доход");
     expect(html).not.toContain("Средний чек");
     expect(html).not.toContain("Создать событие");
-    expect(html).toContain("Уведомления");
+    expect((html.match(/Заполняемость/g) ?? []).length).toBe(1);
   });
 });

@@ -1,29 +1,24 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Organizer «Статистика» tab — the account analytics screen: period, income hero, four counters, income chart, per-event bars, promo and mailing tiles, and the create-event button.
-// SCOPE: The presentational screen and the snapshot behind the period switch and the chart window. Figures follow the cabinet mock; creating an event is handed back to the organizer space.
-// DEPENDS: react, ../ui/icons.js, ../ui/theme.css, ./OrganizerFinance.js (formatRub)
+// PURPOSE: Organizer «Статистика» tab — CRM home: period, registrations hero, occupancy ring, attendance, weekday chart, traffic sources, today’s door, and cabinet actions.
+// SCOPE: Presentational screen over the cabinet mock. Occupancy is one aggregate visual; per-event fill lives on the event hub. Rubles stay on Finance.
+// DEPENDS: react, ../ui/icons.js, ../ui/theme.css, ./cabinet-catalog.js
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 
 import { useState } from "react";
 import type { OrganizerEvent } from "../api/client";
-import { formatStartsAt } from "../catalog/format";
 import { SettingsGroup } from "../profile/SettingsPage";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
-import { AppChip, AppMedia, AppState } from "../ui/primitives";
-import { CABINET_EVENTS, cabinetAsOrganizerEvent, cabinetFillRows, cabinetStats, cabinetWeekdayBookings, defaultStatsRange, fillCaption, type CabinetFillRow } from "./cabinet-catalog";
+import { AppChip, AppMedia } from "../ui/primitives";
+import { CABINET_ATTENDED_PERCENT, CABINET_EVENTS, CABINET_TRAFFIC, CABINET_TRAFFIC_LABELS, cabinetAsOrganizerEvent, cabinetOccupancy, cabinetStats, cabinetTrafficLead, cabinetWeakUpcoming, cabinetWeekdayBookings, defaultStatsRange, fillCaption } from "./cabinet-catalog";
 import { useOrganizerNativeBack } from "./organizer-native-back";
-import { OrganizerStats } from "./OrganizerStats";
 
 const WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"] as const;
+const RING = 2 * Math.PI * 28;
 
 function countLabel(value: number): string {
   return value.toLocaleString("ru-RU").replace(/\s/g, "\u00a0");
-}
-
-function weakFill(row: CabinetFillRow): boolean {
-  return row.capacity > 0 && row.fill < 40;
 }
 
 function occupancyBars(values: number[]): Array<{ height: number; accent: boolean }> {
@@ -31,9 +26,22 @@ function occupancyBars(values: number[]): Array<{ height: number; accent: boolea
   const ranked = [...values].sort((a, b) => b - a);
   const accentFrom = ranked[1] ?? ranked[0] ?? 0;
   return values.map((value) => ({
-    height: max === 0 ? 8 : Math.max(8, Math.round((value / max) * 100)),
-    accent: value > 0 && value >= accentFrom,
+    height: max === 0 ? 0 : Math.max(6, Math.round((value / max) * 100)),
+    accent: max > 0 && value >= accentFrom && value > 0,
   }));
+}
+
+function OccupancyRing({ percent }: { percent: number }) {
+  const clamped = Math.min(100, Math.max(0, percent));
+  return (
+    <span className="app-org-ring-wrap">
+      <svg className="app-org-ring" viewBox="0 0 72 72" aria-hidden="true">
+        <circle className="app-org-ring-track" cx="36" cy="36" r="28" />
+        <circle className="app-org-ring-fill" cx="36" cy="36" r="28" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamped / 100)} />
+      </svg>
+      <span className="app-org-ring-value">{clamped}%</span>
+    </span>
+  );
 }
 
 export type StatsWindow = 7 | 30 | 90;
@@ -189,47 +197,23 @@ export function axisTop(points: IncomePoint[]): number {
   return Math.max(10_000, Math.ceil(peak / 10_000) * 10_000);
 }
 
-function FillEventCard({ row, onOpen }: { row: CabinetFillRow; onOpen?: (event: OrganizerEvent) => void }) {
-  const event = cabinetAsOrganizerEvent(CABINET_EVENTS.find((item) => item.id === row.id) ?? CABINET_EVENTS[0]);
-  return (
-    <button type="button" className="app-org-event" onClick={() => onOpen?.(event)}>
-      <AppMedia category={row.category} src={pictured(row.id, event.coverUrl)} className="app-org-event-media" />
-      <span className="app-org-event-body">
-        <span className="app-org-event-title">{row.title}</span>
-        <span className="app-org-event-meta">{formatStartsAt(row.startsAt)}</span>
-        <span className="app-org-event-meta">{fillCaption(row.booked, row.capacity, row.fill)}</span>
-        <span className="app-org-progress" aria-hidden="true">
-          <span className="app-org-progress-fill" style={{ width: `${row.fill}%` }} />
-        </span>
-      </span>
-      {weakFill(row) && <span className="app-org-event-badge">Продвинуть</span>}
-    </button>
-  );
-}
-
-export function OrganizerStatistics({ onOpenEvent, onCheckIn, onShowDrafts }: { onCreateEvent?: () => void; onOpenEvent?: (event: OrganizerEvent) => void; onCheckIn?: (event: OrganizerEvent) => void; onShowDrafts?: () => void }) {
+export function OrganizerStatistics({ onCheckIn, onShowDrafts, onPromote }: { onCreateEvent?: () => void; onOpenEvent?: (event: OrganizerEvent) => void; onCheckIn?: (event: OrganizerEvent) => void; onShowDrafts?: () => void; onPromote?: () => void }) {
   const initial = defaultStatsRange();
   const [days, setDays] = useState<StatsWindow>(30);
   const [to] = useState(initial.to);
   const from = new Date(new Date(`${to}T12:00:00+03:00`).getTime() - days * 86_400_000).toISOString().slice(0, 10);
-  const [pane, setPane] = useState<"home" | "fill" | "sources" | "notices">("home");
-  const snapshot = cabinetStats(CABINET_EVENTS, new Date(`${from}T00:00:00+03:00`), new Date(`${to}T23:59:59+03:00`));
-  const fills = cabinetFillRows(CABINET_EVENTS, new Date(`${from}T00:00:00+03:00`), new Date(`${to}T23:59:59+03:00`));
-  const weak = fills.filter(weakFill).slice(0, 4);
+  const [pane, setPane] = useState<"home" | "notices">("home");
+  const rangeFrom = new Date(`${from}T00:00:00+03:00`);
+  const rangeTo = new Date(`${to}T23:59:59+03:00`);
+  const now = new Date(`${to}T12:00:00+03:00`);
+  const snapshot = cabinetStats(CABINET_EVENTS, rangeFrom, rangeTo);
+  const occupancy = cabinetOccupancy(CABINET_EVENTS, rangeFrom, rangeTo);
+  const weak = cabinetWeakUpcoming(CABINET_EVENTS, now);
   const today = CABINET_EVENTS.find((item) => !item.draft && item.startsAt.slice(0, 10) === to);
   const drafts = CABINET_EVENTS.filter((item) => item.draft).length;
+  const weekdays = cabinetWeekdayBookings(CABINET_EVENTS, rangeFrom, rangeTo);
+  const trafficLead = cabinetTrafficLead();
   useOrganizerNativeBack(pane !== "home", () => setPane("home"));
-
-  const weekdays = cabinetWeekdayBookings(CABINET_EVENTS, new Date(`${from}T00:00:00+03:00`), new Date(`${to}T23:59:59+03:00`));
-  const periods = (
-    <div className="app-filters-chips" role="group" aria-label="Период">
-      {STATS_WINDOWS.map((item) => (
-        <AppChip key={item} pressed={days === item} onClick={() => setDays(item)}>
-          {item} дней
-        </AppChip>
-      ))}
-    </div>
-  );
 
   if (pane === "notices") {
     return (
@@ -249,33 +233,6 @@ export function OrganizerStatistics({ onOpenEvent, onCheckIn, onShowDrafts }: { 
     );
   }
 
-  if (pane === "sources") {
-    return (
-      <section className="app-gathering" aria-label="Источники регистраций">
-        <h1 className="app-section-title">Источники регистраций</h1>
-        <OrganizerStats embedded />
-      </section>
-    );
-  }
-
-  if (pane === "fill") {
-    return (
-      <section className="app-gathering" aria-label="Заполняемость">
-        <h1 className="app-section-title">Заполняемость</h1>
-        {periods}
-        {fills.length === 0 ? (
-          <AppState>За этот период опубликованных событий нет.</AppState>
-        ) : (
-          <div className="app-org-events">
-            {fills.map((row) => (
-              <FillEventCard key={row.id} row={row} onOpen={onOpenEvent} />
-            ))}
-          </div>
-        )}
-      </section>
-    );
-  }
-
   return (
     <section className="app-gathering" aria-label="Статистика">
       <div className="app-org-head">
@@ -284,23 +241,31 @@ export function OrganizerStatistics({ onOpenEvent, onCheckIn, onShowDrafts }: { 
           Уведомления
         </button>
       </div>
-      {periods}
-      <div className="app-org-tiles">
-        <button type="button" className="app-org-tile" onClick={() => setPane("fill")}>
-          <span className="app-org-tile-label">Регистрации</span>
-          <span className="app-org-tile-big">{countLabel(snapshot.tickets)}</span>
-        </button>
-        <button type="button" className="app-org-tile" onClick={() => setPane("fill")}>
-          <span className="app-org-tile-label">Заполняемость</span>
-          <span className="app-org-tile-big">{snapshot.conversion}%</span>
-        </button>
-        <button type="button" className="app-org-tile" onClick={() => setPane("sources")}>
-          <span className="app-org-tile-label">Источники</span>
-          <span className="app-org-tile-big">3 канала</span>
-        </button>
-        <div className="app-org-tile">
-          <span className="app-org-tile-label">События</span>
-          <span className="app-org-tile-big">{snapshot.events}</span>
+      <div className="app-filters-chips" role="group" aria-label="Период">
+        {STATS_WINDOWS.map((item) => (
+          <AppChip key={item} pressed={days === item} onClick={() => setDays(item)}>
+            {item} дней
+          </AppChip>
+        ))}
+      </div>
+      <div className="app-org-kpi">
+        <span className="app-org-kpi-value">{countLabel(snapshot.tickets)}</span>
+        <span className="app-org-kpi-label">регистрации</span>
+      </div>
+      <div className="app-org-ways">
+        <div className="app-org-way app-org-way--dark">
+          <span className="app-org-way-head">
+            <OccupancyRing percent={occupancy.fill} />
+            <span className="app-org-way-copy">
+              <span className="app-org-way-label">Заполняемость</span>
+              <span className="app-org-way-note">{fillCaption(occupancy.booked, occupancy.capacity, occupancy.fill)}</span>
+            </span>
+          </span>
+        </div>
+        <div className="app-org-way">
+          <span className="app-org-way-value">{CABINET_ATTENDED_PERCENT}%</span>
+          <span className="app-org-way-label">Дошли до входа</span>
+          <span className="app-org-way-note">из {countLabel(snapshot.tickets)} записей</span>
         </div>
       </div>
       <div className="app-org-chart">
@@ -316,44 +281,54 @@ export function OrganizerStatistics({ onOpenEvent, onCheckIn, onShowDrafts }: { 
           ))}
         </span>
       </div>
-      <SettingsGroup title="Разбор">
-        <button type="button" className="app-set-row" onClick={() => setPane("fill")}>
-          <span className="app-set-row-text">
-            <span className="app-set-row-title">Заполняемость</span>
-          </span>
-          <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
-        </button>
-        <button type="button" className="app-set-row" onClick={() => setPane("sources")}>
-          <span className="app-set-row-text">
-            <span className="app-set-row-title">Источники регистраций</span>
-          </span>
-          <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
-        </button>
-        {drafts > 0 && onShowDrafts !== undefined && (
-          <button type="button" className="app-set-row" onClick={onShowDrafts}>
-            <span className="app-set-row-text">
-              <span className="app-set-row-title">Черновики</span>
+      <div className="app-org-sources" aria-label="Источники регистраций">
+        <span className="app-org-chart-title">{trafficLead}</span>
+        {CABINET_TRAFFIC.map((row) => (
+          <div key={row.source} className="app-org-source">
+            <span className="app-org-source-label">{CABINET_TRAFFIC_LABELS[row.source]}</span>
+            <span className="app-org-source-track" aria-hidden="true">
+              <span className={`app-org-source-fill app-org-source-fill--${row.source}`} style={{ width: `${row.percent}%` }} />
             </span>
-            <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
-          </button>
-        )}
-      </SettingsGroup>
-      {fills.length > 0 && (
-        <div className="app-org-events">
-          {(weak.length > 0 ? weak : fills.slice(0, 3)).map((row) => (
-            <FillEventCard key={row.id} row={row} onOpen={onOpenEvent} />
-          ))}
-        </div>
-      )}
+            <span className="app-org-source-value">{row.percent}%</span>
+          </div>
+        ))}
+      </div>
       {today !== undefined && onCheckIn !== undefined && (
-        <button type="button" className="app-org-event" onClick={() => onCheckIn(cabinetAsOrganizerEvent(today))}>
-          <AppMedia category={today.category} src={pictured(today.id, null)} className="app-org-event-media" />
-          <span className="app-org-event-body">
-            <span className="app-org-event-title">{today.title}</span>
-            <span className="app-org-event-meta">Сегодня</span>
-            <span className="app-org-event-meta">Контроль входа</span>
+        <button type="button" className="app-org-now" onClick={() => onCheckIn(cabinetAsOrganizerEvent(today))}>
+          <AppMedia category={today.category} src={pictured(today.id, null)} className="app-org-now-media" />
+          <span className="app-org-now-veil" aria-hidden="true" />
+          <span className="app-org-now-copy">
+            <span className="app-org-now-chip">Сегодня</span>
+            <span className="app-org-now-title">{today.title}</span>
+            <span>Контроль входа</span>
           </span>
         </button>
+      )}
+      {((weak.length > 0 && onPromote !== undefined) || (drafts > 0 && onShowDrafts !== undefined)) && (
+        <SettingsGroup title="Кабинет">
+          {weak.length > 0 && onPromote !== undefined && (
+            <button type="button" className="app-set-row" onClick={onPromote}>
+              <span className="app-set-row-text">
+                <span className="app-set-row-title">Продвинуть</span>
+              </span>
+              <span className="app-set-row-value">
+                {weak.length}
+                <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+              </span>
+            </button>
+          )}
+          {drafts > 0 && onShowDrafts !== undefined && (
+            <button type="button" className="app-set-row" onClick={onShowDrafts}>
+              <span className="app-set-row-text">
+                <span className="app-set-row-title">Черновики</span>
+              </span>
+              <span className="app-set-row-value">
+                {drafts}
+                <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+              </span>
+            </button>
+          )}
+        </SettingsGroup>
       )}
     </section>
   );
