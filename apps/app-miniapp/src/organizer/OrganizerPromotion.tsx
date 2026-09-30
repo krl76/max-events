@@ -579,7 +579,15 @@ export function OrganizerPromotion() {
       ) : (
         <div className="app-promo-list">
           {visible.map((card) => (
-            <button key={card.id} type="button" className="app-promo-camp" onClick={() => openTool(card.tool, { eventTitle: card.eventTitle, code: card.code, discount: card.discount })}>
+            <button
+              key={card.id}
+              type="button"
+              className="app-promo-camp"
+              onClick={() => {
+                if (card.tool === "code") return;
+                openTool(card.tool, { eventTitle: card.eventTitle, code: card.code, discount: card.discount });
+              }}
+            >
               {card.cover !== null ? (
                 <img className="app-promo-camp-cover" src={card.cover} alt="" />
               ) : (

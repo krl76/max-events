@@ -133,6 +133,13 @@ describe("creating a promo code", () => {
     for (const campaign of PROMO_CAMPAIGNS) expect(host.textContent).toContain(campaign.title);
 
     await act(async () => {
+      buttonNamed(host, "AUTUMN25").click();
+    });
+    expect(host.textContent).toContain("Мои кампании");
+    expect(host.textContent).toContain("AUTUMN25");
+    expect(host.textContent).not.toContain("Список промокодов");
+
+    await act(async () => {
       root.unmount();
     });
     host.remove();
@@ -149,6 +156,49 @@ describe("creating a promo code", () => {
 });
 
 describe("OrganizerPromotion", () => {
+  it("keeps a promo code opened from campaigns on the campaigns screen", async () => {
+    const { host, root } = await mount(createElement(OrganizerPromotion));
+
+    await act(async () => {
+      buttonNamed(host, "JAZZ20").click();
+    });
+
+    expect(host.textContent).toContain("Мои кампании");
+    expect(host.textContent).toContain("Активные");
+    expect(host.textContent).toContain("Запланированные");
+    expect(host.textContent).toContain("Публикация о вечере джаза");
+    expect(host.textContent).toContain("Опубликована");
+    expect(host.textContent).toContain("124 перехода");
+    expect(host.textContent).toContain("JAZZ20");
+    expect(host.textContent).toContain("Скидка 20%");
+    expect(host.textContent).toContain("12 оплаченных заказов");
+    expect(host.textContent).not.toContain("Список промокодов");
+
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
+  });
+
+  it("still opens a publication from the campaigns list", async () => {
+    const { host, root } = await mount(createElement(OrganizerPromotion));
+
+    await act(async () => {
+      buttonNamed(host, "Публикация о вечере джаза").click();
+    });
+
+    expect(host.textContent).toContain("Публикация в ленте");
+    expect(host.textContent).toContain("Рассказать о событии");
+    expect(host.textContent).toContain("Опубликовать");
+    expect(host.textContent).not.toContain("Мои кампании");
+    expect(host.textContent).not.toContain("Список промокодов");
+
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
+  });
+
   it("draws the promotion home screen from the mock", () => {
     const html = renderToStaticMarkup(createElement(OrganizerPromotion));
     const home = PROMO_HOME_TOOLS.map((id) => PROMO_TOOL_CARDS.find((card) => card.id === id));
