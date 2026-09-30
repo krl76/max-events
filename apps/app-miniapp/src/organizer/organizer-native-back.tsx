@@ -30,6 +30,8 @@ interface BackEntry {
 interface BackApi {
   push: (id: string, priority: number, run: () => void) => void;
   remove: (id: string) => void;
+  /** A nested screen may replace the messenger BackButton handler. Call this when it goes away. */
+  reclaim: () => void;
 }
 
 const OrganizerNativeBackContext = createContext<BackApi | null>(null);
@@ -49,6 +51,7 @@ function topEntry(stack: readonly BackEntry[]): BackEntry | undefined {
 export function OrganizerNativeBackRoot({ children }: { children: ReactNode }) {
   const stack = useRef<BackEntry[]>([]);
   const [visible, setVisible] = useState(false);
+  const [reclaimTick, setReclaimTick] = useState(0);
   const api = useMemo<BackApi>(
     () => ({
       push(id, priority, run) {
@@ -60,6 +63,9 @@ export function OrganizerNativeBackRoot({ children }: { children: ReactNode }) {
         if (next.length === stack.current.length) return;
         stack.current = next;
         setVisible(next.length > 0);
+      },
+      reclaim() {
+        setReclaimTick((tick) => tick + 1);
       },
     }),
     [],
@@ -76,9 +82,20 @@ export function OrganizerNativeBackRoot({ children }: { children: ReactNode }) {
       button.offClick(onNativeBack);
       button.hide();
     };
-  }, [visible]);
+  }, [visible, reclaimTick]);
 
   return <OrganizerNativeBackContext.Provider value={api}>{children}</OrganizerNativeBackContext.Provider>;
+}
+
+/** After a screen that binds MAX BackButton itself unmounts, put the cabinet handler back. */
+export function useOrganizerBackReclaim(active: boolean): void {
+  const api = useContext(OrganizerNativeBackContext);
+  useEffect(() => {
+    if (!active) return;
+    return () => {
+      window.setTimeout(() => api?.reclaim(), 0);
+    };
+  }, [active, api]);
 }
 
 /** `active` — с этого экрана есть куда вернуться. Без провайдера (витрина вне кабинета) хук ничего не вешает. */

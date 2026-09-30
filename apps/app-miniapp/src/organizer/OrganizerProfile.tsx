@@ -97,7 +97,7 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, subscri
             </button>
           </div>
           <span className="app-me-hero-actions">
-            <button type="button" className="app-me-hero-action" aria-label="Настройки" onClick={onSettings}>
+            <button type="button" className="app-me-hero-action" aria-label="Настройки профиля" onClick={onSettings}>
               <ActionIcon name="dots" size={18} strokeWidth={2} />
             </button>
           </span>

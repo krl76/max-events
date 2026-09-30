@@ -9,15 +9,19 @@
 // - OrganizerLoginForm - вход в панель организатора (макет, экран 42): wordmark, «Панель организатора», подписанные ЛОГИН/ПАРОЛЬ с показом пароля, «Войти» и строка справки
 // - ORGANIZER_SECTION_TITLES - header title per bar section (section roots draw it themselves; the shell header shows it on screens pushed over a section)
 // - ORGANIZER_BARE_SECTIONS - the sections that draw their own chrome, so the shell header steps aside
-// - OrganizerSectionContent - what each section renders: dashboard -> экран 45, events -> the panel, create -> экран 46, promo -> экран 48, profile -> organization and exit
+// - OrganizerSectionContent - what each section renders: dashboard -> экран 45, events -> the panel, create -> экран 46, promo -> экран 48, profile -> the org profile; its settings button opens the visitor settings screen
 // - OrganizerOnboardingGate - первый заход: вступление (экран 43) по флагу аппарата, затем настройка (экран 44) по признаку учётной записи; отказ GET /organizer/setup не пропускает в панель
 // - OrganizerSpace - auth gate + MaxUI chrome: loading/anonymous/error -> login form, authenticated -> onboarding gate -> header + section (or the pushed экран 44) + tab bar
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { OrganizerEvent } from "../api/client";
 import { apiClient } from "../api/client";
+import { AuthProvider } from "../auth/AuthContext";
 import { AfishaWordmark } from "../auth/EntryPage";
+import { LeaveEntryProvider } from "../auth/leave-entry";
+import { OnboardingFlow } from "../onboarding/OnboardingFlow";
+import { SettingsPage } from "../profile/SettingsPage";
 import { ActionIcon } from "../ui/icons";
 import { THEME_STORAGE_KEY, applyScheme, type ThemePreference } from "../ui/theme";
 import { AppButton, AppState } from "../ui/primitives";
@@ -34,7 +38,7 @@ import { OrganizerStats } from "./OrganizerStats";
 import { OrganizerPromo } from "./OrganizerPromo";
 import { OrganizerSetup } from "./OrganizerSetup";
 import { OrganizerTabBar, type OrganizerSection } from "./OrganizerTabs";
-import { ORGANIZER_BACK_COVER, OrganizerNativeBackRoot, useOrganizerNativeBack } from "./organizer-native-back";
+import { ORGANIZER_BACK_COVER, OrganizerNativeBackRoot, useOrganizerBackReclaim, useOrganizerNativeBack } from "./organizer-native-back";
 
 const MOCK_MODE = import.meta.env.VITE_USE_MOCK === "1";
 
@@ -183,6 +187,46 @@ export function OrganizerOnboardingGate({ onCreateEvent, children }: { onCreateE
   );
 }
 
+/**
+ * The cabinet's Bearer token authenticates as the organization account. The visitor settings
+ * screen is the MAX user, so the token is lifted while that screen is open and put back on the way out.
+ */
+function OrganizerUserSettings({ onLeave, onOrganizer, onReplay }: { onLeave: () => void; onOrganizer: () => void; onReplay: (active: boolean) => void }) {
+  const { state } = useOrganizerAuth();
+  const token = state.status === "authenticated" ? state.session.token : null;
+  const restore = useRef(true);
+  const [ready, setReady] = useState(false);
+  const [replay, setReplay] = useState(false);
+  useOrganizerBackReclaim(replay);
+
+  useEffect(() => {
+    apiClient.setOrganizerToken(null);
+    setReady(true);
+    return () => {
+      if (restore.current && token !== null) apiClient.setOrganizerToken(token);
+    };
+  }, [token]);
+
+  useEffect(() => {
+    onReplay(replay);
+    return () => onReplay(false);
+  }, [onReplay, replay]);
+
+  if (!ready) return <AppState>Загрузка…</AppState>;
+  return (
+    <AuthProvider>
+      <LeaveEntryProvider
+        onLeave={() => {
+          restore.current = false;
+          onLeave();
+        }}
+      >
+        {replay ? <OnboardingFlow onDone={() => setReplay(false)} onLeave={() => setReplay(false)} /> : <SettingsPage onOrganizer={onOrganizer} onShowOnboarding={() => setReplay(true)} />}
+      </LeaveEntryProvider>
+    </AuthProvider>
+  );
+}
+
 function storedScheme(): "light" | "dark" {
   const stored = typeof localStorage === "undefined" ? null : localStorage.getItem(THEME_STORAGE_KEY);
   const preference: ThemePreference = stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
@@ -200,6 +244,9 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const [manage, setManage] = useState<OrganizerEvent | null>(null);
   const [manageScreen, setManageScreen] = useState<ManageScreen>("hub");
   const [organizationOpen, setOrganizationOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsReplay, setSettingsReplay] = useState(false);
+  const onSettingsReplay = useCallback((active: boolean) => setSettingsReplay(active), []);
   const [statsOpen, setStatsOpen] = useState(false);
   const [createEvent, setCreateEvent] = useState(false);
   const [editRequestId, setEditRequestId] = useState<string | null>(null);
@@ -211,8 +258,8 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   const [closeComposerTick, setCloseComposerTick] = useState(0);
   const onComposer = useCallback((title: string | null) => setComposerTitle(title), []);
   const onEditHandled = useCallback(() => setEditRequestId(null), []);
-  const pushed = state.status === "authenticated" && (manage !== null || organizationOpen || statsOpen || composerTitle !== null);
-  const covered = manage !== null || organizationOpen || statsOpen;
+  const pushed = state.status === "authenticated" && (manage !== null || organizationOpen || settingsOpen || statsOpen || composerTitle !== null);
+  const covered = manage !== null || organizationOpen || settingsOpen || statsOpen;
   // До входа в кабинет та же кнопка возвращает на выбор режима. Своя «Назад» на форме остаётся:
   // в браузере вне MAX кнопки мессенджера нет, и без неё промах запирал бы приложение.
   useOrganizerNativeBack(state.status !== "authenticated", onExit, 0);
@@ -232,6 +279,13 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         setOrganizationOpen(false);
         return;
       }
+      if (settingsReplay) {
+        return;
+      }
+      if (settingsOpen) {
+        setSettingsOpen(false);
+        return;
+      }
       if (statsOpen) {
         setStatsOpen(false);
         return;
@@ -244,18 +298,20 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
     setManageScreen(screen);
     setManage(event);
     setOrganizationOpen(false);
+    setSettingsOpen(false);
     setStatsOpen(false);
   };
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
   const ownChrome = (section === "profile" || section === "finance" || section === "dashboard" || section === "promo" || section === "events") && !pushed;
-  const flush = composerTitle !== null || (ownChrome && (section === "promo" || section === "finance"));
+  const flush = composerTitle !== null || settingsReplay || (ownChrome && (section === "promo" || section === "finance"));
   const manageTitle = manageScreen === "checkin" ? "Контроль входа" : manageScreen === "participants" ? "Участники" : manageScreen === "tickets" ? "Билеты и регистрация" : manageScreen === "stats" ? "Статистика" : manageScreen === "reviews" ? "Отзывы" : "Событие";
-  const title = composerTitle ?? (statsOpen ? "Статистика" : manage !== null ? manageTitle : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
-  const hideTabs = composerTitle !== null || (manage !== null && manageScreen === "checkin");
+  const title = composerTitle ?? (statsOpen ? "Статистика" : manage !== null ? manageTitle : organizationOpen ? "Организация" : settingsOpen ? "Настройки" : ORGANIZER_SECTION_TITLES[section]);
+  const hideTabs = settingsReplay || composerTitle !== null || (manage !== null && manageScreen === "checkin");
   const openPromotion = (eventId: string, intent: OrganizerPromoIntent | null) => {
     setManage(null);
     setOrganizationOpen(false);
+    setSettingsOpen(false);
     setPromoEventId(eventId);
     setPromoIntent(intent);
     setSection("promo");
@@ -267,13 +323,13 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
         setSection("events");
       }}
     >
-      {!ownChrome && (
+      {!ownChrome && !settingsReplay && (
         <header className="app-header">
           <span className="app-header-title">{title}</span>
         </header>
       )}
-      <main className={flush ? "app-content app-content--flush" : "app-content"}>
-        <div hidden={manage !== null || organizationOpen || statsOpen}>
+      <main className={`${flush ? "app-content app-content--flush" : "app-content"}${settingsReplay ? " app-content--full" : ""}`}>
+        <div hidden={manage !== null || organizationOpen || settingsOpen || statsOpen}>
           <OrganizerSectionContent
             section={section}
             organizationId={state.session.organization.id}
@@ -295,7 +351,13 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
               setSection("events");
             }}
             onOpenOrganization={() => setSection("profile")}
-            onOpenSettings={() => setOrganizationOpen(true)}
+            onOpenSettings={() => {
+              setManage(null);
+              setManageScreen("hub");
+              setOrganizationOpen(false);
+              setStatsOpen(false);
+              setSettingsOpen(true);
+            }}
             onOpenStats={() => setStatsOpen(true)}
             onCheckIn={(event) => openManage(event, "checkin")}
             onShowDrafts={() => {
@@ -331,6 +393,19 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
             onPublished={setManage}
           />
         )}
+        {settingsOpen && !organizationOpen && (
+          <OrganizerUserSettings
+            onLeave={() => {
+              logout();
+              onExit();
+            }}
+            onOrganizer={() => {
+              setSettingsOpen(false);
+              setOrganizationOpen(true);
+            }}
+            onReplay={onSettingsReplay}
+          />
+        )}
         {organizationOpen && (
           <OrganizerOrganization
             organizationId={state.session.organization.id}
@@ -349,6 +424,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
             setManage(null);
             setManageScreen("hub");
             setOrganizationOpen(false);
+            setSettingsOpen(false);
             setStatsOpen(false);
             if (next !== "promo") {
               setPromoIntent(null);

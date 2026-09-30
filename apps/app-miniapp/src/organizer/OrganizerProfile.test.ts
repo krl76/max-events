@@ -36,6 +36,7 @@ describe("OrganizerProfileView", () => {
     expect(html).toContain("подписок");
     expect(html).toContain("подписчиков");
     expect(html).toContain("Шапка");
+    expect(html).toContain('aria-label="Настройки профиля"');
     expect(html).toContain("Настройки");
     expect(html).toContain("Отзывы");
     expect(html).toContain("Команда");

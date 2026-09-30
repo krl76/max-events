@@ -448,7 +448,7 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
   );
 }
 
-function AuthenticatedSettings({ user }: { user: User }) {
+function AuthenticatedSettings({ user, onOrganizer, onShowOnboarding }: { user: User; onOrganizer?: () => void; onShowOnboarding?: () => void }) {
   const { navigate } = useRoute();
   const leaveEntry = useLeaveEntry();
   const { updateUser } = useAuth();
@@ -620,8 +620,8 @@ function AuthenticatedSettings({ user }: { user: User }) {
           clearAppCache(window.localStorage);
           setCacheBytes(appCacheBytes(window.localStorage));
         }}
-        onOrganizer={() => navigate({ name: "organizer" })}
-        onShowOnboarding={() => navigate({ name: "onboarding" })}
+        onOrganizer={onOrganizer ?? (() => navigate({ name: "organizer" }))}
+        onShowOnboarding={onShowOnboarding ?? (() => navigate({ name: "onboarding" }))}
         // MAX Bridge has no "disable" call (https://dev.max.ru/docs/webapps/bridge): closing is all a
         // mini-app may do about itself, the removal happens in MAX.
         onDisable={() => getWebApp()?.close()}
@@ -651,10 +651,10 @@ function AuthenticatedSettings({ user }: { user: User }) {
   );
 }
 
-export function SettingsPage() {
+export function SettingsPage({ onOrganizer, onShowOnboarding }: { onOrganizer?: () => void; onShowOnboarding?: () => void } = {}) {
   const auth = useAuth();
 
-  if (auth.status === "authenticated") return <AuthenticatedSettings user={auth.user} />;
+  if (auth.status === "authenticated") return <AuthenticatedSettings user={auth.user} onOrganizer={onOrganizer} onShowOnboarding={onShowOnboarding} />;
   if (auth.status === "error") {
     return <AppState error>Не удалось войти: {auth.message}</AppState>;
   }
