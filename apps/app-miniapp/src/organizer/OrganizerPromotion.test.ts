@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
-import { act, createElement, type ReactElement } from "react";
+import { act, createElement, useState, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
+import type { OrganizerEvent } from "../api/client";
+import { posterEvents } from "./cabinet-catalog";
 import { createdPromoCode, EMPTY_PROMO_DRAFT, PROMO_CAMPAIGNS, PROMO_CODE_ROWS, PROMO_HOME_TOOLS, PROMO_TOOL_CARDS, PromoCodeCreate, PromoCodesScreen, promoToolBlock, promoToolNotice, resetPromoSession, OrganizerPromotion } from "./OrganizerPromotion";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -254,5 +256,160 @@ describe("OrganizerPromotion", () => {
     expect(form).toContain("Применять ко всем билетам");
     expect(form).toContain('aria-checked="true"');
     expect(form).toContain('aria-haspopup="listbox"');
+    expect(form).toContain('aria-haspopup="dialog"');
+    expect(form).not.toContain("Органный вечер в соборе");
+    expect(form).not.toContain("Название или город");
+  });
+
+  it("opens a mailing from campaigns on the results screen", async () => {
+    const { host, root } = await mount(createElement(OrganizerPromotion));
+
+    await act(async () => {
+      buttonNamed(host, "Специальные предложения").click();
+    });
+
+    expect(host.textContent).toContain("Результаты рассылки");
+    expect(host.textContent).toContain("20.09.2025 · 14:30");
+    expect(host.textContent).toContain("Отправлено");
+    expect(host.textContent).toContain("1 900");
+    expect(host.textContent).toContain("Открыто");
+    expect(host.textContent).toContain("38%");
+    expect(host.textContent).toContain("722");
+    expect(host.textContent).toContain("Перешли");
+    expect(host.textContent).toContain("8%");
+    expect(host.textContent).toContain("152");
+    expect(host.textContent).toContain("График активности");
+    expect(host.textContent).toContain("Открытия");
+    expect(host.textContent).toContain("Переходы");
+    expect(host.textContent).toContain("Детализация");
+    expect(host.textContent).toContain("Успешно доставлено");
+    expect(host.textContent).toContain("1 875");
+    expect(host.textContent).toContain("99%");
+    expect(host.textContent).toContain("Не доставлено");
+    expect(host.textContent).toContain("Отписались");
+    expect(host.textContent).toContain("0.2%");
+    expect(host.textContent).not.toContain("Список рассылок");
+    expect(host.textContent).not.toContain("Мои кампании");
+
+    await act(async () => {
+      buttonNamed(host, "Назад").click();
+    });
+    expect(host.textContent).toContain("Мои кампании");
+    expect(host.textContent).toContain("JAZZ20");
+
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
+  });
+
+  it("opens the same results screen from the mailing list", async () => {
+    const { host, root } = await mount(createElement(OrganizerPromotion));
+
+    await act(async () => {
+      buttonNamed(host, "Рассылка").click();
+    });
+    await act(async () => {
+      buttonNamed(host, "Анонс новых событий").click();
+    });
+
+    expect(host.textContent).toContain("Результаты рассылки");
+    expect(host.textContent).toContain("Анонс новых событий");
+    expect(host.textContent).toContain("25.09.2025 · 11:15");
+    expect(host.textContent).toContain("2 342");
+    expect(host.textContent).toContain("42%");
+    expect(host.textContent).toContain("График активности");
+    expect(host.textContent).toContain("Детализация");
+    expect(host.textContent).not.toContain("1 502");
+
+    await act(async () => {
+      buttonNamed(host, "Назад").click();
+    });
+    expect(host.textContent).toContain("Список рассылок");
+
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
+  });
+});
+
+function organizerEvent(patch: Pick<OrganizerEvent, "id" | "title" | "startsAt" | "endsAt" | "draft">): OrganizerEvent {
+  return {
+    id: patch.id,
+    title: patch.title,
+    description: "",
+    category: "afisha",
+    city: "Москва",
+    placeId: null,
+    startsAt: patch.startsAt,
+    endsAt: patch.endsAt,
+    isPaid: false,
+    priceRub: null,
+    paymentUrl: null,
+    capacity: null,
+    chatLink: null,
+    promoted: false,
+    published: !patch.draft,
+    bookingOpensAt: null,
+    weather: null,
+    coverUrl: null,
+    draft: patch.draft,
+  };
+}
+
+describe("promo code events", () => {
+  it("keeps the poster filter to published events that have not ended", () => {
+    const now = new Date("2026-09-30T12:00:00+03:00").getTime();
+    const items = [
+      organizerEvent({ id: "later", title: "Позже", startsAt: "2026-10-08T20:00:00+03:00", endsAt: "2026-10-08T22:00:00+03:00", draft: false }),
+      organizerEvent({ id: "soon", title: "Скоро", startsAt: "2026-10-03T19:00:00+03:00", endsAt: "2026-10-03T23:00:00+03:00", draft: false }),
+      organizerEvent({ id: "draft", title: "Черновик", startsAt: "2026-10-04T19:00:00+03:00", endsAt: "2026-10-04T23:00:00+03:00", draft: true }),
+      organizerEvent({ id: "past", title: "Было", startsAt: "2026-09-01T19:00:00+03:00", endsAt: "2026-09-01T21:00:00+03:00", draft: false }),
+    ];
+
+    expect(posterEvents(items, now).map((item) => item.title)).toEqual(["Скоро", "Позже"]);
+  });
+
+  it("picks an organizer poster event from the post sheet", async () => {
+    const events = [
+      organizerEvent({ id: "soon", title: "Вечер джаза на Патриарших", startsAt: "2099-10-03T19:00:00+03:00", endsAt: "2099-10-03T23:00:00+03:00", draft: false }),
+      organizerEvent({ id: "draft", title: "Черновик клуба", startsAt: "2099-10-12T20:00:00+03:00", endsAt: "2099-10-12T23:00:00+03:00", draft: true }),
+      organizerEvent({ id: "past", title: "Прошедший стендап", startsAt: "2000-09-01T19:00:00+03:00", endsAt: "2000-09-01T21:00:00+03:00", draft: false }),
+    ];
+
+    function Harness() {
+      const [draft, setDraft] = useState(EMPTY_PROMO_DRAFT);
+      return createElement(PromoCodeCreate, {
+        draft,
+        block: null,
+        events,
+        onChange: (patch) => setDraft((current) => ({ ...current, ...patch })),
+        onSubmit: () => {},
+        onBack: () => {},
+      });
+    }
+
+    const { host, root } = await mount(createElement(Harness));
+    await act(async () => {
+      buttonNamed(host, "События").click();
+    });
+    expect(host.querySelector('input[placeholder="Название или город"]')).not.toBeNull();
+    expect(host.textContent).toContain("Вечер джаза на Патриарших");
+    expect(host.textContent).toContain("Москва");
+    expect(host.textContent).not.toContain("Черновик клуба");
+    expect(host.textContent).not.toContain("Прошедший стендап");
+    expect(host.textContent).not.toContain("Органный вечер в соборе");
+
+    await act(async () => {
+      buttonNamed(host, "Вечер джаза на Патриарших").click();
+    });
+    expect(buttonNamed(host, "События").textContent).toContain("Вечер джаза на Патриарших");
+    expect(host.querySelector('input[placeholder="Название или город"]')).toBeNull();
+
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
   });
 });

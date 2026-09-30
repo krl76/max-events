@@ -89,6 +89,13 @@ export function mergeCabinetEvents(items: OrganizerEvent[]): OrganizerEvent[] {
   return [...items, ...CABINET_EVENTS.filter((item) => !ids.has(item.id)).map(cabinetAsOrganizerEvent)];
 }
 
+/** The «В афише» chip: published events that have not ended yet, earliest first. */
+export function posterEvents(items: OrganizerEvent[], now = Date.now()): OrganizerEvent[] {
+  return items
+    .filter((item) => !item.draft && new Date(item.endsAt ?? item.startsAt).getTime() >= now)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+}
+
 export function cabinetSold(event: Pick<CabinetEvent, "draft" | "sold">): number {
   return event.draft ? 0 : event.sold;
 }

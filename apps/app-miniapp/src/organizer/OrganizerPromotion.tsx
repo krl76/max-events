@@ -1,12 +1,16 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Organizer «Продвижение» tab — the cabinet mock: launch rows, campaigns, the promo-code list and the new-code form.
-// SCOPE: The home screen, the feed and mailing forms, and the promo-code screens opened from «Промокод». Code rows and the create form follow the cabinet mocks. A code created on the form stays on the promo-code list and in active campaigns for the cabinet session, including when the tab remounts.
+// SCOPE: The home screen, the feed form, the promo-code screens and the mailing screens. Code rows, mailing rows and the create forms follow the cabinet mocks. A created code or mailing stays for the cabinet session, including when the tab remounts.
 // DEPENDS: react, ../ui/icons.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { apiClient, type OrganizerEvent } from "../api/client";
+import { EventPicker } from "../ui/EventPicker";
 import { ActionIcon, type ActionIconName } from "../ui/icons";
+import { mergeCabinetEvents, posterEvents } from "./cabinet-catalog";
+import { EMPTY_MAILING_DRAFT, MailingCreate, MailingListScreen, MailingResults, mailingBlock, mailingRows, saveMailing, type MailingDraft, type MailingRow } from "./OrganizerMailing";
 import { useOrganizerNativeBack } from "./organizer-native-back";
 
 export type PromoPane = "active" | "scheduled";
@@ -34,7 +38,7 @@ export const PROMO_HOME_TOOLS: PromoTool[] = ["feed", "mail", "code"];
 export interface PromoCampaignCard {
   id: string;
   phase: PromoPane;
-  tool: "feed" | "code";
+  tool: "feed" | "code" | "mail";
   title: string;
   note: string | null;
   status: string | null;
@@ -43,6 +47,7 @@ export interface PromoCampaignCard {
   eventTitle: string;
   code: string;
   discount: string;
+  mailId?: string;
 }
 
 export const PROMO_CAMPAIGNS: PromoCampaignCard[] = [
@@ -81,6 +86,7 @@ export interface PromoDraft {
   audience: string;
   budget: string;
   eventTitle: string;
+  eventId: string;
   code: string;
   discount: string;
   discountKind: string;
@@ -96,6 +102,7 @@ export const EMPTY_PROMO_DRAFT: PromoDraft = {
   audience: AUDIENCES[0],
   budget: "",
   eventTitle: "",
+  eventId: "",
   code: "",
   discount: "",
   discountKind: "Процент",
@@ -135,8 +142,25 @@ export function resetPromoSession(): void {
 }
 
 const DISCOUNT_KINDS = ["Процент", "Фиксированная сумма"] as const;
-const PROMO_EVENTS = ["Вечер джаза", "Органный вечер в соборе", "Стендап в Stand Up Store"] as const;
 const LIMIT_MODES = ["Без ограничений", "50", "100", "500"] as const;
+
+function mailingCampaign(row: MailingRow): PromoCampaignCard {
+  const date = row.detail.split("·")[0]?.trim() ?? row.detail;
+  return {
+    id: `mail-${row.id}`,
+    phase: "active",
+    tool: "mail",
+    title: row.title,
+    note: date,
+    status: null,
+    meta: `Открыто ${row.opened}`,
+    cover: null,
+    eventTitle: "",
+    code: "",
+    discount: "",
+    mailId: row.id,
+  };
+}
 
 export function promoToolBlock(tool: PromoTool, draft: PromoDraft): string | null {
   if (tool === "campaign") {
@@ -230,22 +254,6 @@ function ToolForm({ tool, draft, block, onChange, onSubmit, onBack }: { tool: Pr
           <span className="app-fin-field-label">Событие</span>
           <input className="app-fin-field-input" value={draft.eventTitle} placeholder="Вечер джаза на Патриарших" onChange={(change) => onChange({ eventTitle: change.target.value })} />
         </label>
-      )}
-      {tool === "mail" && (
-        <>
-          <label className="app-fin-field">
-            <span className="app-fin-field-label">Кому</span>
-            <select className="app-fin-field-input" aria-label="Кому" value={draft.audience} onChange={(change) => onChange({ audience: change.target.value })}>
-              {AUDIENCES.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-          <label className="app-fin-field">
-            <span className="app-fin-field-label">Сообщение</span>
-            <textarea className="app-fin-field-input app-cab-area" rows={4} value={draft.message} placeholder="Завтра в 19:00 — вечер джаза" onChange={(change) => onChange({ message: change.target.value })} />
-          </label>
-        </>
       )}
       {block !== null && <p className="app-fin-block">{block}</p>}
       <button type="button" className="app-promo-submit" onClick={onSubmit}>
@@ -392,8 +400,26 @@ function PromoSelect({ label, value, placeholder, options, onChange }: { label: 
   );
 }
 
-export function PromoCodeCreate({ draft, block, onChange, onSubmit, onBack }: { draft: PromoDraft; block: string | null; onChange: (patch: Partial<PromoDraft>) => void; onSubmit: () => void; onBack: () => void }) {
-  useOrganizerNativeBack(true, onBack);
+export function PromoCodeCreate({ draft, block, events, onChange, onSubmit, onBack }: { draft: PromoDraft; block: string | null; events?: OrganizerEvent[]; onChange: (patch: Partial<PromoDraft>) => void; onSubmit: () => void; onBack: () => void }) {
+  const [fetched, setFetched] = useState<OrganizerEvent[]>([]);
+  const [picking, setPicking] = useState(false);
+  useOrganizerNativeBack(true, picking ? () => setPicking(false) : onBack);
+  useEffect(() => {
+    if (events !== undefined) return;
+    let alive = true;
+    apiClient.listOrganizerEvents().then(
+      (items) => {
+        if (alive) setFetched(mergeCabinetEvents(items));
+      },
+      () => {
+        if (alive) setFetched([]);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [events]);
+  const poster = posterEvents(events ?? fetched);
   const amountLabel = draft.discountKind === "Процент" ? "Размер скидки, %" : "Размер скидки, ₽";
   return (
     <section className="app-cab app-promo app-pcodes" aria-label="Новый промокод">
@@ -422,7 +448,10 @@ export function PromoCodeCreate({ draft, block, onChange, onSubmit, onBack }: { 
       </div>
       <div className="app-pcodes-field">
         <span>События</span>
-        <PromoSelect label="События" value={draft.eventTitle} placeholder="Выберите событие" options={PROMO_EVENTS} onChange={(eventTitle) => onChange({ eventTitle })} />
+        <button type="button" className={draft.eventTitle === "" ? "app-pcodes-select-btn app-pcodes-select-btn--placeholder" : "app-pcodes-select-btn"} aria-label="События" aria-haspopup="dialog" onClick={() => setPicking(true)}>
+          <span>{draft.eventTitle === "" ? "Выберите событие" : draft.eventTitle}</span>
+          <ActionIcon name="chevron" size={16} strokeWidth={2.2} />
+        </button>
       </div>
       <label className="app-pcodes-field">
         <span>Период действия</span>
@@ -445,6 +474,18 @@ export function PromoCodeCreate({ draft, block, onChange, onSubmit, onBack }: { 
       <button type="button" className="app-pcodes-submit" onClick={onSubmit}>
         Создать промокод
       </button>
+      {picking && (
+        <EventPicker
+          title="Событие"
+          events={poster}
+          selectedId={draft.eventId === "" ? null : draft.eventId}
+          onPick={(event) => {
+            onChange({ eventId: event.id, eventTitle: event.title });
+            setPicking(false);
+          }}
+          onClose={() => setPicking(false)}
+        />
+      )}
     </section>
   );
 }
@@ -458,12 +499,20 @@ export function OrganizerPromotion() {
   const [notice, setNotice] = useState<string | null>(null);
   const [codeRows, setCodeRows] = useState<PromoCodeRow[]>(() => [...sessionRows, ...PROMO_CODE_ROWS]);
   const [campaigns, setCampaigns] = useState<PromoCampaignCard[]>(() => [...sessionCampaigns, ...PROMO_CAMPAIGNS]);
-  const visible = campaigns.filter((card) => card.phase === pane);
+  const [mail, setMail] = useState<null | "list" | "form">(null);
+  const [mailDraft, setMailDraft] = useState<MailingDraft>(EMPTY_MAILING_DRAFT);
+  const [mailRows, setMailRows] = useState<MailingRow[]>(() => mailingRows());
+  const [mailResultId, setMailResultId] = useState<string | null>(null);
+  const visible = [...campaigns.filter((card) => card.phase === pane), ...(pane === "active" ? mailRows.filter((row) => row.phase === "active").map(mailingCampaign) : [])];
 
   const openTool = (next: PromoTool, patch: Partial<PromoDraft> = {}) => {
     setBlock(null);
     if (next === "code") {
       setCodes("list");
+      return;
+    }
+    if (next === "mail") {
+      setMail("list");
       return;
     }
     setDraft({ ...EMPTY_PROMO_DRAFT, ...patch });
@@ -474,6 +523,25 @@ export function OrganizerPromotion() {
     setBlock(null);
     setDraft(EMPTY_PROMO_DRAFT);
     setCodes("form");
+  };
+
+  const openMailForm = () => {
+    setBlock(null);
+    setMailDraft(EMPTY_MAILING_DRAFT);
+    setMail("form");
+  };
+
+  const submitMail = () => {
+    const reason = mailingBlock(mailDraft);
+    if (reason !== null) {
+      setBlock(reason);
+      return;
+    }
+    const row = saveMailing(mailDraft);
+    setMailRows((current) => [row, ...current]);
+    setMailDraft(EMPTY_MAILING_DRAFT);
+    setBlock(null);
+    setMail("list");
   };
 
   const submit = () => {
@@ -501,6 +569,33 @@ export function OrganizerPromotion() {
     setNotice(promoToolNotice(active, draft));
     setTool(null);
   };
+
+  const openedMail = mailResultId === null ? undefined : mailRows.find((row) => row.id === mailResultId);
+  if (openedMail !== undefined) {
+    return <MailingResults row={openedMail} onBack={() => setMailResultId(null)} />;
+  }
+
+  if (mail === "form") {
+    return (
+      <MailingCreate
+        draft={mailDraft}
+        block={block}
+        onChange={(patch) => {
+          setMailDraft((current) => ({ ...current, ...patch }));
+          setBlock(null);
+        }}
+        onSubmit={submitMail}
+        onBack={() => {
+          setMail("list");
+          setBlock(null);
+        }}
+      />
+    );
+  }
+
+  if (mail === "list") {
+    return <MailingListScreen rows={mailRows} onBack={() => setMail(null)} onCreate={openMailForm} onOpen={(row) => setMailResultId(row.id)} />;
+  }
 
   if (codes === "form") {
     return (
@@ -585,14 +680,18 @@ export function OrganizerPromotion() {
               className="app-promo-camp"
               onClick={() => {
                 if (card.tool === "code") return;
+                if (card.tool === "mail" && card.mailId !== undefined) {
+                  setMailResultId(card.mailId);
+                  return;
+                }
                 openTool(card.tool, { eventTitle: card.eventTitle, code: card.code, discount: card.discount });
               }}
             >
               {card.cover !== null ? (
                 <img className="app-promo-camp-cover" src={card.cover} alt="" />
               ) : (
-                <span className="app-promo-camp-mark" aria-hidden="true">
-                  <ActionIcon name="percent" size={28} strokeWidth={2.2} />
+                <span className={card.tool === "mail" ? "app-promo-camp-mark app-promo-camp-mark--mail" : "app-promo-camp-mark"} aria-hidden="true">
+                  <ActionIcon name={card.tool === "mail" ? "mail" : "percent"} size={28} strokeWidth={2.2} />
                 </span>
               )}
               <span className="app-promo-row-copy">

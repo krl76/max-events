@@ -30282,3 +30282,466 @@ button.app-pcodes-iconbtn {
   font-weight: 800;
   min-height: 48px;
 }
+
+/* Список рассылок и форма «Новая рассылка». */
+.app-mail-card {
+  align-items: flex-start;
+}
+
+.app-mail-mark {
+  align-items: center;
+  background: #e7f0ff;
+  border-radius: 14px;
+  color: #2f6bff;
+  display: flex;
+  flex: none;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.app-mail-name {
+  color: #12183a;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.app-mail-detail {
+  color: #8ea0bf;
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.app-mail-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.app-mail-open,
+.app-mail-click {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-mail-open {
+  color: #2f6bff;
+}
+
+.app-mail-click {
+  color: #12a85a;
+}
+
+.app-mail-label em {
+  color: #ff3b30;
+  font-style: normal;
+}
+
+.app-mail-editor {
+  background: #ffffff;
+  border: 1px solid #e7eef6;
+  border-radius: 16px;
+  box-shadow: 0 6px 16px rgba(28, 45, 90, 0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-mail-body-wrap {
+  position: relative;
+}
+
+.app-mail-placeholder {
+  color: #a9b6ce;
+  font-size: 16px;
+  font-weight: 600;
+  left: 16px;
+  pointer-events: none;
+  position: absolute;
+  top: 14px;
+}
+
+.app-mail-body {
+  color: #12183a;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.45;
+  min-height: 132px;
+  outline: none;
+  padding: 14px 16px 8px;
+  white-space: pre-wrap;
+}
+
+.app-mail-body ul {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.app-mail-body a {
+  color: #2f6bff;
+}
+
+.app-mail-tools {
+  align-items: center;
+  color: #7d90b0;
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px 8px;
+}
+
+.app-mail-tools button {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: #7d90b0;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+
+.app-mail-tools button i {
+  font-style: italic;
+  font-weight: 700;
+}
+
+.app-mail-count {
+  color: #a9b6ce;
+  font-size: 13px;
+  font-weight: 600;
+  margin-left: auto;
+  padding-right: 6px;
+}
+
+.app-mail-people {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-mail-people h2 {
+  color: #12183a;
+  font-size: 16px;
+  font-weight: 800;
+  margin: 6px 0 0;
+}
+
+.app-mail-radio {
+  align-items: center;
+  background: none;
+  border: none;
+  color: #6b7c99;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  gap: 12px;
+  padding: 8px 2px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-mail-radio[aria-checked="true"] {
+  color: #12183a;
+  font-weight: 700;
+}
+
+.app-mail-radio i {
+  border: 2px solid #c5d0e2;
+  border-radius: 50%;
+  box-sizing: border-box;
+  flex: none;
+  height: 22px;
+  position: relative;
+  width: 22px;
+}
+
+.app-mail-radio[aria-checked="true"] i {
+  border-color: #2f6bff;
+}
+
+.app-mail-radio[aria-checked="true"] i::after {
+  background: #2f6bff;
+  border-radius: 50%;
+  content: "";
+  inset: 3px;
+  position: absolute;
+}
+
+button.app-mail-card {
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.app-promo-camp-mark--mail {
+  background: #e7f0ff;
+  color: #2f6bff;
+}
+
+.app-mail-result {
+  gap: 14px;
+}
+
+.app-mail-result-card {
+  background: #ffffff;
+  border: 1px solid #e7eef8;
+  border-radius: 22px;
+  box-shadow: 0 10px 24px rgba(24, 42, 84, 0.045);
+  padding: 16px;
+}
+
+.app-mail-result-head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.app-mail-result-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.app-mail-result-copy strong {
+  color: #12183a;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.app-mail-result-copy em {
+  color: #8b97b3;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.app-mail-result-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #eef2f8;
+}
+
+.app-mail-result-stats span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-mail-result-stats small {
+  color: #8b97b3;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-mail-result-stats b {
+  color: #12183a;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.app-mail-result-stats em {
+  color: #8b97b3;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.app-mail-chart-toggle {
+  align-items: center;
+  background: none;
+  border: none;
+  color: #12183a;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  gap: 6px;
+  letter-spacing: -0.02em;
+  padding: 0;
+}
+
+.app-mail-chart-toggle svg {
+  color: #8b97b3;
+  transform: rotate(90deg);
+  transition: transform 160ms ease;
+}
+
+.app-mail-chart-toggle[aria-expanded="true"] svg {
+  transform: rotate(-90deg);
+}
+
+.app-mail-chart {
+  margin-top: 14px;
+}
+
+.app-mail-plot {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  height: 168px;
+}
+
+.app-mail-y {
+  color: #a9b4c8;
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  font-weight: 600;
+  justify-content: space-between;
+  padding-bottom: 2px;
+}
+
+.app-mail-plot svg {
+  height: 100%;
+  width: 100%;
+}
+
+.app-mail-plot line {
+  stroke: #e6edf6;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.app-mail-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.app-mail-line--open {
+  stroke: #2f6bff;
+}
+
+.app-mail-line--click {
+  stroke: #7c5cfc;
+}
+
+.app-mail-x {
+  color: #a9b4c8;
+  display: flex;
+  font-size: 11px;
+  font-weight: 600;
+  justify-content: space-between;
+  margin-left: 36px;
+  margin-top: 6px;
+}
+
+.app-mail-legend {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.app-mail-legend span {
+  align-items: center;
+  color: #6d7ea3;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 650;
+  gap: 6px;
+}
+
+.app-mail-dot {
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+}
+
+.app-mail-dot--open {
+  background: #2f6bff;
+}
+
+.app-mail-dot--click {
+  background: #7c5cfc;
+}
+
+.app-mail-result-card h2 {
+  color: #12183a;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+}
+
+.app-mail-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-mail-breakdown li {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+}
+
+.app-mail-breakdown li span {
+  color: #12183a;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.app-mail-breakdown li b {
+  color: #12183a;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.app-mail-breakdown li em {
+  color: #8b97b3;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 650;
+  min-width: 42px;
+  text-align: right;
+}
+
+.app-mail-detail-icon {
+  align-items: center;
+  border-radius: 50%;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.app-mail-detail-icon--ok {
+  background: #e5f8ee;
+  color: #12b76a;
+}
+
+.app-mail-detail-icon--bad {
+  background: #ffecec;
+  color: #f04438;
+}
+
+.app-mail-detail-icon--mute {
+  background: #eef2f8;
+  color: #7e8daf;
+}
