@@ -26,12 +26,13 @@ import { UserEntity } from "../users/user.entity";
 import { WaitlistEntryEntity } from "../waitlist/waitlist-entry.entity";
 import { SlotsModule } from "../slots/slots.module";
 import { WaitlistModule } from "../waitlist/waitlist.module";
+import { ReviewEntity } from "../reviews/review.entity";
 import { EventOptionsEntity } from "./event-options.entity";
 import { OrganizerController } from "./organizer.controller";
 import { OrganizerDayService } from "./organizer-day.service";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([EventEntity, EventOptionsEntity, BookingEntity, CheckInEntity, WaitlistEntryEntity, UserEntity]), EventsModule, PlacesModule, PromoModule, PromotionModule, PaymentsModule, BookingsModule, OrganizationsModule, StatsModule, WaitlistModule, SlotsModule],
+  imports: [TypeOrmModule.forFeature([EventEntity, EventOptionsEntity, BookingEntity, CheckInEntity, WaitlistEntryEntity, UserEntity, ReviewEntity]), EventsModule, PlacesModule, PromoModule, PromotionModule, PaymentsModule, BookingsModule, OrganizationsModule, StatsModule, WaitlistModule, SlotsModule],
   controllers: [OrganizerController],
   providers: [OrganizerDayService],
 })

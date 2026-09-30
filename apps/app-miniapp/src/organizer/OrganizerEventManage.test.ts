@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OrganizerParticipant } from "../api/client";
-import { fillPercent, formatArrival, formatBookedAgo, formatSlot, guestsNote, participantInitial, splitParticipants } from "./OrganizerEventManage";
+import { fillPercent, formatArrival, formatBookedAgo, formatSlot, guestsNote, participantInitial, reviewRecommendShare, reviewVerdict, splitParticipants } from "./OrganizerEventManage";
 
 const participant = (over: Partial<OrganizerParticipant> = {}): OrganizerParticipant => ({ bookingId: "e00000f2-0000-4000-8000-0000000000f1", userId: "a0000000-0000-4000-8000-0000000000b1", name: "Анна Мельник", guests: 1, checkedInAt: null, bookedAt: "2026-09-16T12:00:00+03:00", ...over });
 
@@ -64,5 +64,21 @@ describe("participantInitial", () => {
   it("takes the first letter and never renders an empty avatar", () => {
     expect(participantInitial("Анна Мельник")).toBe("А");
     expect(participantInitial("  ")).toBe("?");
+  });
+});
+
+describe("reviewVerdict", () => {
+  it("maps the guest answers the after-event screen asks", () => {
+    expect(reviewVerdict(2, false)).toBe("Не моё");
+    expect(reviewVerdict(3, false)).toBe("Норм");
+    expect(reviewVerdict(5, false)).toBe("Отлично");
+    expect(reviewVerdict(5, true)).toBe("Ещё раз");
+  });
+});
+
+describe("reviewRecommendShare", () => {
+  it("is the share of «Ещё раз» among reviews", () => {
+    expect(reviewRecommendShare([])).toBeNull();
+    expect(reviewRecommendShare([{ wouldGoAgain: true }, { wouldGoAgain: false }, { wouldGoAgain: true }] as never)).toBe(67);
   });
 });

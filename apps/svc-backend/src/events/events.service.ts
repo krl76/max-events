@@ -239,6 +239,14 @@ export class EventsService {
     return toEventDto(withChat);
   }
 
+  async unpublishOwned(id: string, actorId: string): Promise<Event> {
+    const existing = await this.events.findOneBy({ id });
+    if (!existing) throw new NotFoundException("Event not found");
+    assertOrganizer(existing, actorId);
+    existing.published = false;
+    return toEventDto(await this.events.save(existing));
+  }
+
   async list(query: EventListQuery, now = new Date()): Promise<Event[]> {
     const whereBase: { published: true; city?: string; category?: EventCategory; startsAt?: FindOperator<Date>; id?: FindOperator<string> } = { published: true };
     if (query.city) whereBase.city = query.city;

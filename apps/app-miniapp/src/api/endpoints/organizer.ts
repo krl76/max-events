@@ -303,6 +303,36 @@ const OrganizerAttendanceSchema: ZodSchema<OrganizerAttendance> = {
   },
 };
 
+export interface OrganizerEventReview {
+  id: string;
+  name: string;
+  stars: number;
+  wouldGoAgain: boolean;
+  text: string | null;
+  photos: Array<{ url: string }>;
+  factTags: string[];
+  categoryScores: { atmosphere?: number; organization?: number; price?: number; place?: number };
+  createdAt: string;
+}
+
+const OrganizerEventReviewArraySchema: ZodSchema<OrganizerEventReview[]> = {
+  safeParse(data: unknown) {
+    if (!Array.isArray(data)) return { success: false as const, error: "expected organizer reviews" };
+    const rows: OrganizerEventReview[] = [];
+    for (const item of data) {
+      const raw = record(item);
+      if (raw === null || typeof raw.id !== "string" || typeof raw.name !== "string" || typeof raw.stars !== "number" || typeof raw.wouldGoAgain !== "boolean" || !nullableString(raw.text) || typeof raw.createdAt !== "string") {
+        return { success: false as const, error: "invalid organizer review" };
+      }
+      const photos = Array.isArray(raw.photos) ? raw.photos.flatMap((photo) => (typeof photo === "object" && photo !== null && typeof (photo as { url?: unknown }).url === "string" ? [{ url: (photo as { url: string }).url }] : [])) : [];
+      const factTags = Array.isArray(raw.factTags) ? raw.factTags.filter((tag): tag is string => typeof tag === "string") : [];
+      const scores = typeof raw.categoryScores === "object" && raw.categoryScores !== null ? (raw.categoryScores as OrganizerEventReview["categoryScores"]) : {};
+      rows.push({ id: raw.id, name: raw.name, stars: raw.stars, wouldGoAgain: raw.wouldGoAgain, text: raw.text as string | null, photos, factTags, categoryScores: scores, createdAt: raw.createdAt });
+    }
+    return { success: true as const, data: rows };
+  },
+};
+
 const WaitlistInviteResultSchema: ZodSchema<{ invited: number }> = {
   safeParse(data: unknown) {
     const raw = record(data);
@@ -345,6 +375,15 @@ export function withOrganizer<TBase extends ApiMixin>(Base: TBase) {
     async publishOrganizerEvent(id: string): Promise<OrganizerEvent> {
       const published = await this.request(`/organizer/events/${id}/publish`, OrganizerEventEntitySchema, { method: "POST" });
       return { ...published, draft: false };
+    }
+
+    async unpublishOrganizerEvent(id: string): Promise<OrganizerEvent> {
+      const unpublished = await this.request(`/organizer/events/${id}/unpublish`, OrganizerEventEntitySchema, { method: "POST" });
+      return { ...unpublished, draft: true };
+    }
+
+    listOrganizerEventReviews(eventId: string): Promise<OrganizerEventReview[]> {
+      return this.request(`/organizer/events/${eventId}/reviews`, OrganizerEventReviewArraySchema);
     }
 
     listOrganizerPlaces(): Promise<OrganizerPlace[]> {

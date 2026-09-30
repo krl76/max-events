@@ -249,7 +249,7 @@ function OrganizerSpaceShell({ onExit }: { onExit: () => void }) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status !== "authenticated") return <OrganizerLoginForm onExit={onExit} />;
   const ownChrome = (section === "profile" || section === "finance" || section === "dashboard" || section === "promo" || section === "events") && !pushed;
-  const manageTitle = manageScreen === "checkin" ? "Контроль входа" : manageScreen === "participants" ? "Участники" : manageScreen === "tickets" ? "Билеты и регистрация" : manageScreen === "stats" ? "Статистика" : "Управление событием";
+  const manageTitle = manageScreen === "checkin" ? "Контроль входа" : manageScreen === "participants" ? "Участники" : manageScreen === "tickets" ? "Билеты и регистрация" : manageScreen === "stats" ? "Статистика" : manageScreen === "reviews" ? "Отзывы" : "Событие";
   const title = composerTitle ?? (statsOpen ? "Статистика" : manage !== null ? manageTitle : organizationOpen ? "Организация" : ORGANIZER_SECTION_TITLES[section]);
   const hideTabs = composerTitle !== null || (manage !== null && manageScreen === "checkin");
   const openPromotion = (eventId: string, intent: OrganizerPromoIntent | null) => {

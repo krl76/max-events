@@ -17,7 +17,7 @@ const eventDto = { id: "00000000-0000-4000-8000-0000000000e1", ...event, chatLin
 
 describe("OrganizerController", () => {
   it("creates a draft event and publishes it", async () => {
-    const calls: { create?: { draft?: boolean }; publish?: string } = {};
+    const calls: { create?: { draft?: boolean }; publish?: string; unpublish?: string } = {};
     const events = {
       listMine: async () => [eventDto],
       create: async (_payload: unknown, _userId: string, options?: { draft?: boolean }) => {
@@ -27,6 +27,10 @@ describe("OrganizerController", () => {
       publish: async (id: string) => {
         calls.publish = id;
         return eventDto;
+      },
+      unpublishOwned: async (id: string) => {
+        calls.unpublish = id;
+        return { ...eventDto, published: false };
       },
     } as unknown as EventsService;
     const places = { listMine: async () => [] as Place[], create: async () => ({ id: "p" }) as Place, publish: async () => ({ id: "p" }) as Place } as unknown as PlacesService;
@@ -47,6 +51,7 @@ describe("OrganizerController", () => {
       updateOptions: async () => ({ eventId: eventDto.id, waitlistEnabled: false, registrationInApp: true, externalUrl: null, recurrence: null }),
       attendance: async () => ({ eventId: eventDto.id, capacity: null, bookedCount: 0, waitlistCount: 0, checkedInCount: 0, freedSeats: 0, chatMessages: null, participants: [], waitlist: [], slots: [] }),
       inviteWaitlist: async () => ({ invited: 1 }),
+      reviews: async () => [],
     };
     const controller = new OrganizerController(events, places, promo as never, promotions as never, payments as never, bookings as never, organizations as never, {} as never, day as never, { updateSlot: async () => ({}) } as never);
     await expect(controller.listEvents(organization)).resolves.toEqual([eventDto]);
@@ -54,6 +59,8 @@ describe("OrganizerController", () => {
     expect(calls.create).toEqual({ draft: true });
     await expect(controller.publishEvent(organization, eventDto.id)).resolves.toEqual(eventDto);
     expect(calls.publish).toBe(eventDto.id);
+    await expect(controller.unpublishEvent(organization, eventDto.id)).resolves.toEqual({ ...eventDto, published: false });
+    expect(calls.unpublish).toBe(eventDto.id);
     await expect(controller.createEventDraft(organization, { ...event, title: "" })).rejects.toBeInstanceOf(BadRequestException);
     await expect(controller.createPromo(organization, eventDto.id, { code: "" })).rejects.toBeInstanceOf(BadRequestException);
     await expect(controller.createCampaign(organization, eventDto.id, { type: "refer_a_friend", code: "", title: "x" })).rejects.toBeInstanceOf(BadRequestException);

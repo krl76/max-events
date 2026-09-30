@@ -12,7 +12,7 @@
 import { CreateEventSchema, CreatePlaceSchema, CreatePromoCampaignWriteSchema, CreatePromoCodeWriteSchema, CreatePromotionWriteSchema, EarlyAccessWriteSchema, IdSchema, RecordPageViewWriteSchema, RecordPromotionPaymentWriteSchema } from "@max-events/api-contracts";
 import { mockBookings } from "./bookings";
 import { mockDemoUser, parseBookingBody } from "./fixtures";
-import { checkInMockOrganizerGuest, completeMockOrganizerSetup, createMockCampaign, createMockOrganizerEvent, createMockOrganizerPlace, createMockPromoCode, createMockPromotion, inviteMockOrganizerWaitlist, listMockCampaigns, listMockPromoCodes, listMockPromotions, mockEventOrganizerRating, mockEventSalesReport, mockOrganizerAttendance, mockOrganizerEventOptions, mockOrganizerEventStats, mockOrganizerRating, mockOrganizerSetup, mockOrganizerSummary, mockStatsPeriod, organizerEvents, organizerPlaces, payMockPromotion, publishMockOrganizerEvent, publishMockOrganizerPlace, recordMockPageView, setMockEarlyAccess, updateMockOrganizerEvent, updateMockOrganizerEventOptions, updateMockOrganizerPlace, updateMockOrganizerSetup } from "./organizer";
+import { checkInMockOrganizerGuest, completeMockOrganizerSetup, createMockCampaign, createMockOrganizerEvent, createMockOrganizerPlace, createMockPromoCode, createMockPromotion, inviteMockOrganizerWaitlist, listMockCampaigns, listMockPromoCodes, listMockPromotions, mockEventOrganizerRating, mockEventSalesReport, mockOrganizerAttendance, mockOrganizerEventOptions, mockOrganizerEventReviews, mockOrganizerEventStats, mockOrganizerRating, mockOrganizerSetup, mockOrganizerSummary, mockStatsPeriod, organizerEvents, organizerPlaces, payMockPromotion, publishMockOrganizerEvent, publishMockOrganizerPlace, recordMockPageView, setMockEarlyAccess, unpublishMockOrganizerEvent, updateMockOrganizerEvent, updateMockOrganizerEventOptions, updateMockOrganizerPlace, updateMockOrganizerSetup } from "./organizer";
 
 export function organizerRoutes(url: URL, init: RequestInit | undefined): Response | null {
   // Настройка организатора (макет, экран 44) — раньше остальных: /setup/complete иначе попал бы
@@ -80,6 +80,16 @@ export function organizerRoutes(url: URL, init: RequestInit | undefined): Respon
   const organizerEventPublish = /^\/api\/organizer\/events\/([^/]+)\/publish$/.exec(url.pathname);
   if (organizerEventPublish && init?.method === "POST") {
     const result = publishMockOrganizerEvent(organizerEventPublish[1]);
+    return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
+  }
+  const organizerEventUnpublish = /^\/api\/organizer\/events\/([^/]+)\/unpublish$/.exec(url.pathname);
+  if (organizerEventUnpublish && init?.method === "POST") {
+    const result = unpublishMockOrganizerEvent(organizerEventUnpublish[1]);
+    return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
+  }
+  const organizerEventReviews = /^\/api\/organizer\/events\/([^/]+)\/reviews$/.exec(url.pathname);
+  if (organizerEventReviews && init?.method !== "POST") {
+    const result = mockOrganizerEventReviews(organizerEventReviews[1]);
     return result === null ? new Response(null, { status: 404 }) : result === "forbidden" ? new Response(null, { status: 403 }) : Response.json(result);
   }
   if (url.pathname === "/api/organizer/places" && init?.method === "POST") {

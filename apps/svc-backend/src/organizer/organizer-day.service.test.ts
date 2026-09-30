@@ -7,6 +7,7 @@ import { EventEntity } from "../events/event.entity";
 import { UserEntity } from "../users/user.entity";
 import { WaitlistEntryEntity } from "../waitlist/waitlist-entry.entity";
 import type { WaitlistService } from "../waitlist/waitlist.service";
+import { ReviewEntity } from "../reviews/review.entity";
 import { EventOptionsEntity } from "./event-options.entity";
 import { OrganizerDayService } from "./organizer-day.service";
 
@@ -53,8 +54,9 @@ function createService() {
   const checkIns = createStoreRepo<CheckInEntity>([{ id: "c1", eventId, userId, checkedInAt: now } as CheckInEntity]);
   const waitlist = createStoreRepo<WaitlistEntryEntity>([{ id: "00000000-0000-4000-8000-0000000000w1", eventId, userId, status: "waiting", createdAt: now } as WaitlistEntryEntity]);
   const users = createStoreRepo<UserEntity>([{ id: userId, firstName: "Анна", lastName: "Соколова" } as UserEntity]);
+  const reviews = createStoreRepo<ReviewEntity>([{ id: "00000000-0000-4000-8000-0000000000r1", userId, eventId, stars: 5, wouldGoAgain: true, text: "Отличный вечер", photoUrls: [], factTags: ["calm"], categoryScores: { atmosphere: 5 }, createdAt: now } as ReviewEntity]);
   const waitlistOffers = { inviteNext: async (_eventId: string, count: number) => Math.min(count, 1) } as unknown as WaitlistService;
-  const service = new OrganizerDayService(events as unknown as Repository<EventEntity>, options as unknown as Repository<EventOptionsEntity>, bookings as unknown as Repository<BookingEntity>, checkIns as unknown as Repository<CheckInEntity>, waitlist as unknown as Repository<WaitlistEntryEntity>, users as unknown as Repository<UserEntity>, waitlistOffers);
+  const service = new OrganizerDayService(events as unknown as Repository<EventEntity>, options as unknown as Repository<EventOptionsEntity>, bookings as unknown as Repository<BookingEntity>, checkIns as unknown as Repository<CheckInEntity>, waitlist as unknown as Repository<WaitlistEntryEntity>, users as unknown as Repository<UserEntity>, reviews as unknown as Repository<ReviewEntity>, waitlistOffers);
   return { service, options };
 }
 
@@ -87,5 +89,13 @@ describe("OrganizerDayService", () => {
     await expect(service.inviteWaitlist(orgId, eventId, 3)).resolves.toEqual({ invited: 1 });
     await expect(service.attendance("00000000-0000-4000-8000-0000000000ff", eventId)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(service.getOptions(orgId, "00000000-0000-4000-8000-0000000000e9")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("lists guest reviews of the owned event with names", async () => {
+    const { service } = createService();
+    const rows = await service.reviews(orgId, eventId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ name: "Анна Соколова", stars: 5, wouldGoAgain: true, text: "Отличный вечер", factTags: ["calm"] });
+    await expect(service.reviews("00000000-0000-4000-8000-0000000000ff", eventId)).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

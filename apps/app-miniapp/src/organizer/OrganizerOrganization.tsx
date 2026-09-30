@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import type { OrganizerActivity, OrganizerSetup } from "../api/client";
 import { apiClient } from "../api/client";
+import { SettingsGroup, SettingsPicker } from "../profile/SettingsPage";
 import { AppButton, AppState } from "../ui/primitives";
 import { MyOrganizerRatingCard } from "./OrganizerAddons";
 import { ORGANIZER_ACTIVITY_OPTIONS } from "./organizer-onboarding";
@@ -57,45 +58,38 @@ export function OrganizerOrganization({ organizationId, organizationName, onLogo
       {setup !== null && (
         <>
           <p className="app-gathering-hint">{setup.venue.title === "" ? "Площадка ещё не названа" : `${setup.venue.title}${setup.venue.city === "" ? "" : ` · ${setup.venue.city}`}`}</p>
-          <p className="app-org-group-title">Чем занимаетесь</p>
-          <div className="app-org-setup-chips" role="group" aria-label="Чем занимаетесь">
-            {ORGANIZER_ACTIVITY_OPTIONS.map((option) => {
-              const on = setup.activities.includes(option.activity);
-              return (
-                <button key={option.activity} type="button" aria-pressed={on} className={on ? "app-org-setup-chip app-org-setup-chip--on" : "app-org-setup-chip"} onClick={() => toggleActivity(option.activity)}>
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-          <p className="app-org-group-title">Внешняя оплата</p>
-          <p className="app-gathering-hint">Бесплатные и платные события живут вместе. Ссылка нужна только если билет покупают на вашем сайте. Деньги в кабинет не приходят.</p>
-          <label className="app-org-field">
-            <span className="app-org-field-label">Ссылка на оплату</span>
-            <input
-              className="app-profile-input"
-              type="url"
-              placeholder="https://"
-              value={setup.payouts.paymentUrl ?? ""}
-              onChange={(change) => setSetup({ ...setup, payouts: { ...setup.payouts, paymentUrl: change.target.value } })}
-              onBlur={(change) => {
-                const value = change.target.value.trim();
-                if (value === "") {
-                  save({ payouts: { mode: "none", paymentUrl: null } });
-                  return;
-                }
-                try {
-                  save({ payouts: { mode: "external", paymentUrl: new URL(value).toString() } });
-                } catch {
-                  setSaveFailed(true);
-                }
-              }}
-            />
-          </label>
-          <label className="app-org-field">
-            <span className="app-org-field-label">Контакт для покупателя</span>
-            <input className="app-profile-input" type="text" placeholder="Почта или телефон" value={setup.payouts.contacts ?? ""} onChange={(change) => setSetup({ ...setup, payouts: { ...setup.payouts, contacts: change.target.value } })} onBlur={(change) => save({ payouts: { contacts: change.target.value.trim() === "" ? null : change.target.value.trim() } })} />
-          </label>
+          <SettingsGroup title="Чем занимаетесь">
+            <SettingsPicker options={ORGANIZER_ACTIVITY_OPTIONS.map((option) => ({ value: option.activity, label: option.label }))} selected={setup.activities} multiple onPick={(value) => toggleActivity(value as OrganizerActivity)} />
+          </SettingsGroup>
+          <SettingsGroup title="Оплата">
+            <p className="app-gathering-hint">Ссылка нужна, если билет покупают на вашем сайте. Деньги в кабинет не приходят.</p>
+            <label className="app-org-field">
+              <span className="app-org-field-label">Ссылка на оплату</span>
+              <input
+                className="app-profile-input"
+                type="url"
+                placeholder="https://"
+                value={setup.payouts.paymentUrl ?? ""}
+                onChange={(change) => setSetup({ ...setup, payouts: { ...setup.payouts, paymentUrl: change.target.value } })}
+                onBlur={(change) => {
+                  const value = change.target.value.trim();
+                  if (value === "") {
+                    save({ payouts: { mode: "none", paymentUrl: null } });
+                    return;
+                  }
+                  try {
+                    save({ payouts: { mode: "external", paymentUrl: new URL(value).toString() } });
+                  } catch {
+                    setSaveFailed(true);
+                  }
+                }}
+              />
+            </label>
+            <label className="app-org-field">
+              <span className="app-org-field-label">Контакт для покупателя</span>
+              <input className="app-profile-input" type="text" placeholder="Почта или телефон" value={setup.payouts.contacts ?? ""} onChange={(change) => setSetup({ ...setup, payouts: { ...setup.payouts, contacts: change.target.value } })} onBlur={(change) => save({ payouts: { contacts: change.target.value.trim() === "" ? null : change.target.value.trim() } })} />
+            </label>
+          </SettingsGroup>
           {saveFailed && <AppState error>Не удалось сохранить. Ссылка должна начинаться с https://</AppState>}
         </>
       )}

@@ -32,6 +32,10 @@ describe("organizer panel flow", () => {
     // исход наблюдаем через повторный запрос состояния
     const afterPublish = await api.listOrganizerEvents();
     expect(afterPublish.find((item) => item.id === created.id)?.draft).toBe(false);
+
+    const unpublished = await api.unpublishOrganizerEvent(created.id);
+    expect(unpublished.draft).toBe(true);
+    expect((await api.listOrganizerEvents()).find((item) => item.id === created.id)?.draft).toBe(true);
   });
 
   it("creates a place as a draft and publish flips it in the list", async () => {

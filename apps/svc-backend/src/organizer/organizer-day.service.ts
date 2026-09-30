@@ -17,6 +17,7 @@ import { BookingEntity } from "../bookings/booking.entity";
 import { CheckInEntity } from "../checkins/check-in.entity";
 import { EventEntity } from "../events/event.entity";
 import { isOrganizerOwner } from "../organizations/organizer-ownership";
+import { ReviewEntity } from "../reviews/review.entity";
 import { UserEntity } from "../users/user.entity";
 import { WaitlistEntryEntity } from "../waitlist/waitlist-entry.entity";
 import { WaitlistService } from "../waitlist/waitlist.service";
@@ -33,6 +34,7 @@ export class OrganizerDayService {
     @InjectRepository(CheckInEntity) private readonly checkIns: Repository<CheckInEntity>,
     @InjectRepository(WaitlistEntryEntity) private readonly waitlist: Repository<WaitlistEntryEntity>,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
+    @InjectRepository(ReviewEntity) private readonly reviewsRepo: Repository<ReviewEntity>,
     @Inject(WaitlistService) private readonly waitlistOffers: WaitlistService,
   ) {}
 
@@ -95,6 +97,26 @@ export class OrganizerDayService {
     await this.requireOwnedEvent(actorId, eventId);
     const invited = await this.waitlistOffers.inviteNext(eventId, count);
     return { invited };
+  }
+
+  async reviews(actorId: string, eventId: string): Promise<Array<{ id: string; name: string; stars: number; wouldGoAgain: boolean; text: string | null; photos: Array<{ url: string }>; factTags: string[]; categoryScores: ReviewEntity["categoryScores"]; createdAt: string }>> {
+    await this.requireOwnedEvent(actorId, eventId);
+    const rows = await this.reviewsRepo.find({ where: { eventId } });
+    const people = rows.length === 0 ? [] : await this.users.find({ where: { id: In([...new Set(rows.map((row) => row.userId))]) } });
+    const nameById = new Map(people.map((user) => [user.id, user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName]));
+    return [...rows]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || a.id.localeCompare(b.id))
+      .map((row) => ({
+        id: row.id,
+        name: nameById.get(row.userId) ?? "Гость",
+        stars: row.stars,
+        wouldGoAgain: row.wouldGoAgain,
+        text: row.text,
+        photos: (row.photoUrls ?? []).map((url) => ({ url })),
+        factTags: row.factTags ?? [],
+        categoryScores: row.categoryScores ?? {},
+        createdAt: row.createdAt.toISOString(),
+      }));
   }
 
   private async requireOwnedEvent(actorId: string, eventId: string): Promise<EventEntity> {

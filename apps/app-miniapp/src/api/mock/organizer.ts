@@ -14,6 +14,8 @@
 // - createMockOrganizerEvent - Backend organizer create parity: the payload is CreateEventSchema-validated by the interceptor; the draft belongs to the demo user
 // - createMockOrganizerPlace - Backend organizer create parity for places
 // - publishMockOrganizerEvent - Backend organizer publish parity: 404 unknown, 403 when the id is a catalog event not owned by the demo user (ownership emulation), otherwise flips the flag
+// - unpublishMockOrganizerEvent - Backend EventsService.unpublishOwned parity
+// - mockOrganizerEventReviews - Backend OrganizerDayService.reviews parity: guest reviews of an owned event
 // - publishMockOrganizerPlace - shared with organizer.routes
 // - updateMockOrganizerEvent - Backend EventsService.update parity: whitelist patch, merged EventSchema validation; 404 unknown, 403 catalog (not owned)
 // - updateMockOrganizerPlace - Backend PlacesService.update parity: CreatePlaceSchema.partial() patch; 404 unknown, 403 catalog (not owned)
@@ -155,6 +157,32 @@ export function publishMockOrganizerEvent(id: string): MockOrganizerEvent | "for
   if (!found) return mockEvents.some((item) => item.id === id) ? "forbidden" : null;
   found.published = true;
   return found;
+}
+
+export function unpublishMockOrganizerEvent(id: string): MockOrganizerEvent | "forbidden" | null {
+  const found = mockOrganizerState.events.find((item) => item.id === id);
+  if (!found) return mockEvents.some((item) => item.id === id) ? "forbidden" : null;
+  found.published = false;
+  return found;
+}
+
+export function mockOrganizerEventReviews(id: string) {
+  const found = mockOrganizerState.events.find((item) => item.id === id);
+  if (!found) return mockEvents.some((item) => item.id === id) ? "forbidden" : null;
+  const nameById = new Map(mockFriends.map((person) => [person.id, person.name]));
+  return mockReviews
+    .filter((row) => row.eventId === id)
+    .map((row) => ({
+      id: row.id,
+      name: nameById.get(row.userId) ?? "Гость",
+      stars: row.stars,
+      wouldGoAgain: row.wouldGoAgain,
+      text: row.text,
+      photos: row.photos,
+      factTags: [] as string[],
+      categoryScores: row.categoryScores,
+      createdAt: row.createdAt,
+    }));
 }
 
 export function publishMockOrganizerPlace(id: string): MockOrganizerPlace | "forbidden" | null {

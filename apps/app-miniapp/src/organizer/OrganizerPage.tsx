@@ -683,34 +683,49 @@ export function PlaceDraftForm({ draft, errors, submitting, failed, submitLabel,
   );
 }
 
-function PlaceManage({ place, events, onBack, onEdit, onCreate }: { place: OrganizerPlace; events: OrganizerEvent[]; onBack: () => void; onEdit: () => void; onCreate: () => void }) {
+function PlaceManage({ place, events, onBack, onEdit, onCreate, onOpenEvent }: { place: OrganizerPlace; events: OrganizerEvent[]; onBack: () => void; onEdit: () => void; onCreate: () => void; onOpenEvent?: (event: OrganizerEvent) => void }) {
   useOrganizerNativeBack(true, onBack);
   const linked = events.filter((item) => item.placeId === place.id);
   return (
     <section className="app-gathering" aria-label="Управление местом">
-      <article className="app-set-group">
-        <p className="app-set-row-title">{place.title}</p>
-        <p className="app-set-row-hint">
-          {place.address} · {place.city}
-        </p>
-        <p className="app-set-row-hint">
-          {place.draft ? "Черновик" : "Опубликовано"} · {PLACE_CATEGORY_LABELS[place.category]}
-        </p>
-      </article>
-      <p className="app-gathering-hint">Гости видят этот адрес на карточке события. Отдельной страницы места в афише кабинет не открывает.</p>
-      <button type="button" className="app-set-row" onClick={onEdit}>
-        <span className="app-set-row-text">
-          <span className="app-set-row-title">Редактировать</span>
-          <span className="app-set-row-hint">Название, категория, адрес и точка</span>
-        </span>
-      </button>
-      <h2 className="app-section-title">События здесь</h2>
+      <div className="app-set-group">
+        <div className="app-set-row">
+          <span className="app-set-row-text">
+            <span className="app-set-row-title">{place.title}</span>
+            <span className="app-set-row-hint">
+              {place.address} · {place.city}
+            </span>
+          </span>
+        </div>
+        <div className="app-set-row">
+          <span className="app-set-row-text">
+            <span className="app-set-row-title">{place.draft ? "Черновик" : "Опубликовано"}</span>
+            <span className="app-set-row-hint">{PLACE_CATEGORY_LABELS[place.category]}</span>
+          </span>
+        </div>
+        <button type="button" className="app-set-row" onClick={onEdit}>
+          <span className="app-set-row-text">
+            <span className="app-set-row-title">Редактировать</span>
+            <span className="app-set-row-hint">Название, категория, адрес и точка</span>
+          </span>
+          <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+        </button>
+      </div>
+      <h2 className="app-set-group-title">События здесь</h2>
       {linked.length === 0 && <p className="app-gathering-hint">Событий на этой площадке пока нет. Место может существовать само по себе.</p>}
-      {linked.map((item) => (
-        <p key={item.id} className="app-set-row-hint">
-          {item.title}
-        </p>
-      ))}
+      {linked.length > 0 && (
+        <div className="app-set-group">
+          {linked.map((item) => (
+            <button key={item.id} type="button" className="app-set-row" onClick={() => onOpenEvent?.(item)}>
+              <span className="app-set-row-text">
+                <span className="app-set-row-title">{item.title}</span>
+                <span className="app-set-row-hint">{new Date(item.startsAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+              </span>
+              <ActionIcon name="chevron" size={16} strokeWidth={2.6} />
+            </button>
+          ))}
+        </div>
+      )}
       <AppButton stretched onClick={onCreate}>
         Создать событие здесь
       </AppButton>
@@ -779,12 +794,10 @@ export function CabinetListSwitch({ tab, onTab }: { tab: CabinetListTab; onTab: 
 }
 
 /** createOnMount: the «Создать» tab of the organizer bar lands straight on the empty event draft. */
-export function OrganizerPanel({ organizationId: _organizationId, createOnMount = false, onOpenEvent: _onOpenEvent, onComposer, closeComposerTick = 0, editRequestId = null, onEditHandled, placesTick = 0, draftsTick = 0 }: { organizationId: string; createOnMount?: boolean; onOpenEvent?: (event: OrganizerEvent) => void; onComposer?: (title: string | null) => void; closeComposerTick?: number; editRequestId?: string | null; onEditHandled?: () => void; placesTick?: number; draftsTick?: number }) {
+export function OrganizerPanel({ organizationId: _organizationId, createOnMount = false, onOpenEvent, onComposer, closeComposerTick = 0, editRequestId = null, onEditHandled, placesTick = 0, draftsTick = 0 }: { organizationId: string; createOnMount?: boolean; onOpenEvent?: (event: OrganizerEvent) => void; onComposer?: (title: string | null) => void; closeComposerTick?: number; editRequestId?: string | null; onEditHandled?: () => void; placesTick?: number; draftsTick?: number }) {
   const [tab, setTab] = useState<"events" | "places">("events");
   const [eventQuery, setEventQuery] = useState("");
   const [eventFilter, setEventFilter] = useState<"all" | "published" | "drafts" | "archive">("all");
-  const [detailId, setDetailId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<"info" | "tickets" | "stats">("info");
   const [placeQuery, setPlaceQuery] = useState("");
   const [events, setEvents] = useState<OrganizerListState<OrganizerEvent>>({ status: "loading" });
   const [places, setPlaces] = useState<OrganizerListState<OrganizerPlace>>({ status: "loading" });
@@ -870,15 +883,14 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
   }, [editRequestId, events, places, onEditHandled]);
 
   useEffect(() => {
-    const title = eventForm !== null ? (eventForm.mode === "create" ? "Создать событие" : "Событие") : placeForm !== null ? (placeForm.mode === "create" ? "Новое место" : "Место") : detailId !== null ? "Событие" : null;
+    const title = eventForm !== null ? (eventForm.mode === "create" ? "Создать событие" : "Событие") : placeForm !== null ? (placeForm.mode === "create" ? "Новое место" : "Место") : null;
     onComposer?.(title);
-  }, [eventForm, placeForm, step, detailId, onComposer]);
+  }, [eventForm, placeForm, step, onComposer]);
 
   useEffect(() => {
     if (closeComposerTick === 0) return;
     setEventForm(null);
     setPlaceForm(null);
-    setDetailId(null);
     setStep(1);
     createdEventId.current = null;
     setErrors([]);
@@ -1022,7 +1034,6 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
 
   const merged = events.status === "ready" ? mergeCabinetEvents(events.items) : [];
   const groups = events.status === "ready" ? splitOrganizerEvents(merged) : null;
-  const placeTitleFor = (item: OrganizerEvent) => CABINET_EVENTS.find((row) => row.id === item.id)?.place ?? (places.status === "ready" ? (places.items.find((place) => place.id === item.placeId)?.title ?? item.city) : item.city);
   const seatsSold = (item: OrganizerEvent) => {
     const known = CABINET_EVENTS.find((row) => row.id === item.id);
     if (known) return known.draft ? 0 : known.sold;
@@ -1031,7 +1042,6 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
   };
   const matchesQuery = (item: OrganizerEvent) => item.title.toLowerCase().includes(eventQuery.trim().toLowerCase());
   const visibleEvents = groups === null ? [] : (eventFilter === "drafts" ? groups.drafts : eventFilter === "archive" ? groups.past : eventFilter === "published" ? groups.upcoming : merged).filter(matchesQuery);
-  const detail = detailId === null ? null : (merged.find((item) => item.id === detailId) ?? null);
   const renderEvents = (items: OrganizerEvent[]) => (
     <div className="app-evt-list">
       {items.map((item) => {
@@ -1044,10 +1054,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
             key={item.id}
             type="button"
             className="app-evt-card"
-            onClick={() => {
-              setDetailTab("info");
-              setDetailId(item.id);
-            }}
+            onClick={() => onOpenEvent?.(item)}
           >
             <span className="app-evt-photo">
               <img alt="" src={pictured(item.id, item.coverUrl)} />
@@ -1067,163 +1074,6 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
       })}
     </div>
   );
-  if (detail !== null && eventForm === null && placeForm === null) {
-    const known = CABINET_EVENTS.find((row) => row.id === detail.id);
-    const sold = seatsSold(detail);
-    const free = detail.capacity === null ? null : Math.max(detail.capacity - sold, 0);
-    const past = new Date(detail.endsAt ?? detail.startsAt).getTime() < Date.now();
-    const start = new Date(detail.startsAt);
-    const end = detail.endsAt === null ? null : new Date(detail.endsAt);
-    const whenLine = `${start.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })} · ${start.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}${end ? ` — ${end.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : ""}`;
-    const whenShort = `${start.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}, ${start.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}${end ? ` – ${end.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : ""}`;
-    const placeLine = `${placeTitleFor(detail)}, ${detail.city}`;
-    const tags = known?.tags ?? [CATEGORY_LABELS[detail.category]];
-    const categoryLabel = tags[0] ?? CATEGORY_LABELS[detail.category];
-    const age = known?.age ?? "0+";
-    const about = known?.description ?? detail.description;
-    const promoCount = detail.isPaid && !detail.draft ? 2 : 0;
-    return (
-      <section className="app-evt-sheet" aria-label="Событие">
-        <div className="app-evt-hero">
-          <img alt="" src={pictured(detail.id, detail.coverUrl)} />
-          <span className={detail.draft ? "app-evt-status app-evt-status--draft" : past ? "app-evt-status app-evt-status--archive" : "app-evt-status"}>{detail.draft ? "Черновик" : past ? "Архив" : "Опубликовано"}</span>
-        </div>
-        <h1 className="app-evt-name">{detail.title}</h1>
-        <p className="app-evt-line">
-          <ActionIcon name="calendar" size={18} strokeWidth={2} />
-          <span>{whenLine}</span>
-        </p>
-        <p className="app-evt-line">
-          <ActionIcon name="pin" size={18} strokeWidth={2} />
-          <span>{placeLine}</span>
-        </p>
-        <div className="app-evt-pills">
-          {tags.map((tag) => (
-            <span key={tag}>{tag}</span>
-          ))}
-        </div>
-        <p className="app-evt-about">{about}</p>
-        <div className="app-evt-counts">
-          <article>
-            <ActionIcon name="users" size={18} strokeWidth={2} />
-            <b>{detail.capacity ?? "—"}</b>
-            <span>Всего мест</span>
-          </article>
-          <article>
-            <ActionIcon name="ticket" size={18} strokeWidth={2} />
-            <b>{sold}</b>
-            <span>Продано</span>
-          </article>
-          <article>
-            <ActionIcon name="layers" size={18} strokeWidth={2} />
-            <b>{free ?? "—"}</b>
-            <span>Свободно</span>
-          </article>
-        </div>
-        <button type="button" className="app-evt-edit" onClick={() => openEventForm({ mode: "edit", id: detail.id, draft: eventDraftFrom(detail), offerPublish: detail.draft })}>
-          <ActionIcon name="pen" size={18} strokeWidth={2.2} />
-          Редактировать
-        </button>
-        <div className="app-evt-filters" role="tablist" aria-label="Карточка события">
-          {(
-            [
-              ["info", "Информация"],
-              ["tickets", "Билеты"],
-              ["stats", "Статистика"],
-            ] as const
-          ).map(([id, label]) => (
-            <button key={id} type="button" role="tab" aria-selected={detailTab === id} className={detailTab === id ? "app-evt-filter app-evt-filter--on" : "app-evt-filter"} onClick={() => setDetailTab(id)}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {detailTab === "info" && (
-          <>
-            <h2 className="app-evt-block-title">Основная информация</h2>
-            <div className="app-evt-rows">
-              <div className="app-evt-row">
-                <ActionIcon name="pin" size={18} strokeWidth={2} />
-                <span>
-                  <b>Локация</b>
-                  <em>{placeLine}</em>
-                </span>
-                <ActionIcon name="chevron" size={16} strokeWidth={2.4} />
-              </div>
-              <div className="app-evt-row">
-                <ActionIcon name="calendar" size={18} strokeWidth={2} />
-                <span>
-                  <b>Дата и время</b>
-                  <em>{whenShort}</em>
-                </span>
-              </div>
-              <div className="app-evt-row">
-                <ActionIcon name="tag" size={18} strokeWidth={2} />
-                <span>
-                  <b>Категория</b>
-                  <em>{categoryLabel}</em>
-                </span>
-                <ActionIcon name="chevron" size={16} strokeWidth={2.4} />
-              </div>
-              <div className="app-evt-row">
-                <ActionIcon name="info" size={18} strokeWidth={2} />
-                <span>
-                  <b>Возрастное ограничение</b>
-                  <em>{age}</em>
-                </span>
-              </div>
-              <div className="app-evt-row">
-                <ActionIcon name="info" size={18} strokeWidth={2} />
-                <span>
-                  <b>Описание</b>
-                  <em>{known?.summary ?? about}</em>
-                </span>
-              </div>
-            </div>
-            <h2 className="app-evt-block-title">Дополнительно</h2>
-            <div className="app-evt-rows">
-              <div className="app-evt-row">
-                <ActionIcon name="ticket" size={18} strokeWidth={2} />
-                <span>
-                  <b>Промокоды</b>
-                  <em>Активных: {promoCount}</em>
-                </span>
-                <ActionIcon name="chevron" size={16} strokeWidth={2.4} />
-              </div>
-              <div className="app-evt-row">
-                <ActionIcon name="mail" size={18} strokeWidth={2} />
-                <span>
-                  <b>Рассылка</b>
-                  <em>Отправлено: 0</em>
-                </span>
-                <ActionIcon name="chevron" size={16} strokeWidth={2.4} />
-              </div>
-            </div>
-          </>
-        )}
-        {detailTab === "tickets" && (
-          <article className="app-cab-card">
-            <h2 className="app-cab-card-title">Билеты</h2>
-            <p className="app-evt-meta">{detail.isPaid && detail.priceRub !== null ? `${detail.priceRub} ₽` : "Бесплатно"}</p>
-            <p className="app-evt-meta">
-              Продано {sold} из {detail.capacity ?? "без лимита"}
-            </p>
-          </article>
-        )}
-        {detailTab === "stats" && (
-          <article className="app-cab-card">
-            <h2 className="app-cab-card-title">Статистика</h2>
-            <p className="app-evt-meta">Выручка {detail.isPaid && detail.priceRub !== null ? `${(detail.priceRub * sold).toLocaleString("ru-RU")} ₽` : "0 ₽"}</p>
-            <p className="app-evt-meta">Заполняемость {detail.capacity ? `${Math.round((sold / detail.capacity) * 100)}%` : "—"}</p>
-          </article>
-        )}
-        {!detail.draft && !past && (
-          <button type="button" className="app-evt-unpublish" onClick={() => setDetailId(null)}>
-            Снять с публикации
-          </button>
-        )}
-      </section>
-    );
-  }
 
   return (
     <section className="app-gathering app-evt-home">
@@ -1285,6 +1135,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
             if (!place) return;
             openEventForm({ mode: "create", draft: { ...EMPTY_EVENT_DRAFT, placeId: place.id, city: place.city, address: place.address, latitude: String(place.latitude), longitude: String(place.longitude), pinned: true } });
           }}
+          onOpenEvent={onOpenEvent}
         />
       )}
       {tab === "places" && placeFocus === null && (

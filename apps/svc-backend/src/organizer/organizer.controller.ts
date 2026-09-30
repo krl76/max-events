@@ -87,6 +87,11 @@ export class OrganizerController {
     return this.events.publish(id, organization.id);
   }
 
+  @Post("events/:id/unpublish")
+  unpublishEvent(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<Event> {
+    return this.events.unpublishOwned(id, organization.id);
+  }
+
   @Get("places")
   listPlaces(@CurrentOrganization() organization: OrganizationEntity): Promise<Place[]> {
     return this.places.listMine(organization.id);
@@ -196,6 +201,11 @@ export class OrganizerController {
   @Get("events/:id/attendance")
   attendance(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string): Promise<OrganizerAttendance> {
     return this.day.attendance(organization.id, id);
+  }
+
+  @Get("events/:id/reviews")
+  listReviews(@CurrentOrganization() organization: OrganizationEntity, @Param("id", ParseUUIDPipe) id: string) {
+    return this.day.reviews(organization.id, id);
   }
 
   @Post("events/:id/waitlist/invites")

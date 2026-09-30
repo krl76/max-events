@@ -181,7 +181,7 @@ import { withWalks } from "./endpoints/walks";
 import { ApiTransport } from "./endpoints/transport";
 
 export { REPORT_REASONS } from "./endpoints/moderation";
-export type { OrganizerAttendance, OrganizerEvent, OrganizerEventOptions, OrganizerParticipant, OrganizerPlace, OrganizerRecurrence, OrganizerSlot, OrganizerSummary, OrganizerTrafficShare, OrganizerTrafficSource, OrganizerWaitlistEntry, StatsPeriodQuery, UpdateOrganizerEvent, UpdateOrganizerEventOptions, UpdateOrganizerPlace } from "./endpoints/organizer";
+export type { OrganizerAttendance, OrganizerEvent, OrganizerEventOptions, OrganizerEventReview, OrganizerParticipant, OrganizerPlace, OrganizerRecurrence, OrganizerSlot, OrganizerSummary, OrganizerTrafficShare, OrganizerTrafficSource, OrganizerWaitlistEntry, StatsPeriodQuery, UpdateOrganizerEvent, UpdateOrganizerEventOptions, UpdateOrganizerPlace } from "./endpoints/organizer";
 export type { CreateGathering, CreateMicroEvent, DiscoveryFriendCard, DiscoveryScreen, FriendRouteScreen, FriendRouteStop, FriendSuggestion, FriendsSync, MicroEventCard, MicroParticipant } from "./endpoints/social";
 export type { CalendarEntry, PlanTimeline, PlanTimelineStep, PlanTransfer, PlanTransferMode, SharedCalendar, SharedCalendarEntry, SharedCalendarPeer } from "./endpoints/plans";
 export { ApiError, isEndpointMissing, whenEndpointMissing } from "./endpoints/transport";
