@@ -206,6 +206,7 @@ describe("SettingsView", () => {
     expect(groups).toEqual(["Приложение", "Приватность", "Близкие", "Уведомления", "Мини-приложение"]);
     expect(html).toContain("Близкие друзья");
     expect(html).toContain("Только из тех, кто добавил вас");
+    expect(html).not.toContain("app-set-identity-action");
   });
 
   it("shows the theme row with the current preference as its value", () => {

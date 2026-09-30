@@ -9641,13 +9641,6 @@ button.app-me-avatar-ring {
   font-size: var(--app-font-size-description);
 }
 
-.app-set-identity-action {
-  color: var(--app-accent-text);
-  flex: none;
-  font-size: var(--app-font-size-description);
-  font-weight: 800;
-}
-
 .app-set-note {
   color: var(--app-text-secondary);
   font-size: var(--app-font-size-description);

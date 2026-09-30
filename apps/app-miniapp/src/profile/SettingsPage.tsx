@@ -328,7 +328,6 @@ export function SettingsView({ user, profile, settings, theme, cacheBytes, faile
           <span className="app-set-identity-name">{[user.firstName, user.lastName].filter(Boolean).join(" ")}</span>
           <span className="app-set-identity-sub">{identityHint(user)}</span>
         </span>
-        <span className="app-set-identity-action">Изменить</span>
       </button>
       {picker === "identity" && (
         <>
