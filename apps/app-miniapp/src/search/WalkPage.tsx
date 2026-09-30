@@ -115,8 +115,9 @@ function WalkDraft({ day, onAnother }: { readonly day: AssistDayResponse; readon
   );
 }
 
-export function WalkPage({ city, compose = (body) => apiClient.composeCityWalk(body), initialChoice = EMPTY_WALK_CHOICE }: { readonly city: string; readonly compose?: (body: ComposeCityWalkWrite) => Promise<CityWalk>; readonly initialChoice?: WalkChoice }) {
+export function WalkPage({ city: initialCity, compose = (body) => apiClient.composeCityWalk(body), initialChoice = EMPTY_WALK_CHOICE }: { readonly city: string; readonly compose?: (body: ComposeCityWalkWrite) => Promise<CityWalk>; readonly initialChoice?: WalkChoice }) {
   const { navigate } = useRoute();
+  const [city, setCity] = useState(initialCity);
   const [choice, setChoice] = useState(initialChoice);
   const [excludeKeys, setExcludeKeys] = useState<readonly string[]>([]);
   const [phase, setPhase] = useState<"form" | "wait" | "ready">("form");
@@ -225,7 +226,10 @@ export function WalkPage({ city, compose = (body) => apiClient.composeCityWalk(b
       choice={choice}
       onChange={setChoice}
       notice={error}
-      onSaved={() => navigate({ name: "walks" })}
+      onCity={(next) => {
+        if (next === city) return;
+        setCity(next);
+      }}
       onCompose={() => {
         void onCompose();
       }}

@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { CityWalk } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { ApiError } from "../api/endpoints/transport";
-import { SavedWalkList, SavedWalkPage, SavedWalkView, sortWalksNewest } from "./SavedWalks";
+import { SavedWalkList, SavedWalkPage, SavedWalkView, WalkListPage, sortWalksNewest } from "./SavedWalks";
 
 const PLACE_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -214,6 +214,62 @@ describe("saved city walks", () => {
     );
     clickText(host, "Кремль");
     expect(openedPlaces).toEqual([PLACE_ID]);
+    root.unmount();
+    host.remove();
+  });
+
+  it("asks before deleting a walk from the list", async () => {
+    const walk = sampleWalk();
+    const deleted: string[] = [];
+    const { host, root } = await mount(
+      createElement(WalkListPage, {
+        list: async () => [walk],
+        remove: async (id) => {
+          deleted.push(id);
+        },
+      }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(host.querySelector('[aria-label="Удалить прогулку"]')).not.toBeNull();
+    await act(async () => {
+      (host.querySelector('[aria-label="Удалить прогулку"]') as HTMLButtonElement).click();
+    });
+    expect(host.textContent).toContain("Удалить прогулку?");
+    await act(async () => {
+      clickText(host, "Удалить");
+    });
+    expect(deleted).toEqual([walk.id]);
+    expect(host.textContent).not.toContain("Тула");
+    root.unmount();
+    host.remove();
+  });
+
+  it("asks before deleting the open walk", async () => {
+    const walk = sampleWalk();
+    const deleted: string[] = [];
+    const { host, root } = await mount(
+      createElement(SavedWalkPage, {
+        id: walk.id,
+        load: () => Promise.resolve(walk),
+        remove: async (id) => {
+          deleted.push(id);
+        },
+      }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      clickText(host, "Удалить");
+    });
+    expect(host.textContent).toContain("Удалить прогулку?");
+    await act(async () => {
+      const confirm = [...host.querySelectorAll("button")].find((item) => item.className.includes("app-post-delete-confirm"));
+      confirm?.click();
+    });
+    expect(deleted).toEqual([walk.id]);
     root.unmount();
     host.remove();
   });

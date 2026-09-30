@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
 // PURPOSE: Mock route table for city walks.
-// SCOPE: POST/GET /api/walks, GET /api/walks/:id, PATCH /api/walks/:id/stops/:order. Null when the path belongs to another domain.
+// SCOPE: POST/GET /api/walks, GET/DELETE /api/walks/:id, PATCH /api/walks/:id/stops/:order. Null when the path belongs to another domain.
 // DEPENDS: ./walks.js, ./fixtures.js, @max-events/api-contracts
 // LINKS: M-APP-MINIAPP
 // END_MODULE_CONTRACT
@@ -11,7 +11,7 @@
 
 import { ComposeCityWalkWriteSchema, IdSchema, SetCityWalkStopDoneWriteSchema } from "@max-events/api-contracts";
 import { parseBookingBody } from "./fixtures";
-import { composeMockWalk, getMockWalk, listMockWalks, setMockWalkStopDone } from "./walks";
+import { composeMockWalk, deleteMockWalk, getMockWalk, listMockWalks, setMockWalkStopDone } from "./walks";
 
 export function walksRoutes(url: URL, init: RequestInit | undefined): Response | null {
   const done = /^\/api\/walks\/([^/]+)\/stops\/([^/]+)$/.exec(url.pathname);
@@ -27,6 +27,9 @@ export function walksRoutes(url: URL, init: RequestInit | undefined): Response |
   const byId = /^\/api\/walks\/([^/]+)$/.exec(url.pathname);
   if (byId) {
     if (!IdSchema.safeParse(byId[1]).success) return new Response(null, { status: 400 });
+    if (init?.method === "DELETE") {
+      return deleteMockWalk(byId[1]) ? new Response(null, { status: 204 }) : new Response(null, { status: 404 });
+    }
     const walk = getMockWalk(byId[1]);
     return walk === null ? new Response(null, { status: 404 }) : Response.json(walk);
   }

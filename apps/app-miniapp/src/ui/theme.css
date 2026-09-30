@@ -14075,76 +14075,104 @@ button.app-poll-result {
   z-index: 5;
 }
 
-/* Маршрут на день: полноэкранный выбор точек, выбранное сверху, «Готово» снизу. */
+/* Маршрут на день: лист выбора точек и нижняя панель «Далее». */
 .app-dayroute {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-m);
+  gap: 16px;
   min-height: 100%;
+  padding-bottom: 8px;
 }
 
 .app-dayroute-top {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
   flex: none;
   gap: 12px;
-  padding-top: max(var(--app-space-s), env(safe-area-inset-top, 0px));
+  padding-top: max(4px, env(safe-area-inset-top, 0px));
+}
+
+.app-dayroute-close {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 36px;
+  justify-content: center;
+  margin: 2px 0 0;
+  padding: 0;
+  width: 28px;
 }
 
 .app-dayroute-heading {
   display: flex;
   flex: 1;
   flex-direction: column;
+  gap: 4px;
   min-width: 0;
 }
 
 .app-dayroute-title {
-  font-size: var(--app-font-size-headline);
+  font-size: 28px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   margin: 0;
 }
 
 .app-dayroute-sub,
-.app-dayroute-hint,
 .app-dayroute-totals,
-.app-dayroute-save {
+.app-dayroute-save,
+.app-dayroute-picked-note,
+.app-dayroute-why-copy {
   color: var(--app-text-secondary);
-  font-size: var(--app-font-size-description);
+  font-size: 14px;
+  font-weight: 600;
   margin: 0;
 }
 
-.app-dayroute-picked {
+.app-dayroute-search {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 18px;
+  color: var(--app-text-secondary);
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
+  padding: 12px 16px;
 }
 
-.app-dayroute-chip {
-  align-items: center;
-  background: var(--app-accent);
+.app-dayroute-search input {
+  background: none;
   border: none;
-  border-radius: 999px;
-  color: var(--app-accent-contrast);
-  cursor: pointer;
-  display: inline-flex;
+  color: var(--app-text);
+  flex: 1;
   font: inherit;
-  font-size: var(--app-font-size-caption);
-  font-weight: 700;
-  gap: 6px;
-  max-width: 100%;
-  padding: 6px 10px;
+  font-size: 15px;
+  min-width: 0;
+  outline: none;
+  padding: 0;
 }
 
-.app-dayroute-chip-n {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.22);
-  border-radius: 50%;
+.app-dayroute-kicker {
+  align-items: baseline;
   display: flex;
-  flex: none;
-  height: 18px;
-  justify-content: center;
-  width: 18px;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.app-dayroute-why {
+  background: none;
+  border: none;
+  color: var(--app-accent-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0;
+  white-space: nowrap;
 }
 
 .app-dayroute-group {
@@ -14154,17 +14182,18 @@ button.app-poll-result {
 }
 
 .app-dayroute-label {
-  font-size: var(--app-font-size-caption);
+  color: var(--app-text-secondary);
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.04em;
-  margin: var(--app-space-s) 0 0;
+  letter-spacing: 0.06em;
+  margin: 8px 0 0;
   text-transform: uppercase;
 }
 
 .app-dayroute-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -14172,45 +14201,44 @@ button.app-poll-result {
 
 .app-dayroute-row {
   align-items: center;
-  background: var(--app-surface);
+  background: none;
   border: none;
-  border-radius: 14px;
+  border-radius: 16px;
   color: var(--app-text);
   cursor: pointer;
   display: flex;
   font: inherit;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 8px 4px;
   text-align: left;
   width: 100%;
 }
 
 .app-dayroute-row--on {
-  background: var(--app-surface);
-  box-shadow: inset 0 0 0 1.5px var(--app-accent);
+  background: none;
 }
 
 .app-dayroute-check {
   align-items: center;
   background: var(--app-card);
-  border-radius: 8px;
-  color: var(--app-accent);
+  border: 1.5px solid color-mix(in srgb, var(--app-text) 18%, transparent);
+  border-radius: 50%;
+  color: #ffffff;
   display: flex;
   flex: none;
-  font-weight: 800;
-  height: 22px;
+  height: 24px;
   justify-content: center;
-  width: 22px;
+  width: 24px;
 }
 
 .app-dayroute-check--on {
   background: var(--app-accent);
-  color: #ffffff;
+  border-color: var(--app-accent);
 }
 
 .app-dayroute-photo {
   background: var(--app-surface);
-  border-radius: 12px;
+  border-radius: 16px;
   display: block;
   flex: none;
   height: 64px;
@@ -14234,12 +14262,96 @@ button.app-poll-result {
 }
 
 .app-dayroute-row-title {
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
-.app-dayroute-row-hint {
+.app-dayroute-row-tags,
+.app-dayroute-row-hint,
+.app-dayroute-row-walk {
   color: var(--app-text-secondary);
-  font-size: var(--app-font-size-description);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-dayroute-row-walk {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.app-dayroute-interests {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  overflow-x: auto;
+}
+
+.app-dayroute-interest {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 8px;
+  min-width: 56px;
+  padding: 0;
+}
+
+.app-dayroute-interest-icon {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 50%;
+  color: var(--app-accent);
+  display: flex;
+  height: 56px;
+  justify-content: center;
+  width: 56px;
+}
+
+.app-dayroute-interest--on .app-dayroute-interest-icon {
+  background: color-mix(in srgb, var(--app-accent) 16%, var(--app-surface));
+  box-shadow: inset 0 0 0 1.5px var(--app-accent);
+}
+
+.app-dayroute-all {
+  align-items: center;
+  background: var(--app-surface);
+  border: none;
+  border-radius: 18px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 16px 18px;
+  text-align: left;
+  width: 100%;
+}
+
+.app-dayroute-all span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-dayroute-all strong {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.app-dayroute-all span span {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .app-dayroute-result {
@@ -14347,6 +14459,40 @@ button.app-poll-result {
   --background: var(--app-surface);
   --color: var(--app-text-secondary);
   opacity: 1;
+}
+
+.app-dayroute-cta-bar {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.app-dayroute-cta-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  min-width: 0;
+}
+
+.app-dayroute-cta-copy strong {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.app-dayroute-cta-copy span {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-dayroute-cta-bar .app-key-cta.app-btn {
+  flex: none;
+  min-width: 120px;
+  padding-inline: 22px;
+  width: auto;
 }
 
 .app-assist-input {
@@ -24153,16 +24299,57 @@ button.app-story-viewer-author {
   justify-content: flex-end;
   margin-bottom: 14px;
 }
+.app-walk-city-wrap {
+  position: relative;
+}
 .app-walk-city-chip {
   align-items: center;
   background: var(--app-surface);
+  border: 0;
   border-radius: var(--app-radius-pill);
-  color: var(--app-text-secondary);
+  color: var(--app-text);
+  cursor: pointer;
   display: inline-flex;
-  font-size: 12px;
+  font-family: inherit;
+  font-size: 13px;
   font-weight: 700;
-  gap: 5px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 8px 12px;
+}
+.app-walk-city-chip:active {
+  transform: scale(0.97);
+}
+.app-walk-city-menu {
+  background: var(--app-card);
+  border-radius: 16px;
+  box-shadow: var(--app-shadow-lift);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 6px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(220px, 72vw);
+  z-index: 8;
+}
+.app-walk-city-option {
+  background: none;
+  border: 0;
+  border-radius: 12px;
+  color: var(--app-text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 12px;
+  text-align: left;
+}
+.app-walk-city-option--on {
+  background: color-mix(in srgb, var(--app-accent) 10%, transparent);
+  color: var(--app-accent);
 }
 .app-walk-head {
   margin-bottom: 16px;
@@ -24176,7 +24363,6 @@ button.app-story-viewer-author {
 }
 .app-walk-progress {
   display: grid;
-  gap: 8px;
   grid-template-columns: repeat(3, 1fr);
   list-style: none;
   margin: 0 0 20px 0;
@@ -24184,9 +24370,26 @@ button.app-story-viewer-author {
 }
 .app-walk-progress-item {
   display: flex;
+  justify-content: center;
   list-style: none;
+  position: relative;
+}
+.app-walk-progress-item:not(:last-child)::after {
+  background: var(--app-divider);
+  content: "";
+  height: 2px;
+  left: calc(50% + 18px);
+  position: absolute;
+  top: 15px;
+  width: calc(100% - 36px);
+  z-index: 0;
+}
+.app-walk-progress-item--current:not(:last-child)::after,
+.app-walk-progress-item--done:not(:last-child)::after {
+  background: var(--app-accent);
 }
 .app-walk-tab {
+  align-items: center;
   background: none;
   border: none;
   cursor: pointer;
@@ -24194,27 +24397,39 @@ button.app-story-viewer-author {
   flex: 1;
   flex-direction: column;
   font-family: inherit;
-  gap: 6px;
+  gap: 8px;
   padding: 0;
-  text-align: left;
+  position: relative;
+  text-align: center;
+  z-index: 1;
 }
-.app-walk-tab-bar {
-  background: var(--app-divider);
-  border-radius: var(--app-radius-pill);
-  height: 3.5px;
-  transition: background var(--app-duration-fast) var(--app-ease-out);
-  width: 100%;
+.app-walk-tab-dot {
+  align-items: center;
+  background: var(--app-surface);
+  border: 2px solid var(--app-divider);
+  border-radius: 50%;
+  color: var(--app-text-secondary);
+  display: flex;
+  font-size: 13px;
+  font-weight: 800;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+.app-walk-tab--active .app-walk-tab-dot,
+.app-walk-tab--done .app-walk-tab-dot {
+  background: var(--app-accent);
+  border-color: var(--app-accent);
+  color: #ffffff;
 }
 .app-walk-tab-label {
   color: var(--app-text-secondary);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.01em;
+  text-align: center;
   transition: color var(--app-duration-fast) var(--app-ease-out);
-}
-.app-walk-tab--active .app-walk-tab-bar,
-.app-walk-tab--done .app-walk-tab-bar {
-  background: var(--app-accent);
+  width: 100%;
 }
 .app-walk-tab--active .app-walk-tab-label {
   color: var(--app-text);
@@ -24222,9 +24437,6 @@ button.app-story-viewer-author {
 }
 .app-walk-tab--done .app-walk-tab-label {
   color: var(--app-accent);
-}
-.app-walk-tab--empty .app-walk-tab-bar {
-  background: var(--app-divider);
 }
 .app-walk-tab--empty .app-walk-tab-label {
   color: var(--app-text-secondary);
@@ -24328,6 +24540,30 @@ button.app-story-viewer-author {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+.app-walk-saved-item {
+  align-items: stretch;
+  display: flex;
+  gap: 8px;
+}
+.app-walk-saved-item .app-walk-saved {
+  flex: 1;
+  min-width: 0;
+}
+.app-walk-saved-delete {
+  align-items: center;
+  background: var(--app-card);
+  border: 0;
+  border-radius: var(--app-radius-card);
+  box-shadow: var(--app-shadow-lift);
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 56px;
+  justify-content: center;
+  padding: 0;
+  width: 56px;
 }
 .app-walk-stop {
   background: var(--app-card);
@@ -24444,12 +24680,12 @@ button.app-story-viewer-author {
   display: flex;
   flex-direction: column;
   font-family: inherit;
-  justify-content: space-between;
-  min-height: 94px;
+  justify-content: flex-start;
+  min-height: 112px;
   padding: 14px 12px 12px;
   position: relative;
   text-align: left;
-  transition: all var(--app-duration-fast) var(--app-ease-out);
+  transition: background var(--app-duration-fast) var(--app-ease-out), border-color var(--app-duration-fast) var(--app-ease-out), transform var(--app-duration-fast) var(--app-ease-out);
 }
 .app-walk-tile:hover {
   background: rgba(var(--app-scheme-neutral), 0.07);
@@ -24458,17 +24694,13 @@ button.app-story-viewer-author {
   transform: scale(0.97);
 }
 .app-walk-tile--selected {
-  background: var(--app-card);
+  background: color-mix(in srgb, var(--app-accent) 16%, var(--app-card));
   border-color: var(--app-accent);
-  box-shadow:
-    0 0 0 2px var(--app-accent),
-    0 2px 8px rgba(6, 7, 8, 0.04);
 }
-.app-walk-tile-head {
-  align-items: center;
+.app-walk-tile-icon {
+  color: var(--app-accent);
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .app-walk-tile-val {
   color: var(--app-text);
@@ -24476,14 +24708,12 @@ button.app-story-viewer-author {
   font-weight: 800;
   letter-spacing: -0.02em;
 }
-.app-walk-tile--selected .app-walk-tile-val {
-  color: var(--app-accent);
-}
 .app-walk-tile-desc {
   color: var(--app-text-secondary);
   font-size: 12px;
   font-weight: 500;
   line-height: 1.3;
+  margin-top: 4px;
 }
 .app-walk-custom-row {
   align-items: center;
@@ -24493,18 +24723,67 @@ button.app-story-viewer-author {
   display: flex;
   gap: 10px;
   justify-content: space-between;
-  padding: 12px 14px;
-  transition: all var(--app-duration-fast) var(--app-ease-out);
+  padding: 10px 10px 10px 12px;
+  transition: background var(--app-duration-fast) var(--app-ease-out), border-color var(--app-duration-fast) var(--app-ease-out);
 }
 .app-walk-custom-row--active {
-  background: var(--app-card);
+  background: color-mix(in srgb, var(--app-accent) 16%, var(--app-card));
   border-color: var(--app-accent);
-  box-shadow: 0 0 0 2px var(--app-accent);
 }
 .app-walk-custom-info {
+  align-items: center;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font-family: inherit;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+.app-walk-custom-icon {
+  color: var(--app-accent);
+  display: flex;
+  flex: none;
+}
+.app-walk-custom-copy {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+}
+.app-walk-stepper {
+  align-items: center;
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: 12px;
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+}
+.app-walk-stepper-btn {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: var(--app-text);
+  cursor: pointer;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+.app-walk-stepper-btn:active {
+  background: var(--app-surface);
+}
+.app-walk-stepper-val {
+  font-size: 13px;
+  font-weight: 800;
+  min-width: 58px;
+  text-align: center;
 }
 .app-walk-custom-title {
   color: var(--app-text);
@@ -24555,12 +24834,12 @@ button.app-story-viewer-author {
   display: flex;
   flex-direction: row;
   font-family: inherit;
-  gap: 14px;
+  gap: 12px;
   justify-content: space-between;
   min-height: 72px;
   padding: 14px 16px;
   text-align: left;
-  transition: all var(--app-duration-fast) var(--app-ease-out);
+  transition: background var(--app-duration-fast) var(--app-ease-out), border-color var(--app-duration-fast) var(--app-ease-out), transform var(--app-duration-fast) var(--app-ease-out);
   width: 100%;
 }
 .app-walk-budget-card:hover {
@@ -24570,23 +24849,41 @@ button.app-story-viewer-author {
   transform: scale(0.98);
 }
 .app-walk-budget-card--selected {
-  background: var(--app-card);
+  background: color-mix(in srgb, var(--app-accent) 16%, var(--app-card));
   border-color: var(--app-accent);
-  box-shadow: none;
+}
+.app-walk-budget-icon {
+  align-items: center;
+  border-radius: 12px;
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+.app-walk-budget-icon--free {
+  background: color-mix(in srgb, var(--app-accent) 12%, transparent);
+  color: var(--app-accent);
+}
+.app-walk-budget-icon--any {
+  background: color-mix(in srgb, #7c5cfc 12%, transparent);
+  color: #7c5cfc;
+}
+.app-walk-budget-icon--limit {
+  background: color-mix(in srgb, #22a06b 12%, transparent);
+  color: #22a06b;
 }
 .app-walk-budget-content {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 .app-walk-budget-title {
   color: var(--app-text);
   font-size: 15px;
   font-weight: 800;
-}
-.app-walk-budget-card--selected .app-walk-budget-title {
-  color: var(--app-accent);
 }
 .app-walk-budget-desc {
   color: var(--app-text-secondary);
@@ -24594,18 +24891,14 @@ button.app-story-viewer-author {
   font-weight: 500;
   line-height: 1.3;
 }
-.app-walk-budget-mark {
-  align-items: center;
+.app-walk-budget-radio {
   border: 2px solid var(--app-divider);
   border-radius: 50%;
-  color: #ffffff;
-  display: flex;
   flex: none;
-  height: 24px;
-  justify-content: center;
-  width: 24px;
+  height: 22px;
+  width: 22px;
 }
-.app-walk-budget-card--selected .app-walk-budget-mark {
+.app-walk-budget-radio--on {
   background: var(--app-accent);
   border-color: var(--app-accent);
 }
@@ -24667,8 +24960,8 @@ button.app-story-viewer-author {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 16px;
-  padding-top: 8px;
+  margin-top: auto;
+  padding-top: 16px;
 }
 .app-walk-summary-text {
   color: var(--app-text-secondary);
@@ -26319,7 +26612,7 @@ html:not([data-theme="dark"]) .app-plan-meet {
   --color: #ffffff;
 }
 
-:is(.app-feed-whereto-start, .app-feed-going:not(.app-feed-going--on), .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-plus, .app-post-compose-publish:not(:disabled), .app-map16-route, .app-map16-routebar-hide, .app-swipe-action--like, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-dayroute-chip, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act, .app-friends-invite) {
+:is(.app-feed-whereto-start, .app-feed-going:not(.app-feed-going--on), .app-feed-chip--slot, .app-feed-slot, .app-micro-new, .app-story-plus, .app-post-compose-publish:not(:disabled), .app-map16-route, .app-map16-routebar-hide, .app-swipe-action--like, .app-when-day--on, .app-when-tick--on, .app-gathering-response .app-btn[aria-pressed], .app-gathering-friend[aria-pressed="true"], .app-story-poll-option--on, .app-me-action--primary, .app-ach-next-cta, .app-after-save, .app-lists-create, .app-we-create, .app-we-form-submit, .app-poll-launch, .app-froute-repeat, .app-cal-peer-chip--on, .app-cal-cta-main, .app-place-plan, .app-slots-day--on, .app-slots-book, .app-book-action--primary, .app-org-topbar-action, .app-ev-bar-cta, .app-evb-cta:not(.app-evb-cta--booked), .app-evc-gather, .app-evc-pick--on, .app-evc-invite, .app-wt-bar-cta, .app-nb-plan, .app-follower-act, .app-friends-invite) {
   background: var(--app-accent);
   color: #ffffff;
 }

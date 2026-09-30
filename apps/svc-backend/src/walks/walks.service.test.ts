@@ -41,6 +41,12 @@ class MemoryStore implements WalkStore {
   async findOne(options: { where: { id: string; userId?: string } }): Promise<CityWalkEntity | null> {
     return this.rows.find((row) => row.id === options.where.id && (options.where.userId === undefined || row.userId === options.where.userId)) ?? null;
   }
+
+  async delete(criteria: { id: string; userId: string }): Promise<{ affected: number }> {
+    const before = this.rows.length;
+    this.rows = this.rows.filter((row) => !(row.id === criteria.id && row.userId === criteria.userId));
+    return { affected: before - this.rows.length };
+  }
 }
 
 function service(store: MemoryStore, places: readonly ListedPlace[], rank: CandidateRanker, lookup: WikidataLookup): WalksService {
@@ -113,5 +119,17 @@ describe("WalksService", () => {
     const source = readFileSync(join(__dirname, "walks.service.ts"), "utf8");
     expect(source).not.toContain("check-in");
     expect(source).not.toContain("checkins");
+  });
+
+  it("deletes only the owner's walk", async () => {
+    const store = new MemoryStore();
+    const lookup: WikidataLookup = async () => [];
+    const walks = service(store, [place(parkA, "Парк Горького"), place(parkB, "Нескучный сад")], { rankCandidateIds: async (items) => items.map((item) => item.id) }, lookup);
+    const saved = await walks.compose(userA, write);
+    await expect(walks.remove(userB, saved.id)).rejects.toBeInstanceOf(NotFoundException);
+    expect(store.rows).toHaveLength(1);
+    await walks.remove(userA, saved.id);
+    expect(store.rows).toHaveLength(0);
+    await expect(walks.remove(userA, saved.id)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

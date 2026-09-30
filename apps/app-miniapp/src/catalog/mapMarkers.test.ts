@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mockEvents, mockFriends, mockPlaces } from "../api/mock";
-import { buildMapMarkers, clusterCellDegrees, clusterMapMarkers, eventPinGlyph, friendsWereHereSubtitle, hasMapPoint, MAP_CLUSTER_BASE_ZOOM, MAP_CLUSTER_CELL_DEGREES, placePinGlyph, type MapMarker } from "./mapMarkers";
+import { buildMapMarkers, clusterCellDegrees, clusterMapMarkers, eventPinGlyph, friendsWereHereSubtitle, hasMapPoint, MAP_CLUSTER_BASE_ZOOM, MAP_CLUSTER_CELL_DEGREES, placePinGlyph, walkTravelMinutes, type MapMarker } from "./mapMarkers";
 
 const placedEvent = { ...mockEvents[0], placeId: mockPlaces[0].id, startsAt: "2026-09-19T19:00:00+03:00", priceRub: 1800 };
 const freeEvent = { ...mockEvents[0], id: "c0000002-0000-4000-8000-000000000002", placeId: mockPlaces[1].id, priceRub: null };
@@ -206,5 +206,13 @@ describe("clusterMapMarkers", () => {
 
   it("на пустом списке отдаёт пустой: карта без объектов — это всё ещё карта", () => {
     expect(clusterMapMarkers([], MAP_CLUSTER_BASE_ZOOM)).toEqual([]);
+  });
+});
+
+describe("walkTravelMinutes", () => {
+  it("sums stored legs and falls back to the outing length", () => {
+    expect(walkTravelMinutes({ durationMinutes: 120, legs: [{ travelMinutes: 15 }, { travelMinutes: 10 }] })).toBe(25);
+    expect(walkTravelMinutes({ durationMinutes: 120, legs: [] })).toBe(120);
+    expect(walkTravelMinutes({ durationMinutes: 120, legs: [{ travelMinutes: 0 }] })).toBe(120);
   });
 });

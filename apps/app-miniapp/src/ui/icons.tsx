@@ -14,7 +14,7 @@
 // END_MODULE_MAP
 
 import type { LucideIcon } from "lucide-react";
-import { AlignVerticalJustifyCenter, ArrowRight, ArrowUp, Armchair, BarChart3, Bell, Bookmark, Building, CalendarDays, Camera, Car, Check, ChevronRight, CircleAlert, Clock, Cloud, CloudRain, CloudSun, CreditCard, Ellipsis, Eye, Group, Heart, House, Info, Layers, Link, List, LocateFixed, Lock, Mail, MapPin, Medal, Megaphone, MessageCircle, Minus, Navigation, PenLine, Percent, PersonStanding, Plus, RefreshCw, Repeat2, ScanQrCode, Search, Send, Settings, Share2, ShieldCheck, SlidersHorizontal, Sparkle, Sparkles, SquarePlus, SquareStack, Star, Sun, Tag, Target, TextAlignCenter, TextAlignStart, Ticket, Trash2, TramFront, TrendingUp, Undo2, Upload, User, UserMinus, Users, UsersRound, Wallet, WandSparkles, X } from "lucide-react";
+import { AlignVerticalJustifyCenter, ArrowRight, ArrowUp, Armchair, BarChart3, Bell, Bookmark, Building, CalendarDays, Camera, Car, Check, ChevronRight, CircleAlert, Clock, Cloud, CloudRain, CloudSun, CreditCard, Ellipsis, Eye, Footprints, Group, Heart, House, Info, Landmark, Layers, Link, List, LocateFixed, Lock, Mail, MapPin, Medal, Megaphone, MessageCircle, Minus, Navigation, PenLine, Percent, PersonStanding, Plus, RefreshCw, Repeat2, ScanQrCode, Search, Send, Settings, Share2, ShieldCheck, SlidersHorizontal, Sparkle, Sparkles, SquarePlus, SquareStack, Star, Sun, Tag, Target, TextAlignCenter, TextAlignStart, Ticket, Trash2, TramFront, TrendingUp, Undo2, Upload, User, UserMinus, Users, UsersRound, Wallet, WandSparkles, X } from "lucide-react";
 
 export type TabIcon = "feed" | "search" | "create" | "map" | "plans" | "profile" | "dashboard" | "events" | "promo" | "finance";
 
@@ -43,6 +43,8 @@ const ACTIONS = {
   bookmark: Bookmark,
   pin: MapPin,
   clock: Clock,
+  footprints: Footprints,
+  landmark: Landmark,
   ticket: Ticket,
   user: User,
   userMinus: UserMinus,

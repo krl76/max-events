@@ -121,6 +121,8 @@ describe("map chrome formatting", () => {
     expect(routeGlyphs("metro")).toEqual(["walk", "metro"]);
     expect(routeGlyphs("driving")).toEqual(["car"]);
     expect(formatDrawnRoute(12)).toBe("12 мин");
+    expect(formatDrawnRoute(60)).toBe("1 ч");
+    expect(formatDrawnRoute(104)).toBe("1 ч 44 мин");
   });
 
   it("prints travel times as information, with one button to build the route", () => {

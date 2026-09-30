@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { WalkBudgetMode, WalkInterest } from "@max-events/api-contracts";
-import { ActionIcon } from "../ui/icons";
+import { ONBOARDING_CITIES } from "../onboarding/onboarding";
+import { ActionIcon, type ActionIconName } from "../ui/icons";
 
 export type WalkChoice = {
   readonly durationMinutes: number | null;
@@ -16,18 +17,23 @@ export const EMPTY_WALK_CHOICE: WalkChoice = {
   interests: [],
 };
 
+export const CUSTOM_WALK_MINUTES = 90;
+export const CUSTOM_WALK_STEP = 30;
+export const WALK_DURATION_MIN = 30;
+export const WALK_DURATION_MAX = 480;
+
 const TIME_OPTIONS = [
-  { minutes: 60, label: "1 час", mood: "кофе и одна точка" },
-  { minutes: 120, label: "2 часа", mood: "пара достопримечательностей" },
-  { minutes: 180, label: "3 часа", mood: "не спеша, с фото" },
-  { minutes: 240, label: "Полдня", mood: "с обедом и закатом" },
-] as const;
+  { minutes: 60, label: "1 час", mood: "кофе и одна точка", icon: "clock" },
+  { minutes: 120, label: "2 часа", mood: "пара достопримечательностей", icon: "users" },
+  { minutes: 180, label: "3 часа", mood: "не спеша, с фото", icon: "footprints" },
+  { minutes: 240, label: "Полдня", mood: "с обедом и закатом", icon: "sun" },
+] as const satisfies readonly { readonly minutes: number; readonly label: string; readonly mood: string; readonly icon: ActionIconName }[];
 
 const BUDGET_OPTIONS = [
-  { id: "free", title: "Бесплатно", desc: "Парки, набережные, архитектура" },
-  { id: "any", title: "Любой", desc: "С музеями и смотровыми площадками" },
-  { id: "custom", title: "Свой лимит", desc: "Задать сумму на одного человека" },
-] as const;
+  { id: "free", title: "Бесплатно", desc: "Парки, набережные, архитектура", icon: "ticket", tone: "free" },
+  { id: "any", title: "Любой", desc: "С музеями и смотровыми площадками", icon: "landmark", tone: "any" },
+  { id: "custom", title: "Свой лимит", desc: "Задать сумму на одного человека", icon: "wallet", tone: "limit" },
+] as const satisfies readonly { readonly id: WalkBudgetMode; readonly title: string; readonly desc: string; readonly icon: ActionIconName; readonly tone: "free" | "any" | "limit" }[];
 
 const INTEREST_OPTIONS: readonly { readonly id: WalkInterest; readonly label: string }[] = [
   { id: "cultural", label: "Культурные" },
@@ -39,15 +45,30 @@ const INTEREST_OPTIONS: readonly { readonly id: WalkInterest; readonly label: st
 ];
 
 export function walkComposeReady(choice: WalkChoice): boolean {
-  if (choice.durationMinutes === null || choice.durationMinutes < 30 || choice.durationMinutes > 480) return false;
+  if (choice.durationMinutes === null || choice.durationMinutes < WALK_DURATION_MIN || choice.durationMinutes > WALK_DURATION_MAX) return false;
   if (choice.budgetMode === null) return false;
   if (choice.budgetMode === "custom" && choice.budgetRub === null) return false;
   return choice.interests.length > 0;
 }
 
+export function isWalkPresetDuration(minutes: number | null): boolean {
+  return TIME_OPTIONS.some((option) => option.minutes === minutes);
+}
+
+export function walkCityList(current: string): readonly string[] {
+  const names = ONBOARDING_CITIES.map((item) => item.name);
+  return names.includes(current) ? names : [current, ...names];
+}
+
 export function selectWalkTime(choice: WalkChoice, minutes: number): WalkChoice {
-  if (!Number.isInteger(minutes) || minutes < 30 || minutes > 480) return choice;
+  if (!Number.isInteger(minutes) || minutes < WALK_DURATION_MIN || minutes > WALK_DURATION_MAX) return choice;
   return { ...choice, durationMinutes: minutes };
+}
+
+export function stepWalkCustomTime(choice: WalkChoice, delta: -1 | 1): WalkChoice {
+  const base = choice.durationMinutes ?? CUSTOM_WALK_MINUTES;
+  const next = Math.min(WALK_DURATION_MAX, Math.max(WALK_DURATION_MIN, base + delta * CUSTOM_WALK_STEP));
+  return selectWalkTime(choice, next);
 }
 
 export function selectWalkBudget(choice: WalkChoice, mode: WalkBudgetMode, budgetRub: number | null = null): WalkChoice {
@@ -61,7 +82,7 @@ export function toggleWalkInterest(choice: WalkChoice, id: WalkInterest): WalkCh
 }
 
 export function walkStepFilled(choice: WalkChoice, step: "time" | "budget" | "interests"): boolean {
-  if (step === "time") return choice.durationMinutes !== null && choice.durationMinutes >= 30 && choice.durationMinutes <= 480;
+  if (step === "time") return choice.durationMinutes !== null && choice.durationMinutes >= WALK_DURATION_MIN && choice.durationMinutes <= WALK_DURATION_MAX;
   if (step === "budget") return choice.budgetMode !== null && (choice.budgetMode !== "custom" || choice.budgetRub !== null);
   return choice.interests.length > 0;
 }
@@ -97,14 +118,19 @@ const PROGRESS: readonly { readonly id: "time" | "budget" | "interests"; readonl
 function WalkProgress({ step, choice, onSelectStep }: { readonly step: "time" | "budget" | "interests"; readonly choice: WalkChoice; readonly onSelectStep: (step: "time" | "budget" | "interests") => void }) {
   return (
     <ol className="app-walk-progress" aria-label="Шаги">
-      {PROGRESS.map((item) => {
+      {PROGRESS.map((item, index) => {
         const isCurrent = item.id === step;
         const isDone = walkStepFilled(choice, item.id);
         const stateClass = isCurrent ? "app-walk-tab--active" : isDone ? "app-walk-tab--done" : "app-walk-tab--empty";
         return (
-          <li key={item.id} className="app-walk-progress-item">
+          <li
+            key={item.id}
+            className={`app-walk-progress-item${isCurrent ? " app-walk-progress-item--current" : ""}${isDone ? " app-walk-progress-item--done" : ""}`}
+          >
             <button type="button" className={`app-walk-tab ${stateClass}`} onClick={() => onSelectStep(item.id)}>
-              <span className="app-walk-tab-bar" />
+              <span className="app-walk-tab-dot" aria-hidden="true">
+                {isDone && !isCurrent ? <ActionIcon name="check" size={14} strokeWidth={2.8} /> : index + 1}
+              </span>
               <span className="app-walk-tab-label">{item.label}</span>
             </button>
           </li>
@@ -114,7 +140,57 @@ function WalkProgress({ step, choice, onSelectStep }: { readonly step: "time" | 
   );
 }
 
-export function WalkWizard({ city, choice, onChange, onCompose, onSaved, notice }: { readonly city: string; readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void; readonly onCompose?: () => void; readonly onSaved?: () => void; readonly notice?: string | null }) {
+function WalkCityChip({ city, onCity }: { readonly city: string; readonly onCity?: (city: string) => void }) {
+  const [menu, setMenu] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const cities = walkCityList(city);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && wrapRef.current?.contains(target)) return;
+      setMenu(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenu(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
+  return (
+    <div className="app-walk-city-wrap" ref={wrapRef}>
+      <button type="button" className="app-walk-city-chip" aria-label="Город" aria-expanded={menu} aria-haspopup="listbox" onClick={() => setMenu((open) => !open)}>
+        <ActionIcon name="pin" size={14} />
+        <span>{city}</span>
+      </button>
+      {menu ? (
+        <div className="app-walk-city-menu" role="listbox" aria-label="Город">
+          {cities.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="option"
+              aria-selected={option === city}
+              className={option === city ? "app-walk-city-option app-walk-city-option--on" : "app-walk-city-option"}
+              onClick={() => {
+                onCity?.(option);
+                setMenu(false);
+              }}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function WalkWizard({ city, choice, onChange, onCompose, onCity, notice }: { readonly city: string; readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void; readonly onCompose?: () => void; readonly onCity?: (city: string) => void; readonly notice?: string | null }) {
   const defaultStep = walkStep(choice);
   const [userStep, setUserStep] = useState<"time" | "budget" | "interests" | null>(null);
 
@@ -128,7 +204,7 @@ export function WalkWizard({ city, choice, onChange, onCompose, onSaved, notice 
 
   const step = userStep ?? defaultStep;
   const isReady = walkComposeReady(choice);
-  const canAdvanceTime = choice.durationMinutes !== null && choice.durationMinutes >= 30 && choice.durationMinutes <= 480;
+  const canAdvanceTime = choice.durationMinutes !== null && choice.durationMinutes >= WALK_DURATION_MIN && choice.durationMinutes <= WALK_DURATION_MAX;
   const canAdvanceBudget = choice.budgetMode !== null && (choice.budgetMode !== "custom" || choice.budgetRub !== null);
 
   const canAdvance = step === "time" ? canAdvanceTime : step === "budget" ? canAdvanceBudget : isReady;
@@ -144,15 +220,12 @@ export function WalkWizard({ city, choice, onChange, onCompose, onSaved, notice 
     }
   }
 
-  const buttonLabel = step === "interests" || isReady ? "Собрать прогулку" : "Далее";
+  const buttonLabel = step === "interests" ? "Собрать прогулку" : "Далее";
 
   return (
     <section className="app-walk">
       <div className="app-walk-top">
-        <div className="app-walk-city-chip">
-          <ActionIcon name="pin" size={12} />
-          <span>{city}</span>
-        </div>
+        <WalkCityChip city={city} onCity={onCity} />
       </div>
 
       <header className="app-walk-head">
@@ -161,32 +234,25 @@ export function WalkWizard({ city, choice, onChange, onCompose, onSaved, notice 
 
       <WalkProgress step={step} choice={choice} onSelectStep={(next) => setUserStep(next)} />
 
-      {step === "time" ? <TimeStep choice={choice} onChange={onChange} onSelect={() => setUserStep("budget")} /> : null}
-      {step === "budget" ? <BudgetStep choice={choice} onChange={onChange} onSelect={() => setUserStep("interests")} /> : null}
-      {step === "interests" ? <InterestStep choice={choice} onChange={onChange} /> : null}
+      {step === "time" ? <TimeStep choice={choice} onChange={(next) => { onChange(next); setUserStep("time"); }} /> : null}
+      {step === "budget" ? <BudgetStep choice={choice} onChange={(next) => { onChange(next); setUserStep("budget"); }} /> : null}
+      {step === "interests" ? <InterestStep choice={choice} onChange={(next) => { onChange(next); setUserStep("interests"); }} /> : null}
 
       {notice != null && notice !== "" ? <p className="app-walk-alert">{notice}</p> : null}
 
       <footer className="app-walk-footer">
-        {step !== "time" && <p className="app-walk-summary-text">{walkChoiceSummary(choice)}</p>}
         {!isReady && missingSteps.length > 0 && step === "interests" ? <p className="app-walk-summary-text">Ещё: {missingSteps.join(", ").toLowerCase()}</p> : null}
         <button type="button" className="app-walk-btn-primary" disabled={!canAdvance} onClick={handleNext}>
           <span>{buttonLabel}</span>
         </button>
-        {onSaved !== undefined ? (
-          <button type="button" className="app-walk-btn-secondary" onClick={onSaved}>
-            <span>Мои прогулки</span>
-            <ActionIcon name="chevron" size={15} />
-          </button>
-        ) : null}
       </footer>
     </section>
   );
 }
 
-function TimeStep({ choice, onChange, onSelect }: { readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void; readonly onSelect: () => void }) {
-  const custom = choice.durationMinutes !== null && !TIME_OPTIONS.some((option) => option.minutes === choice.durationMinutes);
-  const [typed, setTyped] = useState(custom ? String(choice.durationMinutes ?? "") : "");
+function TimeStep({ choice, onChange }: { readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void }) {
+  const custom = choice.durationMinutes !== null && !isWalkPresetDuration(choice.durationMinutes);
+  const customMinutes = custom ? choice.durationMinutes! : CUSTOM_WALK_MINUTES;
   return (
     <div className="app-walk-step-card app-walk-rise">
       <div className="app-walk-step-header">
@@ -203,15 +269,12 @@ function TimeStep({ choice, onChange, onSelect }: { readonly choice: WalkChoice;
               type="button"
               className={isSelected ? "app-walk-tile app-walk-tile--selected" : "app-walk-tile"}
               aria-pressed={isSelected}
-              onClick={() => {
-                setTyped("");
-                onChange(selectWalkTime(choice, option.minutes));
-                onSelect();
-              }}
+              onClick={() => onChange(selectWalkTime(choice, option.minutes))}
             >
-              <div className="app-walk-tile-head">
-                <span className="app-walk-tile-val">{option.label}</span>
-              </div>
+              <span className="app-walk-tile-icon" aria-hidden="true">
+                <ActionIcon name={option.icon} size={22} strokeWidth={1.8} />
+              </span>
+              <span className="app-walk-tile-val">{option.label}</span>
               <span className="app-walk-tile-desc">{option.mood}</span>
             </button>
           );
@@ -219,38 +282,36 @@ function TimeStep({ choice, onChange, onSelect }: { readonly choice: WalkChoice;
       </div>
 
       <div className={custom ? "app-walk-custom-row app-walk-custom-row--active" : "app-walk-custom-row"}>
-        <div className="app-walk-custom-info">
-          <span className="app-walk-custom-title">{custom ? "Своё · выбрано" : "Своё время"}</span>
-          <span className="app-walk-custom-hint">от 30 до 480 минут</span>
-        </div>
-        <div className="app-walk-custom-pill">
-          <input
-            type="text"
-            className="app-walk-custom-input"
-            placeholder="90"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            autoComplete="off"
-            aria-label="Своё"
-            value={typed}
-            onChange={(event) => {
-              const raw = event.target.value.replace(/\D/g, "").slice(0, 3);
-              setTyped(raw);
-              if (raw === "") return;
-              const minutes = Number(raw);
-              if (Number.isInteger(minutes) && minutes >= 30 && minutes <= 480) {
-                onChange(selectWalkTime(choice, minutes));
-              }
-            }}
-          />
-          <span className="app-walk-custom-unit">мин</span>
+        <button
+          type="button"
+          className="app-walk-custom-info"
+          aria-label="Своё"
+          aria-pressed={custom}
+          onClick={() => onChange(selectWalkTime(choice, customMinutes))}
+        >
+          <span className="app-walk-custom-icon" aria-hidden="true">
+            <ActionIcon name="calendar" size={18} strokeWidth={1.8} />
+          </span>
+          <span className="app-walk-custom-copy">
+            <span className="app-walk-custom-title">Своё время</span>
+            <span className="app-walk-custom-hint">от {WALK_DURATION_MIN} до {WALK_DURATION_MAX} минут</span>
+          </span>
+        </button>
+        <div className="app-walk-stepper">
+          <button type="button" className="app-walk-stepper-btn" aria-label="Меньше" onClick={() => onChange(stepWalkCustomTime(choice, -1))}>
+            <ActionIcon name="minus" size={16} strokeWidth={2.2} />
+          </button>
+          <span className="app-walk-stepper-val">{customMinutes} мин</span>
+          <button type="button" className="app-walk-stepper-btn" aria-label="Больше" onClick={() => onChange(stepWalkCustomTime(choice, 1))}>
+            <ActionIcon name="plus" size={16} strokeWidth={2.2} />
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function BudgetStep({ choice, onChange, onSelect }: { readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void; readonly onSelect: () => void }) {
+function BudgetStep({ choice, onChange }: { readonly choice: WalkChoice; readonly onChange: (choice: WalkChoice) => void }) {
   const [rubText, setRubText] = useState(choice.budgetRub !== null ? String(choice.budgetRub) : "");
   return (
     <div className="app-walk-step-card app-walk-rise">
@@ -271,19 +332,19 @@ function BudgetStep({ choice, onChange, onSelect }: { readonly choice: WalkChoic
               onClick={() => {
                 if (item.id === "custom") {
                   onChange(selectWalkBudget(choice, "custom", choice.budgetRub));
-                } else {
-                  onChange(selectWalkBudget(choice, item.id));
-                  onSelect();
+                  return;
                 }
+                onChange(selectWalkBudget(choice, item.id));
               }}
             >
+              <span className={`app-walk-budget-icon app-walk-budget-icon--${item.tone}`} aria-hidden="true">
+                <ActionIcon name={item.icon} size={18} strokeWidth={1.8} />
+              </span>
               <span className="app-walk-budget-content">
                 <span className="app-walk-budget-title">{item.title}</span>
                 <span className="app-walk-budget-desc">{item.desc}</span>
               </span>
-              <span className="app-walk-budget-mark" aria-hidden="true">
-                {isSelected ? <ActionIcon name="check" size={14} strokeWidth={2.8} /> : null}
-              </span>
+              <span className={isSelected ? "app-walk-budget-radio app-walk-budget-radio--on" : "app-walk-budget-radio"} aria-hidden="true" />
             </button>
           );
         })}
