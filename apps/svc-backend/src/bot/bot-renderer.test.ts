@@ -108,22 +108,24 @@ describe("eventCard", () => {
 });
 
 describe("welcomeMessage", () => {
-  it("greets by first name, carries the hero and both ways in", () => {
+  it("greets by first name and both ways in, without a photo so the keyboard answers at once", () => {
     const body = welcomeMessage(media, "Михаил");
     expect(body.text).toContain("Михаил");
+    expect(body.text).toContain("Открой афишу в приложении");
+    expect(body.text).toContain("Набери **/**");
     expect(body.format).toBe("markdown");
-    expect(imageOf(body)).toBe("https://events.versacegus.cc/bot/hero.jpg");
+    expect(imageOf(body)).toBeNull();
     const opens = openAppPayloads(keyboardOf(body));
     // No start_param: the app's own OnboardingGate runs the first-time flow, and an existing user lands on the feed.
     expect(opens[0]).toMatchObject({ payload: "", webApp: "t691_hakaton_max_bot" });
     expect(callbackPayloads(keyboardOf(body))).toContain(botPayload({ id: "today" }));
+    expect(callbackPayloads(keyboardOf(body))).not.toContain(botPayload({ id: "start" }));
   });
 
-  it("greets without a name and without an image when the stack has no public origin", () => {
+  it("greets without a name and still shows the keyboard", () => {
     const body = welcomeMessage(noBase, null);
     expect(body.text).toContain("# Привет");
     expect(imageOf(body)).toBeNull();
-    // The keyboard survives the missing image: the buttons are the product, the hero is decoration.
     expect(openAppPayloads(keyboardOf(body)).length).toBeGreaterThan(0);
   });
 });
@@ -153,8 +155,9 @@ describe("todayMessage", () => {
     expect(body.text).toContain("Идёт Анна");
     expect(body.text).toContain("# Что сегодня");
     expect(body.text).toContain("2. **Лекция в Третьяковке**");
-    expect(imagesOf(body)).toEqual(["https://events.versacegus.cc/covers/jazz.jpg"]);
+    expect(imagesOf(body)).toEqual([]);
     expect(callbackPayloads(keyboardOf(body))).toContain(botPayload({ id: "confirm-book", eventId }));
+    expect(callbackPayloads(keyboardOf(body))).toContain(botPayload({ id: "start" }));
     expect(openAppPayloads(keyboardOf(body)).map((row) => row.payload)).toEqual(["event-00000000-0000-4000-8000-0000000000e1", "event-00000000-0000-4000-8000-0000000000e2", ""]);
   });
 
@@ -172,11 +175,12 @@ describe("wheretoQuestion", () => {
   it("asks company, then mood with the company remembered, then budget with both", () => {
     const first = wheretoQuestion("company");
     expect(first.text).toContain("шаг 1 из 3");
-    expect(callbackPayloads(keyboardOf(first))).toEqual([botPayload({ id: "whereto", step: "mood", company: "alone" }), botPayload({ id: "whereto", step: "mood", company: "friends" }), botPayload({ id: "whereto", step: "mood", company: "partner" }), botPayload({ id: "whereto", step: "mood", company: "kids" })]);
+    expect(callbackPayloads(keyboardOf(first))).toEqual([botPayload({ id: "whereto", step: "mood", company: "alone" }), botPayload({ id: "whereto", step: "mood", company: "friends" }), botPayload({ id: "whereto", step: "mood", company: "partner" }), botPayload({ id: "whereto", step: "mood", company: "kids" }), botPayload({ id: "start" })]);
 
     const second = wheretoQuestion("mood", { company: "friends" });
     expect(second.text).toContain("С друзьями");
     expect(callbackPayloads(keyboardOf(second))).toContain(botPayload({ id: "whereto", step: "budget", company: "friends", mood: "calm" }));
+    expect(callbackPayloads(keyboardOf(second))).toContain(botPayload({ id: "whereto", step: "company" }));
 
     const third = wheretoQuestion("budget", { company: "friends", mood: "calm" });
     expect(third.text).toContain("шаг 3 из 3");
@@ -186,7 +190,7 @@ describe("wheretoQuestion", () => {
   it("restarts the chain instead of asking for a lost answer", () => {
     // A payload that names a step without its context cannot be trusted; the button re-asks step 1.
     const second = wheretoQuestion("mood", {});
-    expect(callbackPayloads(keyboardOf(second))).toEqual([botPayload({ id: "whereto", step: "company" }), botPayload({ id: "whereto", step: "company" }), botPayload({ id: "whereto", step: "company" })]);
+    expect(callbackPayloads(keyboardOf(second))).toEqual([botPayload({ id: "whereto", step: "company" }), botPayload({ id: "whereto", step: "company" }), botPayload({ id: "whereto", step: "company" }), botPayload({ id: "whereto", step: "company" })]);
   });
 });
 
@@ -196,7 +200,8 @@ describe("wheretoResultMessage", () => {
     expect(body.text).toContain("С друзьями · Прогулка · Бесплатно");
     expect(callbackPayloads(keyboardOf(body))).toContain(botPayload({ id: "confirm-book", eventId }));
     expect(callbackPayloads(keyboardOf(body))).toContain(botPayload({ id: "whereto", step: "company" }));
-    expect(imageOf(body)).toBe("https://events.versacegus.cc/covers/jazz.jpg");
+    expect(callbackPayloads(keyboardOf(body))).toContain(botPayload({ id: "whereto", step: "budget", company: "friends", mood: "calm" }));
+    expect(imageOf(body)).toBeNull();
   });
 
   it("says honestly when nothing fits instead of inventing picks", () => {
@@ -224,7 +229,7 @@ describe("booking cards", () => {
     const free = confirmBookMessage(media, event(), now);
     expect(free.text).toContain("# Записаться?");
     expect(free.text).toContain("Запись бесплатная");
-    expect(callbackPayloads(keyboardOf(free))).toEqual([botPayload({ id: "book", eventId }), botPayload({ id: "waitlist", eventId }), botPayload({ id: "menu" })]);
+    expect(callbackPayloads(keyboardOf(free))).toEqual([botPayload({ id: "book", eventId }), botPayload({ id: "waitlist", eventId }), botPayload({ id: "start" })]);
 
     const paid = confirmBookMessage(media, event({ isPaid: true, priceRub: 1800, paymentUrl: "https://pay.example" }), now);
     expect(paid.text).toContain("Оплата — на странице организатора");
@@ -331,11 +336,42 @@ describe("dead ends", () => {
       expect(body.text.length).toBeGreaterThan(0);
       expect(body.text.length).toBeLessThanOrEqual(4000);
       expect(keyboardOf(body).flat().length).toBeGreaterThan(0);
+      expect(callbackPayloads(keyboardOf(body))).toContain(botPayload({ id: "start" }));
+      expect(imagesOf(body)).toEqual([]);
     }
   });
 
   it("explains an empty catalog as a data state, not a miss", () => {
     expect(emptyCatalogMessage(media).text).toContain("Афиша пуста");
     expect(nothingFoundMessage(media).text).toContain("Ничего не нашлось");
+  });
+});
+
+describe("Назад and photos", () => {
+  it("puts Назад on every screen after the start card, and never sends a photo", () => {
+    const digest = today([{ event: event() }]);
+    const bodies = [
+      menuMessage(media),
+      helpMessage(media),
+      todayMessage(media, digest, now),
+      wheretoQuestion("company"),
+      wheretoQuestion("mood", { company: "friends" }),
+      wheretoQuestion("budget", { company: "friends", mood: "calm" }),
+      wheretoResultMessage(media, [event()], { company: "friends", mood: "calm", budget: "free" }, now),
+      picksMessage(media, "Нашел 1 вариант", [{ event: event(), explanation: "По твоей истории" }], now),
+      confirmBookMessage(media, event(), now),
+      bookedMessage(media, event(), 9, null, now),
+      waitlistMessage(media, event(), 1),
+      plansMessage(media, [], now),
+      bookingsMessage(media, [], now),
+    ];
+    for (const body of bodies) {
+      const last = keyboardOf(body).at(-1)?.at(-1);
+      expect(last).toMatchObject({ type: "callback", text: "Назад" });
+      expect(imagesOf(body)).toEqual([]);
+    }
+    const welcome = welcomeMessage(media, "Михаил");
+    expect(callbackPayloads(keyboardOf(welcome))).not.toContain(botPayload({ id: "start" }));
+    expect(imagesOf(welcome)).toEqual([]);
   });
 });

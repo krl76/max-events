@@ -27411,6 +27411,142 @@ button.app-fin-op--btn {
   padding-top: 8px;
 }
 
+.app-me--user .app-org-reviews {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+  padding-top: 12px;
+}
+
+@media (min-width: 720px) {
+  .app-me--user .app-org-reviews {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.app-me--user .app-org-review {
+  background: var(--app-card);
+  border: var(--app-hairline);
+  border-radius: 22px;
+  box-shadow: 0 8px 24px rgba(6, 7, 8, 0.05);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 16px;
+}
+
+.app-me--user .app-org-review-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.app-me--user .app-org-review-name {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0;
+  min-width: 0;
+}
+
+.app-me--user .app-org-review-stars {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.app-me--user .app-org-review-star {
+  color: var(--app-divider);
+  display: flex;
+}
+
+.app-me--user .app-org-review-star--on {
+  color: #f5b301;
+}
+
+.app-me--user .app-org-review-meta,
+.app-me--user .app-org-review-text {
+  margin: 0;
+}
+
+.app-me--user .app-org-review-meta {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.app-me--user .app-org-review-text {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.app-me--user .app-org-review-chip {
+  align-self: flex-start;
+  background: rgba(18, 168, 90, 0.14);
+  border-radius: 999px;
+  color: #128a4a;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+}
+
+.app-me--user .app-org-review-chip--muted {
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+}
+
+.app-me--user .app-org-review-scores {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+}
+
+.app-me--user .app-org-review-score {
+  align-items: center;
+  background: var(--app-surface);
+  border-radius: 12px;
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 8px 10px;
+}
+
+.app-me--user .app-org-review-score dt,
+.app-me--user .app-org-review-score dd {
+  margin: 0;
+}
+
+.app-me--user .app-org-review-score dt {
+  color: var(--app-text-secondary);
+  font-weight: 600;
+}
+
+.app-me--user .app-org-review-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-me--user .app-org-review-tag {
+  background: var(--app-surface);
+  border-radius: 999px;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+
 .app-me--user .app-me-pair {
   display: grid;
   gap: 10px;
@@ -29633,6 +29769,116 @@ button.app-pcodes-iconbtn {
 
 .app-pcodes-select--open .app-pcodes-select-btn svg {
   transform: rotate(-90deg);
+}
+
+.app-pcodes-select-btn.app-pcodes-period {
+  justify-content: flex-start;
+}
+
+.app-pcodes-select-btn.app-pcodes-period svg,
+.app-pcodes-select--open .app-pcodes-select-btn.app-pcodes-period svg {
+  transform: none;
+}
+
+.app-pcodes-cal {
+  background: var(--app-card);
+  border: 1px solid var(--app-divider);
+  border-radius: 18px;
+  box-shadow: var(--app-shadow-lift);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  left: 0;
+  padding: 10px 10px 8px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 31;
+}
+
+.app-pcodes-select--up .app-pcodes-cal {
+  bottom: calc(100% + 6px);
+  top: auto;
+}
+
+.app-pcodes-cal-head {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+}
+
+.app-pcodes-cal-head span {
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.app-pcodes-cal-head button {
+  background: var(--app-surface);
+  border: none;
+  border-radius: 10px;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 20px;
+  height: 32px;
+  line-height: 1;
+}
+
+.app-pcodes-cal-week,
+.app-pcodes-cal-grid {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.app-pcodes-cal-week span {
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.app-pcodes-cal-day {
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--app-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  height: 32px;
+  padding: 0;
+}
+
+.app-pcodes-cal-day--out {
+  color: var(--app-text-tertiary);
+}
+
+.app-pcodes-cal-day--in {
+  background: color-mix(in srgb, var(--app-accent) 16%, var(--app-card));
+  border-radius: 0;
+}
+
+.app-pcodes-cal-day--on {
+  background: var(--app-accent);
+  border-radius: 10px;
+  color: var(--app-accent-contrast);
+}
+
+.app-pcodes-cal-day--today:not(.app-pcodes-cal-day--on) {
+  box-shadow: inset 0 0 0 1.5px var(--app-accent);
+}
+
+.app-pcodes-cal-hint {
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
 }
 
 .app-pcodes-menu {

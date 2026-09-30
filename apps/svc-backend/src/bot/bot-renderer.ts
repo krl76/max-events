@@ -1,6 +1,6 @@
 // START_MODULE_CONTRACT
-// PURPOSE: Render every message the bot sends — text, cover image, and inline keyboard — from product data, in the voice and vocabulary the mini-app already uses.
-// SCOPE: Pure functions over DTOs: welcome, menu, today digest, the three «куда пойти» questions and their results, NL picks, booking confirm/done, waitlist, plans, bookings, help, and the honest empty/error states. No HTTP, no database, no state. Covers are absolute URLs built from BotMedia.baseUrl (null base = no image, never a broken relative path). Open_app buttons carry the mini-app start_param, callback buttons carry bot-payloads strings.
+// PURPOSE: Render every message the bot sends — markdown text and inline keyboard — from product data, in the voice and vocabulary the mini-app already uses.
+// SCOPE: Pure functions over DTOs: welcome, menu, today digest, the three «куда пойти» questions and their results, NL picks, booking confirm/done, waitlist, plans, bookings, help, and the honest empty/error states. No HTTP, no database, no state. Messages stay text-only: a photo attachment makes MAX fetch the file before the keyboard answers, so button presses felt slow. Open_app buttons carry the mini-app start_param, callback buttons carry bot-payloads strings. Every card except welcome ends with Назад to the start screen; the whereto wizard steps back one question.
 // DEPENDS: @max-events/api-contracts, ../time/human-when, ./bot-payloads, ./bot.types
 // LINKS: M-SVC-BACKEND
 // END_MODULE_CONTRACT
@@ -9,8 +9,8 @@
 // - BotMedia - public origin + bot name; absoluteCover/heroUrl/bannerUrl/coverUrls turn stored paths into URLs MAX can fetch
 // - CATEGORY_LABELS - ru labels per event category, same words the mini-app shows
 // - eventCard - one event as a markdown block: title, category, when, price, optional context labels
-// - welcomeMessage - first hello: what the bot does, hero image, the two ways in (app / menu)
-// - menuMessage - the main keyboard: today, where-to, plans, bookings, help, open app
+// - welcomeMessage - first hello: open the mini-app (onboarding lives there), then chat + slash-command hint; no Назад
+// - menuMessage - the main keyboard: today, where-to, plans, bookings, help, open app, Назад
 // - todayMessage - TodayService digest: summary counters + top cards with their context labels
 // - wheretoQuestion - one step of the guided picker with its answer buttons
 // - wheretoResultMessage - five picks: numbered cards, book-in-chat callbacks, open-in-app rows
@@ -22,14 +22,15 @@
 // - bookingsMessage - upcoming bookings from the calendar
 // - helpMessage - what the bot can do without opening the app
 // - emptyCatalogMessage / nothingFoundMessage / unknownTextMessage / failureMessage / rateLimitMessage / noSeatsMessage / alreadyBookedMessage / eventNotFoundMessage - honest dead ends that always leave a way back
-// - menuKeyboard - the keyboard every dead end offers
+// - menuKeyboard - the keyboard the start screen and menu share
+// - backButton / withBack - full-width Назад; default payload is start, whereto passes the previous step
 // - pickKeyboard - shared builder: book-in-chat callback rows then open_app rows
 // - pluralRu - ru plural form for the participant count
 // END_MODULE_MAP
 
 import type { AssistPick, CalendarEntry, Event, PlanCard, TodayEventCard, TodayResponse } from "@max-events/api-contracts";
 import { humanWhen, miniappLink } from "../time/human-when";
-import { botPayload, startAppPayload, type WheretoBudget, type WheretoCompany, type WheretoMood, type WheretoStep } from "./bot-payloads";
+import { botPayload, startAppPayload, type BotPayload, type WheretoBudget, type WheretoCompany, type WheretoMood, type WheretoStep } from "./bot-payloads";
 import { botRich, type BotButton, type BotKeyboard, type BotMessageBody } from "./bot.types";
 
 /** What the renderer needs to build absolute media URLs and open_app buttons. */
@@ -189,21 +190,49 @@ export function menuKeyboard(media: BotMedia): BotKeyboard {
   ];
 }
 
+/** Full-width Назад. Default target is the welcome card; the whereto wizard passes the previous step. */
+export function backButton(payload: BotPayload = { id: "start" }): BotButton {
+  return callback("Назад", botPayload(payload));
+}
+
+export function withBack(keyboard: BotKeyboard, payload: BotPayload = { id: "start" }): BotKeyboard {
+  return [...keyboard, [backButton(payload)]];
+}
+
 export function welcomeMessage(media: BotMedia, firstName: string | null): BotMessageBody {
   const name = firstName ? `, ${firstName}` : "";
-  const text = [`# Привет${name}`, "", "Найду, куда сходить сегодня, и запишу прямо в чате.", "", "> События, места и друзья рядом с тобой"].join("\n");
+  const text = [
+    `# Привет${name}`,
+    "",
+    "Открой афишу в приложении — онбординг уже там.",
+    "",
+    "Здесь подберу событие словами и запишу в чат. Набери **/** — появятся команды.",
+  ].join("\n");
   const keyboard: BotKeyboard = [[openApp(media, "Открыть афишу в приложении", null)], ...menuKeyboard(media)];
-  return botRich(text, { image: heroUrl(media), keyboard, markdown: true });
+  return botRich(text, { keyboard, markdown: true });
 }
 
 export function menuMessage(media: BotMedia): BotMessageBody {
   const text = ["# Чем помочь?", "", "**Что сегодня** — подборка рядом. **Куда пойти** — три вопроса и пять вариантов. Планы и брони — то, что уже стоит в календаре. Записать могу прямо здесь."].join("\n");
-  return botRich(text, { image: heroUrl(media), keyboard: menuKeyboard(media), markdown: true });
+  return botRich(text, { keyboard: withBack(menuKeyboard(media)), markdown: true });
 }
 
 export function helpMessage(media: BotMedia): BotMessageBody {
-  const text = ["# Что умеет бот", "", "• **Что сегодня** — сколько событий рядом, сколько подходит тебе и на сколько идут друзья.", "• **Куда пойти** — компания, настроение, бюджет; пять вариантов и запись в один тап.", "• **Поиск словами** — напиши «джаз вечером до 3000» или «куда сходить с детьми в субботу».", "• **Мои планы** и **Мои брони** — что запланировано и когда встречаемся.", "• **Запись и лист ожидания** — без приложения; если мест нет, поставлю в очередь и напишу, когда освободится.", "• **Напоминания** — перед стартом пришлю сообщение с временем и местом.", "", "Карта, афиша целиком, планы с друзьями, голосования и достижения — кнопка «Открыть приложение»."].join("\n");
-  return botRich(text, { image: heroUrl(media), keyboard: menuKeyboard(media), markdown: true });
+  const text = [
+    "# Что умеет бот",
+    "",
+    "• **Приложение** — карта, друзья, онбординг: кнопка «Открыть афишу в приложении».",
+    "• **Команды** — набери **/** в поле ввода: /start, /today, /whereto, /plans, /bookings, /help.",
+    "• **Что сегодня** — сколько событий рядом, сколько подходит тебе и на сколько идут друзья.",
+    "• **Куда пойти** — компания, настроение, бюджет; пять вариантов и запись в один тап.",
+    "• **Поиск словами** — напиши «джаз вечером до 3000» или «куда сходить с детьми в субботу».",
+    "• **Мои планы** и **Мои брони** — что запланировано и когда встречаемся.",
+    "• **Запись и лист ожидания** — без приложения; если мест нет, поставлю в очередь и напишу, когда освободится.",
+    "• **Напоминания** — перед стартом пришлю сообщение с временем и местом.",
+    "",
+    "Карта, афиша целиком, планы с друзьями, голосования и достижения — кнопка «Открыть приложение».",
+  ].join("\n");
+  return botRich(text, { keyboard: withBack(menuKeyboard(media)), markdown: true });
 }
 
 export function todayMessage(media: BotMedia, digest: TodayResponse, now = new Date()): BotMessageBody {
@@ -215,28 +244,24 @@ export function todayMessage(media: BotMedia, digest: TodayResponse, now = new D
   cards.forEach((card, index) => {
     lines.push(numberedCard(index + 1, card.event, now, labelLine(card)), "");
   });
-  const gallery = coverUrls(
-    media,
-    events.map((event) => event.coverUrl),
-  );
   const keyboard: BotKeyboard = [...pickKeyboard(media, events), [openApp(media, "Вся афиша на сегодня", null)]];
-  return botRich(lines.join("\n").trimEnd(), { images: gallery.length > 0 ? gallery : [bannerUrl(media, "today")], keyboard, markdown: true });
+  return botRich(lines.join("\n").trimEnd(), { keyboard: withBack(keyboard), markdown: true });
 }
 
-export function wheretoQuestion(step: WheretoStep, answers: { company?: WheretoCompany | null; mood?: WheretoMood | null } = {}, media?: BotMedia): BotMessageBody {
-  const image = media ? bannerUrl(media, "whereto") : null;
+export function wheretoQuestion(step: WheretoStep, answers: { company?: WheretoCompany | null; mood?: WheretoMood | null } = {}, _media?: BotMedia): BotMessageBody {
   if (step === "company") {
     return botRich("# Куда пойти · шаг 1 из 3\n\nС кем идёшь?", {
-      image,
-      keyboard: [COMPANY_ORDER.map((value) => callback(COMPANY_LABELS[value], botPayload({ id: "whereto", step: "mood", company: value })))],
+      keyboard: withBack([COMPANY_ORDER.map((value) => callback(COMPANY_LABELS[value], botPayload({ id: "whereto", step: "mood", company: value })))]),
       markdown: true,
     });
   }
   if (step === "mood") {
     const company = answers.company;
     return botRich(`# Куда пойти · шаг 2 из 3\n\n${company ? `${COMPANY_LABELS[company]}. ` : ""}Что по настроению?`, {
-      image,
-      keyboard: [MOOD_ORDER.map((value) => callback(MOOD_LABELS[value], company ? botPayload({ id: "whereto", step: "budget", company, mood: value }) : botPayload({ id: "whereto", step: "company" })))],
+      keyboard: withBack(
+        [MOOD_ORDER.map((value) => callback(MOOD_LABELS[value], company ? botPayload({ id: "whereto", step: "budget", company, mood: value }) : botPayload({ id: "whereto", step: "company" })))],
+        { id: "whereto", step: "company" },
+      ),
       markdown: true,
     });
   }
@@ -244,8 +269,10 @@ export function wheretoQuestion(step: WheretoStep, answers: { company?: WheretoC
   const mood = answers.mood;
   const ready = company !== null && company !== undefined && mood !== null && mood !== undefined;
   return botRich(`# Куда пойти · шаг 3 из 3\n\n${ready ? `${COMPANY_LABELS[company]}, ${MOOD_LABELS[mood]}. ` : ""}Бюджет?`, {
-    image,
-    keyboard: [BUDGET_ORDER.map((value) => callback(BUDGET_LABELS[value], ready ? botPayload({ id: "whereto", step: "go", company, mood, budget: value }) : botPayload({ id: "whereto", step: "company" })))],
+    keyboard: withBack(
+      [BUDGET_ORDER.map((value) => callback(BUDGET_LABELS[value], ready ? botPayload({ id: "whereto", step: "go", company, mood, budget: value }) : botPayload({ id: "whereto", step: "company" })))],
+      company ? { id: "whereto", step: "mood", company } : { id: "start" },
+    ),
     markdown: true,
   });
 }
@@ -259,12 +286,8 @@ export function wheretoResultMessage(media: BotMedia, events: readonly Event[], 
     lines.push(numberedCard(index + 1, event, now, null), "");
   });
   lines.push("Записаться можно прямо здесь — или открыть карточку в приложении.");
-  const gallery = coverUrls(
-    media,
-    shown.map((event) => event.coverUrl),
-  );
   const keyboard: BotKeyboard = [...pickKeyboard(media, events), [callback("Другие варианты", botPayload({ id: "whereto", step: "company" })), openApp(media, "Афиша целиком", null)]];
-  return botRich(lines.join("\n"), { images: gallery.length > 0 ? gallery : [bannerUrl(media, "whereto")], keyboard, markdown: true });
+  return botRich(lines.join("\n"), { keyboard: withBack(keyboard, { id: "whereto", step: "budget", company: answers.company, mood: answers.mood }), markdown: true });
 }
 
 export function picksMessage(media: BotMedia, summary: string, items: readonly AssistPick[], now = new Date()): BotMessageBody {
@@ -276,12 +299,8 @@ export function picksMessage(media: BotMedia, summary: string, items: readonly A
     lines.push(numberedCard(index + 1, item.event, now, item.explanation), "");
   });
   lines.push("Нажми «Записаться», чтобы оформить без приложения.");
-  const gallery = coverUrls(
-    media,
-    events.map((event) => event.coverUrl),
-  );
   const keyboard: BotKeyboard = [...pickKeyboard(media, events), [openApp(media, "Открыть афишу", null)]];
-  return botRich(lines.join("\n"), { images: gallery, keyboard, markdown: true });
+  return botRich(lines.join("\n"), { keyboard: withBack(keyboard), markdown: true });
 }
 
 export function confirmBookMessage(media: BotMedia, event: Event, now = new Date()): BotMessageBody {
@@ -289,28 +308,25 @@ export function confirmBookMessage(media: BotMedia, event: Event, now = new Date
   const seats = event.remainingSeats ?? (event.capacity !== null && event.bookedCount !== undefined ? Math.max(0, event.capacity - event.bookedCount) : null);
   const extra = seats !== null ? `Свободных мест: ${seats}` : null;
   const text = ["# Записаться?", "", eventCard(event, now, extra), "", event.isPaid ? "Оплата — на странице организатора: после записи пришлю ссылку." : "Запись бесплатная."].join("\n");
-  const keyboard: BotKeyboard = [[callback("Да, записать", botPayload({ id: "book", eventId: event.id }))], [callback("В лист ожидания", botPayload({ id: "waitlist", eventId: event.id })), callback("Отмена", botPayload({ id: "menu" }))]];
-  return botRich(text, { image: absoluteCover(media, event.coverUrl), keyboard, markdown: true });
+  const keyboard: BotKeyboard = [[callback("Да, записать", botPayload({ id: "book", eventId: event.id }))], [callback("В лист ожидания", botPayload({ id: "waitlist", eventId: event.id }))]];
+  return botRich(text, { keyboard: withBack(keyboard), markdown: true });
 }
 
 export function bookedMessage(media: BotMedia, event: Event, freeSeats: number | null, paymentUrl: string | null, now = new Date()): BotMessageBody {
   const lines = ["# Готово, ты записан", "", eventCard(event, now, freeSeats !== null ? `Свободных мест осталось: ${freeSeats}` : null), "", "Напомню перед началом — сообщением здесь, в боте."];
-  const keyboard: BotKeyboard = [
-    [...linkButton("Оплатить на сайте организатора", paymentUrl), openApp(media, "Карточка события", "event", event.id)],
-    [callback("Мои брони", botPayload({ id: "bookings" })), callback("Меню", botPayload({ id: "menu" }))],
-  ];
-  return botRich(lines.join("\n"), { image: absoluteCover(media, event.coverUrl), keyboard, markdown: true });
+  const keyboard: BotKeyboard = [[...linkButton("Оплатить на сайте организатора", paymentUrl), openApp(media, "Карточка события", "event", event.id)], [callback("Мои брони", botPayload({ id: "bookings" }))]];
+  return botRich(lines.join("\n"), { keyboard: withBack(keyboard), markdown: true });
 }
 
 export function waitlistMessage(media: BotMedia, event: Event, position: number | null): BotMessageBody {
   const where = position !== null ? `Ты ${position}-й в очереди.` : "Ты в очереди.";
   const text = ["# Мест нет — ты в листе ожидания", "", eventCard(event), "", where, "Как только место освободится, напишу сюда и дам время на подтверждение."].join("\n");
-  return botRich(text, { image: absoluteCover(media, event.coverUrl), keyboard: [[callback("Мои брони", botPayload({ id: "bookings" })), callback("Меню", botPayload({ id: "menu" }))]], markdown: true });
+  return botRich(text, { keyboard: withBack([[callback("Мои брони", botPayload({ id: "bookings" }))]]), markdown: true });
 }
 
 export function plansMessage(media: BotMedia, cards: readonly PlanCard[], now = new Date()): BotMessageBody {
   if (cards.length === 0) {
-    return botRich("# Мои планы\n\nПланов пока нет. Собери первый: найди событие и нажми «Записаться», а план создам сам — со временем встречи и напоминанием.", { keyboard: [[callback("Что сегодня", botPayload({ id: "today" })), callback("Меню", botPayload({ id: "menu" }))]], markdown: true });
+    return botRich("# Мои планы\n\nПланов пока нет. Собери первый: найди событие и нажми «Записаться», а план создам сам — со временем встречи и напоминанием.", { keyboard: withBack([[callback("Что сегодня", botPayload({ id: "today" }))]]), markdown: true });
   }
   const lines = ["# Мои планы", ""];
   const shown = cards.slice(0, MAX_CARDS);
@@ -325,14 +341,14 @@ export function plansMessage(media: BotMedia, cards: readonly PlanCard[], now = 
       shown.map((card, index) => openApp(media, `${index + 1}. ${buttonTitle(card.event.title)}`, "plan", card.plan.id)),
       OPEN_APP_PER_ROW,
     ),
-    [openApp(media, "Календарь", "calendar"), callback("Меню", botPayload({ id: "menu" }))],
+    [openApp(media, "Календарь", "calendar")],
   ];
-  return botRich(lines.join("\n").trimEnd(), { keyboard, markdown: true });
+  return botRich(lines.join("\n").trimEnd(), { keyboard: withBack(keyboard), markdown: true });
 }
 
 export function bookingsMessage(media: BotMedia, entries: readonly CalendarEntry[], now = new Date()): BotMessageBody {
   if (entries.length === 0) {
-    return botRich("# Мои брони\n\nПока ни на что не записан. Покажу, что сегодня рядом?", { keyboard: [[callback("Что сегодня", botPayload({ id: "today" })), callback("Куда пойти", botPayload({ id: "whereto", step: "company" }))]], markdown: true });
+    return botRich("# Мои брони\n\nПока ни на что не записан. Покажу, что сегодня рядом?", { keyboard: withBack([[callback("Что сегодня", botPayload({ id: "today" })), callback("Куда пойти", botPayload({ id: "whereto", step: "company" }))]]), markdown: true });
   }
   const lines = ["# Мои брони", ""];
   const shown = entries.slice(0, MAX_CARDS);
@@ -345,60 +361,52 @@ export function bookingsMessage(media: BotMedia, entries: readonly CalendarEntry
       shown.map((entry, index) => openApp(media, `${index + 1}. ${buttonTitle(entry.event.title)}`, "event", entry.event.id)),
       OPEN_APP_PER_ROW,
     ),
-    [openApp(media, "Календарь", "calendar"), callback("Меню", botPayload({ id: "menu" }))],
+    [openApp(media, "Календарь", "calendar")],
   ];
-  return botRich(lines.join("\n").trimEnd(), {
-    images: coverUrls(
-      media,
-      shown.map((entry) => entry.event.coverUrl),
-    ),
-    keyboard,
-    markdown: true,
-  });
+  return botRich(lines.join("\n").trimEnd(), { keyboard: withBack(keyboard), markdown: true });
 }
 
 export function emptyCatalogMessage(media: BotMedia): BotMessageBody {
   const text = "# Афиша пуста\n\nСобытий в каталоге пока нет — нечего предложить. Это честно: как только организаторы добавят события, подборка заработает.";
-  return botRich(text, { keyboard: [[callback("Меню", botPayload({ id: "menu" })), openApp(media, "Открыть приложение", null)]], markdown: true });
+  return botRich(text, { keyboard: withBack([[openApp(media, "Открыть приложение", null)]]), markdown: true });
 }
 
 export function nothingFoundMessage(media: BotMedia): BotMessageBody {
   const text = "# Ничего не нашлось\n\nПод эти условия в ближайшей афише ничего не подходит. Попробуй другой бюджет или настроение — или посмотри, что есть сегодня.";
-  return botRich(text, { keyboard: [[callback("Куда пойти", botPayload({ id: "whereto", step: "company" })), callback("Что сегодня", botPayload({ id: "today" }))]], markdown: true });
+  return botRich(text, { keyboard: withBack([[callback("Куда пойти", botPayload({ id: "whereto", step: "company" })), callback("Что сегодня", botPayload({ id: "today" }))]]), markdown: true });
 }
 
 export function unknownTextMessage(media: BotMedia): BotMessageBody {
   const text = "# Не разобрал\n\nМогу подобрать событие по словам («джаз вечером до 3000»), показать, что сегодня рядом, или записать на событие. Выбери кнопку ниже или напиши своими словами.";
-  return botRich(text, { keyboard: menuKeyboard(media), markdown: true });
+  return botRich(text, { keyboard: withBack(menuKeyboard(media)), markdown: true });
 }
 
 export function failureMessage(media: BotMedia): BotMessageBody {
   const text = "# Что-то пошло не так\n\nНе получилось выполнить это действие. Данные целы — попробуй ещё раз или начни с меню.";
-  return botRich(text, { keyboard: menuKeyboard(media), markdown: true });
+  return botRich(text, { keyboard: withBack(menuKeyboard(media)), markdown: true });
 }
 
 export function noSeatsMessage(media: BotMedia, event: Event, now = new Date()): BotMessageBody {
   const text = ["# Мест не осталось", "", eventCard(event, now), "", "Могу поставить тебя в лист ожидания — напишу сюда, как только место освободится, и дам время на подтверждение."].join("\n");
   return botRich(text, {
-    image: absoluteCover(media, event.coverUrl),
-    keyboard: [[callback("В лист ожидания", botPayload({ id: "waitlist", eventId: event.id }))], [callback("Что сегодня", botPayload({ id: "today" })), callback("Меню", botPayload({ id: "menu" }))]],
+    keyboard: withBack([[callback("В лист ожидания", botPayload({ id: "waitlist", eventId: event.id }))], [callback("Что сегодня", botPayload({ id: "today" }))]]),
     markdown: true,
   });
 }
 
 export function rateLimitMessage(media: BotMedia): BotMessageBody {
   const text = "# Слишком часто\n\nЗапросов было много — дай мне минуту. Потом спроси ещё раз или выбери кнопку.";
-  return botRich(text, { keyboard: [[callback("Меню", botPayload({ id: "menu" })), callback("Что сегодня", botPayload({ id: "today" }))]], markdown: true });
+  return botRich(text, { keyboard: withBack([[callback("Что сегодня", botPayload({ id: "today" }))]]), markdown: true });
 }
 
 export function alreadyBookedMessage(media: BotMedia, event: Event, now = new Date()): BotMessageBody {
   const text = ["# Ты уже записан", "", eventCard(event, now, null), "", "Повторная запись не нужна — напомню перед началом."].join("\n");
-  return botRich(text, { keyboard: [[callback("Мои брони", botPayload({ id: "bookings" })), openApp(media, "Карточка события", "event", event.id)]], markdown: true });
+  return botRich(text, { keyboard: withBack([[callback("Мои брони", botPayload({ id: "bookings" })), openApp(media, "Карточка события", "event", event.id)]]), markdown: true });
 }
 
 export function eventNotFoundMessage(media: BotMedia): BotMessageBody {
   const text = "# Событие недоступно\n\nКарточка удалена или снята с публикации. Покажу, что есть сейчас.";
-  return botRich(text, { keyboard: [[callback("Что сегодня", botPayload({ id: "today" })), callback("Меню", botPayload({ id: "menu" }))]], markdown: true });
+  return botRich(text, { keyboard: withBack([[callback("Что сегодня", botPayload({ id: "today" }))]]), markdown: true });
 }
 
 /** The mini-app link as plain text, for the rare client that renders no buttons. */

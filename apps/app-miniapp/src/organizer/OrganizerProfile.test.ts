@@ -106,4 +106,59 @@ describe("OrganizerProfileView", () => {
     expect(followers).not.toContain("app-pcodes-title");
     expect(followers).toContain("Подписчиков пока нет.");
   });
+
+  it("shows guest reviews only on the reviews screen", () => {
+    const review = {
+      id: "r1",
+      name: "Борис Наумова",
+      stars: 5,
+      wouldGoAgain: true,
+      text: "Играли близко, без сцены.",
+      photos: [],
+      factTags: ["calm"],
+      categoryScores: { atmosphere: 5, place: 4 },
+      createdAt: "2026-09-12T18:00:00.000Z",
+      eventTitle: "Вечер джаза на Патриарших",
+    };
+    const shared = {
+      name: "max-events",
+      about: "",
+      avatarUrl: null,
+      coverUrl: null,
+      events: [],
+      places: [],
+      subscriptions: [],
+      followers: [],
+      rating: { organizerUserId: "org", averageStars: 4.4, recommendPercent: 100, visitsCount: 40, onTimePercent: null, reviewsCount: 2, attendancePercent: null, eventsCount: 16 },
+      reviews: [review],
+      list: null,
+      failed: false,
+      onPane: noop,
+      onList: noop,
+      onSettings: noop,
+      onPickAvatar: noop,
+      onPickCover: noop,
+      onResetAvatar: noop,
+      onResetCover: noop,
+    };
+    const home = renderToStaticMarkup(createElement(OrganizerProfileView, { ...shared, pane: "home" }));
+    expect(home).toContain("Оценка");
+    expect(home).toContain("4,4");
+    expect(home).toContain("Отзывы");
+    expect(home).not.toContain("Борис Наумова");
+    expect(home).not.toContain("Играли близко, без сцены.");
+    expect(home).not.toContain("app-org-review");
+
+    const opened = renderToStaticMarkup(createElement(OrganizerProfileView, { ...shared, pane: "reviews" }));
+    expect(opened).toContain('class="app-org-review"');
+    expect(opened).toContain("Борис Наумова");
+    expect(opened).toContain("Вечер джаза на Патриарших");
+    expect(opened).toContain("Играли близко, без сцены.");
+    expect(opened).toContain("Ещё раз");
+    expect(opened).toContain('aria-label="5 из 5"');
+    expect(opened).toContain("Атмосфера");
+    expect(opened).toContain("Спокойно");
+    expect(opened).not.toContain("app-me-shortcut");
+    expect(opened).toContain('aria-label="Назад"');
+  });
 });

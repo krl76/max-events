@@ -34,6 +34,7 @@ import { type BotInbound, type BotMessageBody, parseUpdates } from "./bot.types"
 
 /** The command menu MAX shows above the input. Names are slash-command labels, descriptions ≤128 chars. */
 export const BOT_COMMANDS: ReadonlyArray<{ name: string; description: string }> = [
+  { name: "start", description: "Открыть афишу в приложении" },
   { name: "today", description: "Что происходит сегодня рядом" },
   { name: "whereto", description: "Подобрать, куда пойти" },
   { name: "plans", description: "Мои планы" },
@@ -112,7 +113,7 @@ export class BotService {
   private async route(userId: string, inbound: BotInbound): Promise<BotMessageBody> {
     const media = this.media();
     if (inbound.kind === "start") return welcomeMessage(media, inbound.userName);
-    if (inbound.kind === "callback") return this.routeCallback(userId, inbound.callbackPayload);
+    if (inbound.kind === "callback") return this.routeCallback(userId, inbound.callbackPayload, inbound.userName);
     return this.routeText(userId, inbound.text, inbound.userName);
   }
 
@@ -121,13 +122,13 @@ export class BotService {
     const text = raw.trim();
     const command = commandOf(text);
     if (command !== null && START_WORDS.has(command)) return welcomeMessage(media, userName);
-    if (text === "" || isMenuWord(text)) return menuMessage(media);
     if (command === "today") return this.todayCard(userId);
     if (command === "plans") return this.plansCard(userId);
     if (command === "bookings") return this.bookingsCard(userId);
     if (command === "whereto") return wheretoQuestion("company", {}, media);
     if (command === "help") return helpMessage(media);
     if (command === "menu") return menuMessage(media);
+    if (text === "" || isMenuWord(text)) return menuMessage(media);
 
     // Everything else is a natural-language request: the same parser and matcher the in-app assist uses.
     try {
@@ -142,11 +143,13 @@ export class BotService {
     }
   }
 
-  private async routeCallback(userId: string, raw: string): Promise<BotMessageBody> {
+  private async routeCallback(userId: string, raw: string, userName: string | null): Promise<BotMessageBody> {
     const media = this.media();
     const payload = parseBotPayload(raw);
     if (payload === null) return menuMessage(media);
     switch (payload.id) {
+      case "start":
+        return welcomeMessage(media, userName);
       case "menu":
         return menuMessage(media);
       case "help":

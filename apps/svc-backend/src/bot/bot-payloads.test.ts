@@ -5,7 +5,7 @@ const eventId = "00000000-0000-4000-8000-0000000000e1";
 
 describe("botPayload round trip", () => {
   it("keeps the bare menu commands", () => {
-    for (const id of ["menu", "today", "plans", "bookings", "help"] as const) {
+    for (const id of ["start", "menu", "today", "plans", "bookings", "help"] as const) {
       const payload = botPayload({ id });
       expect(parseBotPayload(payload)).toEqual({ id });
     }

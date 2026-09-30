@@ -21,6 +21,7 @@ import { isCustomProfileAvatar, ProfileMediaDialog } from "../profile/ProfilePag
 import { ActionIcon, type ActionIconName } from "../ui/icons";
 import { showPhoto } from "../ui/photos";
 import { AppState } from "../ui/primitives";
+import { CATEGORY_SCORE_LABELS } from "../event/ReviewSection";
 import { REVIEW_FACT_LABELS, reviewVerdict } from "./OrganizerEventManage";
 import { useOrganizerNativeBack } from "./organizer-native-back";
 import { ORGANIZER_ACTIVITY_OPTIONS } from "./organizer-onboarding";
@@ -57,18 +58,51 @@ const PROFILE_SHORTCUTS: ReadonlyArray<{ id: OrganizerProfilePane | "settings"; 
   { id: "complaints", label: "Жалобы", icon: "alert" },
 ];
 
+function reviewWhen(createdAt: string): string {
+  return new Date(createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+
 function ReviewCard({ row }: { row: OrganizerProfileReview }) {
+  const stars = Math.max(0, Math.min(5, Math.round(row.stars)));
+  const scores = (Object.keys(CATEGORY_SCORE_LABELS) as Array<keyof typeof CATEGORY_SCORE_LABELS>).filter((key) => row.categoryScores[key] !== undefined);
   return (
-    <article className="app-set-group">
-      <div className="app-set-row">
-        <span className="app-set-row-text">
-          <span className="app-set-row-title">{row.name}</span>
-          <span className="app-set-row-title">{reviewVerdict(row.stars, row.wouldGoAgain)}</span>
+    <article className="app-org-review">
+      <header className="app-org-review-head">
+        <h2 className="app-org-review-name">{row.name}</h2>
+        <span className="app-org-review-stars" aria-label={`${stars} из 5`}>
+          {[1, 2, 3, 4, 5].map((value) => (
+            <span key={value} className={value <= stars ? "app-org-review-star app-org-review-star--on" : "app-org-review-star"}>
+              <ActionIcon name="star" size={14} strokeWidth={2.2} filled={value <= stars} />
+            </span>
+          ))}
         </span>
-      </div>
-      <p>{row.eventTitle}</p>
-      {row.factTags.length > 0 && <p>{row.factTags.map((tag) => REVIEW_FACT_LABELS[tag] ?? tag).join(", ")}</p>}
-      {row.text !== null && row.text !== "" && <p>{row.text}</p>}
+      </header>
+      <p className="app-org-review-meta">
+        {row.eventTitle}
+        <span aria-hidden="true"> · </span>
+        <time dateTime={row.createdAt}>{reviewWhen(row.createdAt)}</time>
+      </p>
+      <span className={row.wouldGoAgain ? "app-org-review-chip" : "app-org-review-chip app-org-review-chip--muted"}>{reviewVerdict(row.stars, row.wouldGoAgain)}</span>
+      {row.text !== null && row.text !== "" && <p className="app-org-review-text">{row.text}</p>}
+      {scores.length > 0 && (
+        <dl className="app-org-review-scores">
+          {scores.map((key) => (
+            <div key={key} className="app-org-review-score">
+              <dt>{CATEGORY_SCORE_LABELS[key]}</dt>
+              <dd>{row.categoryScores[key]}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {row.factTags.length > 0 && (
+        <ul className="app-org-review-tags">
+          {row.factTags.map((tag) => (
+            <li key={tag} className="app-org-review-tag">
+              {REVIEW_FACT_LABELS[tag] ?? tag}
+            </li>
+          ))}
+        </ul>
+      )}
     </article>
   );
 }
@@ -198,7 +232,17 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, subscri
         )}
         {list === null && pane === "team" && <AppState>Сотрудников пока нет.</AppState>}
         {list === null && pane === "complaints" && <AppState>Открытых жалоб нет.</AppState>}
-        {list === null && pane === "reviews" && (reviews.length === 0 ? <AppState>Гости оставляют отзыв после события, на котором были.</AppState> : reviews.map((row) => <ReviewCard key={row.id} row={row} />))}
+        {list === null &&
+          pane === "reviews" &&
+          (reviews.length === 0 ? (
+            <AppState>Гости оставляют отзыв после события, на котором были.</AppState>
+          ) : (
+            <div className="app-org-reviews">
+              {reviews.map((row) => (
+                <ReviewCard key={row.id} row={row} />
+              ))}
+            </div>
+          ))}
         {list === null && pane === "home" && (
           <>
             {rating !== null && (
@@ -242,8 +286,6 @@ export function OrganizerProfileView({ name, about, avatarUrl, coverUrl, subscri
                 ))}
               </section>
             </div>
-            {reviews.length > 0 && reviews.slice(0, 3).map((row) => <ReviewCard key={row.id} row={row} />)}
-            {reviews.length === 0 && rating === null && <AppState>Гости оставляют отзыв после события, на котором были.</AppState>}
           </>
         )}
       </div>
