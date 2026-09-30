@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { QueryFailedError, type Repository } from "typeorm";
 import type { MaxInitDataUser } from "../auth/max-init-data";
 import { UserEntity } from "./user.entity";
-import { toUserDto, UsersService } from "./users.service";
+import { photoUrlFromMax, toUserDto, UsersService } from "./users.service";
 
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
 
@@ -145,6 +145,17 @@ describe("UsersService.upsertFromMax", () => {
     };
     const service = new UsersService(repo as unknown as Repository<UserEntity>);
     await expect(service.upsertFromMax(maxUser)).rejects.toBe(boom);
+  });
+});
+
+describe("photoUrlFromMax", () => {
+  it("keeps http(s) and site paths, turns protocol-relative into https, drops junk", () => {
+    expect(photoUrlFromMax("https://i.oneme.ru/a.png")).toBe("https://i.oneme.ru/a.png");
+    expect(photoUrlFromMax("http://i.oneme.ru/a.png")).toBe("http://i.oneme.ru/a.png");
+    expect(photoUrlFromMax("//i.oneme.ru/a.png")).toBe("https://i.oneme.ru/a.png");
+    expect(photoUrlFromMax("/api/uploads/1")).toBe("/api/uploads/1");
+    expect(photoUrlFromMax("javascript:alert(1)")).toBeNull();
+    expect(photoUrlFromMax("null")).toBeNull();
   });
 });
 

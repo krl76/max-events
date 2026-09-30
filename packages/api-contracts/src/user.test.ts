@@ -23,7 +23,13 @@ describe("UserSchema", () => {
   it("accepts an in-app JPEG data URL as the avatar, the way a picked photo travels until storage lands", () => {
     const parsed = UserSchema.parse({ ...validUser, avatarUrl: "data:image/jpeg;base64,abc" });
     expect(parsed.avatarUrl).toBe("data:image/jpeg;base64,abc");
-    expect(UserSchema.safeParse({ ...validUser, avatarUrl: "javascript:alert(1)" }).success).toBe(false);
+    expect(UserSchema.parse({ ...validUser, avatarUrl: "javascript:alert(1)" }).avatarUrl).toBeNull();
+  });
+
+  it("keeps a MAX photo or a site upload path so login still parses", () => {
+    expect(UserSchema.parse({ ...validUser, avatarUrl: "http://i.oneme.ru/i?r=1" }).avatarUrl).toBe("http://i.oneme.ru/i?r=1");
+    expect(UserSchema.parse({ ...validUser, avatarUrl: "//i.oneme.ru/i?r=1" }).avatarUrl).toBe("//i.oneme.ru/i?r=1");
+    expect(UserSchema.parse({ ...validUser, avatarUrl: "/api/uploads/018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f" }).avatarUrl).toBe("/api/uploads/018f3c5a-9b2e-7d21-9f3a-1c4e5b6a7d8f");
   });
 });
 

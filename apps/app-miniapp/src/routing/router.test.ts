@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTabRoute, nextHistory, routeFromHistoryState, routeFromStartParam, startParamFromSearch, transitionFromIdx } from "./router";
+import { isTabRoute, nextHistory, routeFromHistoryState, routeFromStartParam, startParamFromHash, startParamFromSearch, transitionFromIdx } from "./router";
 
 describe("routeFromStartParam", () => {
   it("opens the event route from an event-* deep link", () => {
@@ -48,6 +48,12 @@ describe("routeFromStartParam", () => {
     expect(startParamFromSearch("?startapp=plan-p1")).toBe("plan-p1");
     expect(startParamFromSearch("start=event-1")).toBe("event-1");
     expect(startParamFromSearch("")).toBeNull();
+  });
+
+  it("reads start_param from the MAX WebAppData hash a chat link lands on", () => {
+    const hash = `#WebAppData=${encodeURIComponent("user=%7B%7D&start_param=event-1983291f-3aa3-4118-a96b-031f5c653eb0")}&WebAppPlatform=ios`;
+    expect(startParamFromHash(hash)).toBe("event-1983291f-3aa3-4118-a96b-031f5c653eb0");
+    expect(startParamFromHash("")).toBeNull();
   });
 
   it("opens a post, a profile and a calendar invite from their deep links", () => {

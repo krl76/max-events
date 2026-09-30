@@ -13,6 +13,12 @@ describe("getStartParam", () => {
   it("returns null when start_param is absent", () => {
     expect(getStartParam({ initDataUnsafe: {} })).toBeNull();
   });
+
+  it("reads start_param from the signed initData string when initDataUnsafe omitted it", () => {
+    expect(getStartParam({ initDataUnsafe: {}, initData: "user=%7B%7D&start_param=event-1983291f-3aa3-4118-a96b-031f5c653eb0" })).toBe(
+      "event-1983291f-3aa3-4118-a96b-031f5c653eb0",
+    );
+  });
 });
 
 describe("openExternalLink", () => {

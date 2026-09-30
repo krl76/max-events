@@ -26,8 +26,8 @@ export const MAX_AUTH_DATE_AGE_SECONDS = 24 * 60 * 60;
 const CLOCK_SKEW_SECONDS = 60;
 
 export const MaxInitDataUserSchema = z.object({
-  id: z.number().int().positive(),
-  first_name: z.string().min(1),
+  id: z.coerce.number().int().positive(),
+  first_name: z.string().optional().default(""),
   last_name: z.string().nullish(),
   username: z.string().max(64).nullish(),
   language_code: z.string().nullish(),
@@ -54,39 +54,87 @@ export function signInitData(params: Record<string, string>, botToken: string): 
     .join("&");
 }
 
-export function validateInitData(initData: string, botToken: string, nowSeconds: number = Math.floor(Date.now() / 1000)): ValidatedInitData | null {
+function decodePairValue(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function pairsFromInitData(initData: string, decodeValues: boolean): [string, string][] | null {
   const pairs: [string, string][] = [];
   for (const part of initData.split("&")) {
     const eq = part.indexOf("=");
     if (eq <= 0) return null;
-    let value: string;
-    try {
-      value = decodeURIComponent(part.slice(eq + 1));
-    } catch {
-      return null;
-    }
-    pairs.push([part.slice(0, eq), value]);
+    const raw = part.slice(eq + 1);
+    pairs.push([part.slice(0, eq), decodeValues ? decodePairValue(raw) : raw]);
   }
-
   const keys = pairs.map(([key]) => key);
   if (new Set(keys).size !== keys.length) return null;
+  return pairs;
+}
 
+function initDataVariants(initData: string): string[] {
+  const variants = [initData];
+  try {
+    const undone = decodeURIComponent(initData);
+    if (undone !== initData) variants.push(undone);
+  } catch {
+    // the payload was not wrapped in another encode layer
+  }
+  return variants;
+}
+
+function hashMatches(pairs: [string, string][], botToken: string): boolean {
   const hashPairs = pairs.filter(([key]) => key === "hash");
-  if (hashPairs.length !== 1) return null;
+  if (hashPairs.length !== 1) return false;
   const hashHex = hashPairs[0][1];
-  if (!/^[0-9a-f]{64}$/.test(hashHex)) return null;
+  if (!/^[0-9a-f]{64}$/.test(hashHex)) return false;
   const received = Buffer.from(hashHex, "hex");
-
   const dataCheckString = pairs
     .filter(([key]) => key !== "hash")
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([key, value]) => `${key}=${value}`)
     .join("\n");
-
   const secretKey = createHmac("sha256", "WebAppData").update(botToken).digest();
   const computed = createHmac("sha256", secretKey).update(dataCheckString).digest();
+  return received.length === computed.length && timingSafeEqual(received, computed);
+}
 
-  if (received.length !== computed.length || !timingSafeEqual(received, computed)) return null;
+function verifiedPairs(initData: string, botToken: string): [string, string][] | null {
+  for (const variant of initDataVariants(initData)) {
+    const decoded = pairsFromInitData(variant, true);
+    if (decoded && hashMatches(decoded, botToken)) return decoded;
+    const raw = pairsFromInitData(variant, false);
+    if (raw && hashMatches(raw, botToken)) return raw;
+  }
+  return null;
+}
+
+function parseUserJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    try {
+      return JSON.parse(decodePairValue(raw));
+    } catch {
+      return null;
+    }
+  }
+}
+
+function displayName(user: MaxInitDataUser): string {
+  const first = user.first_name.trim();
+  if (first) return first;
+  const username = user.username?.trim();
+  if (username) return username;
+  return "Гость";
+}
+
+export function validateInitData(initData: string, botToken: string, nowSeconds: number = Math.floor(Date.now() / 1000)): ValidatedInitData | null {
+  const pairs = verifiedPairs(initData, botToken);
+  if (!pairs) return null;
 
   const params = Object.fromEntries(pairs.filter(([key]) => key !== "hash"));
 
@@ -96,14 +144,10 @@ export function validateInitData(initData: string, botToken: string, nowSeconds:
   if (authDate > nowSeconds + CLOCK_SKEW_SECONDS) return null;
 
   if (typeof params.user !== "string") return null;
-  let userJson: unknown;
-  try {
-    userJson = JSON.parse(params.user);
-  } catch {
-    return null;
-  }
+  const userJson = parseUserJson(params.user);
+  if (userJson === null) return null;
   const user = MaxInitDataUserSchema.safeParse(userJson);
   if (!user.success) return null;
 
-  return { params, authDate, user: user.data };
+  return { params, authDate, user: { ...user.data, first_name: displayName(user.data) } };
 }

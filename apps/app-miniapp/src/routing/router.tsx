@@ -11,6 +11,8 @@
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote- prefixes) to a Route, home fallback
 // - Route - moderation | home | search | create | map | event(id) | place(id) | friends | calendar | profile | settings | subscriptions | whereto | nearby | discovery | people | gathering-new(eventId) | gathering(id) | plans | plan(id) | plan-new | day-route | list(id) | achievements | after-event(eventId) | micro-new | story-new | feed-new(eventId) | organizer | we-groups | we-group(id) | vote(id)
 // - routeFromStartParam - map start_param (event-/place-/plan-/list-/gathering-/vote-/after- prefixes) to a Route, home fallback
+// - startParamFromSearch - ?startapp= / ?start= on the hosted URL
+// - startParamFromHash - start_param inside MAX #WebAppData= from a chat link
 // - Route - … | micro (макет, экран 24) | micro-event(id) (экран 25) | friend-route(id) (экран 28)
 // - isTabRoute - the five tabbar routes (home/search/create/map/profile); tab-to-tab switches replace the history entry instead of pushing. Plans open from the profile and push.
 // - RouteHistoryState - history entry payload: route + sequential idx (idx drives back/forward detection)
@@ -116,6 +118,20 @@ export function startParamFromSearch(search: string): string | null {
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
   const value = (params.get("startapp") ?? params.get("start"))?.trim();
   return value ? value : null;
+}
+
+/** MAX puts WebAppData (and start_param inside it) on the mini-app URL hash. */
+export function startParamFromHash(hash: string): string | null {
+  if (!hash) return null;
+  const fragment = hash.startsWith("#") ? hash.slice(1) : hash;
+  const params = new URLSearchParams(fragment);
+  const data = params.get("WebAppData");
+  if (data) {
+    const inner = new URLSearchParams(data);
+    const start = inner.get("start_param")?.trim();
+    if (start) return start;
+  }
+  return (params.get("startapp") ?? params.get("start"))?.trim() || null;
 }
 
 export function routeFromStartParam(startParam: string | null): Route {
@@ -341,7 +357,8 @@ export function RouteProvider({ children }: { children: ReactNode }) {
   const [nav, setNav] = useState<NavState>(() => {
     const fromMax = getStartParam(getWebApp());
     const fromUrl = typeof window === "undefined" ? null : startParamFromSearch(window.location.search);
-    const initial: RouteHistoryState = { route: routeFromStartParam(fromMax ?? fromUrl), idx: 0 };
+    const fromHash = typeof window === "undefined" ? null : startParamFromHash(window.location.hash);
+    const initial: RouteHistoryState = { route: routeFromStartParam(fromMax ?? fromUrl ?? fromHash), idx: 0 };
     writeHistory(initial, "replace");
     return { history: initial, transition: "none", seq: 0 };
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { authenticate, type LoginFn } from "./auth";
+import { authenticate, waitForInitData, type LoginFn } from "./auth";
 import { mockDemoUser } from "../api/mock";
 const okLogin: LoginFn = async () => ({
   user: {
@@ -64,5 +64,28 @@ describe("authenticate", () => {
   it("is unavailable when initData is empty", async () => {
     const state = await authenticate({ initData: "" }, okLogin);
     expect(state).toEqual({ status: "unavailable" });
+  });
+});
+
+describe("waitForInitData", () => {
+  it("returns the first non-empty snapshot without waiting", async () => {
+    const pause = vi.fn(async () => {});
+    await expect(waitForInitData(() => "user=1", () => true, pause)).resolves.toBe("user=1");
+    expect(pause).not.toHaveBeenCalled();
+  });
+
+  it("does not wait when the MAX bridge is absent", async () => {
+    const pause = vi.fn(async () => {});
+    await expect(waitForInitData(() => "", () => false, pause)).resolves.toBeNull();
+    expect(pause).not.toHaveBeenCalled();
+  });
+
+  it("waits for initData on a startapp cold start", async () => {
+    let data = "";
+    const pause = vi.fn(async () => {
+      data = "user=1&start_param=event-1";
+    });
+    await expect(waitForInitData(() => data, () => true, pause)).resolves.toBe("user=1&start_param=event-1");
+    expect(pause).toHaveBeenCalled();
   });
 });

@@ -98,9 +98,50 @@ describe("validateInitData", () => {
     expect(validateInitData(initData, BOT_TOKEN, NOW)).toBeNull();
   });
 
-  it("rejects a user payload that is not valid JSON or misses required fields", () => {
+  it("rejects a user payload that is not valid JSON or misses the MAX id", () => {
     expect(validateInitData(buildInitData({ auth_date: String(NOW), user: "not-json" }), BOT_TOKEN, NOW)).toBeNull();
-    expect(validateInitData(buildInitData({ auth_date: String(NOW), user: JSON.stringify({ id: 1 }) }), BOT_TOKEN, NOW)).toBeNull();
+    expect(validateInitData(buildInitData({ auth_date: String(NOW), user: JSON.stringify({ first_name: "Max" }) }), BOT_TOKEN, NOW)).toBeNull();
+  });
+
+  it("fills a missing first_name from the username so a startapp guest can still log in", () => {
+    const user = { id: 42, username: "anna", language_code: "ru" };
+    const result = validateInitData(buildInitData({ auth_date: String(NOW), user: JSON.stringify(user) }), BOT_TOKEN, NOW);
+    expect(result?.user.first_name).toBe("anna");
+    expect(result?.user.id).toBe(42);
+  });
+
+  it("accepts a startapp payload signed with chat and start_param, the shape MAX sends from a chat link", () => {
+    const startParam = "event-1983291f-3aa3-4118-a96b-031f5c653eb0";
+    const result = validateInitData(
+      buildInitData({
+        auth_date: String(NOW),
+        query_id: "4c0ab423-342b-4e45-aea4-2747dbc500cd",
+        user: USER_JSON,
+        chat: JSON.stringify({ id: 12345, type: "DIALOG" }),
+        start_param: startParam,
+        ip: "192.168.0.1",
+      }),
+      BOT_TOKEN,
+      NOW,
+    );
+    expect(result?.user.id).toBe(67890);
+    expect(result?.params.start_param).toBe(startParam);
+  });
+
+  it("accepts already-decoded values that still contain a percent sequence in photo_url", () => {
+    const user = JSON.stringify({
+      id: 67890,
+      first_name: "Max",
+      last_name: "User",
+      username: null,
+      language_code: "ru",
+      photo_url: "https://i.oneme.ru/i?r=%2Fabc",
+    });
+    const entries = { auth_date: String(NOW), user };
+    const hash = sign(entries);
+    const initData = `auth_date=${NOW}&user=${user}&hash=${hash}`;
+    const result = validateInitData(initData, BOT_TOKEN, NOW);
+    expect(result?.user.photo_url).toBe("https://i.oneme.ru/i?r=%2Fabc");
   });
 
   it("rejects a username longer than the varchar(64) column", () => {

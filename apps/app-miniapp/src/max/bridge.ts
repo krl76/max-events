@@ -74,8 +74,12 @@ export function getWebApp(): MaxWebApp | null {
 /** Snapshot at module load. Prefer getWebApp() after a late shim. */
 export const webApp: MaxWebApp | null = getWebApp();
 
-export function getStartParam(app: Pick<MaxWebApp, "initDataUnsafe"> | null): string | null {
-  return app?.initDataUnsafe.start_param ?? null;
+export function getStartParam(app: { initDataUnsafe?: MaxWebAppInitDataUnsafe; initData?: string } | null): string | null {
+  const fromUnsafe = app?.initDataUnsafe?.start_param?.trim();
+  if (fromUnsafe) return fromUnsafe;
+  const raw = app?.initData?.trim();
+  if (!raw) return null;
+  return new URLSearchParams(raw).get("start_param")?.trim() || null;
 }
 
 export function openExternalLink(url: string): void {

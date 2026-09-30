@@ -20,7 +20,8 @@
 // - DEFAULT_PRIVACY - visible to friends
 // - PROFILE_BIO_MAX - Instagram-like bio length
 // - PROFILE_MEDIA_URL_MAX - longest avatar/cover reference a profile may carry
-// - ProfileMediaUrlSchema - avatar/cover: image data URL until #477, or https
+// - ProfileMediaUrlSchema - avatar/cover writes: image data URL until #477, or https
+// - isStoredMediaUrl / StoredAvatarUrlSchema - login read path: keep a usable photo, drop junk to null so /auth/login still parses
 // - ProfileSchema - user profile with city, interests, alerts, privacy, recommendations, bio and cover
 // - Profile - profile type
 // - UpdateProfileSchema - profile edit payload (nested partial smartAlerts/privacy, optional bio/cover/avatar)
@@ -50,6 +51,22 @@ export const PROFILE_MEDIA_URL_MAX = 16_000;
 const PROFILE_MEDIA_URL_PATTERN = /^(data:image\/|https:\/\/)/;
 export const ProfileMediaUrlSchema = z.string().max(PROFILE_MEDIA_URL_MAX).regex(PROFILE_MEDIA_URL_PATTERN, "media must be an image data URL or an https URL");
 
+/** What login may already have stored: MAX http(s) photos, protocol-relative CDN, or a site upload path. */
+export function isStoredMediaUrl(value: string): boolean {
+  return value.startsWith("data:image/") || value.startsWith("https://") || value.startsWith("http://") || value.startsWith("//") || (value.startsWith("/") && !value.startsWith("//"));
+}
+
+/**
+ * Read path for an avatar already on the user. A MAX photo that is not a strict https data URL
+ * must not fail the whole /auth/login parse — the friend then sees a connection error instead of the event.
+ */
+export const StoredAvatarUrlSchema = z
+  .string()
+  .max(PROFILE_MEDIA_URL_MAX)
+  .refine(isStoredMediaUrl, "avatar must be an image data URL, an http(s) URL or a site path")
+  .nullable()
+  .catch(null);
+
 export const PROFILE_BIO_MAX = 150;
 
 export const UserSchema = z.object({
@@ -58,7 +75,7 @@ export const UserSchema = z.object({
   firstName: z.string().min(1).max(100),
   lastName: z.string().max(100).nullable().default(null),
   username: z.string().max(64).nullable().default(null),
-  avatarUrl: ProfileMediaUrlSchema.nullable().default(null),
+  avatarUrl: StoredAvatarUrlSchema.default(null),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });

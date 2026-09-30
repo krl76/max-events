@@ -8,6 +8,7 @@
 // START_MODULE_MAP
 // - UsersService - upsertFromMax: find by maxUserId, create if absent, update only when profile fields changed
 // - UsersService.updateAvatar - in-app avatar; null clears avatarCustom so the next upsert restores photo_url
+// - photoUrlFromMax - keep a usable MAX photo, drop javascript: and empty values so first login still inserts
 // - toUserDto - map UserEntity to the api-contracts User shape
 // END_MODULE_MAP
 
@@ -17,6 +18,17 @@ import { In, QueryFailedError, Repository } from "typeorm";
 import type { User } from "@max-events/api-contracts";
 import type { MaxInitDataUser } from "../auth/max-init-data";
 import { UserEntity } from "./user.entity";
+
+/** Drop javascript: and other junk MAX sometimes puts in photo_url so the first login still inserts. */
+export function photoUrlFromMax(url: string | null | undefined): string | null {
+  if (url == null) return null;
+  const value = url.trim();
+  if (value === "" || value === "null") return null;
+  if (value.startsWith("//")) return `https:${value}`;
+  if (value.startsWith("https://") || value.startsWith("http://")) return value;
+  if (value.startsWith("/") && !value.startsWith("//")) return value;
+  return null;
+}
 
 @Injectable()
 export class UsersService {
@@ -32,7 +44,7 @@ export class UsersService {
       firstName: payload.first_name,
       lastName: payload.last_name ?? null,
       username: payload.username ?? null,
-      avatarUrl: existing?.avatarCustom ? existing.avatarUrl : payload.photo_url || existing?.avatarUrl || null,
+      avatarUrl: existing?.avatarCustom ? existing.avatarUrl : photoUrlFromMax(payload.photo_url) || existing?.avatarUrl || null,
     };
     if (!existing) {
       try {

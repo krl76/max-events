@@ -15,7 +15,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { User } from "@max-events/api-contracts";
 import { apiClient } from "../api/client";
 import { getWebApp } from "../max/bridge";
-import { authenticate, type AuthState } from "./auth";
+import { authenticate, waitForInitData, type AuthState } from "./auth";
 
 export type AuthContextValue = AuthState & { updateUser: (user: User) => void; retry: () => void };
 
@@ -30,7 +30,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: "loading" });
     const demoUser = import.meta.env.VITE_USE_MOCK === "1" ? import("../api/mock").then((module) => module.mockDemoUser) : Promise.resolve(null);
     demoUser
-      .then((mockUser) => authenticate(getWebApp(), (payload) => apiClient.login(payload), mockUser))
+      .then(async (mockUser) => {
+        const initData = await waitForInitData(
+          () => getWebApp()?.initData,
+          () => getWebApp() !== null,
+        );
+        if (initData) apiClient.setInitData(initData);
+        const login = (payload: { initData: string }) => apiClient.login(payload);
+        let resolved = await authenticate(initData ? { initData } : getWebApp(), login, mockUser);
+        if (resolved.status === "error") {
+          const again = getWebApp()?.initData?.trim() ?? "";
+          if (again && again !== initData) {
+            apiClient.setInitData(again);
+            resolved = await authenticate({ initData: again }, login, mockUser);
+          }
+        }
+        return resolved;
+      })
       .then((resolved) => {
         if (alive) setState(resolved);
       })

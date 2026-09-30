@@ -1,26 +1,35 @@
 // START_MODULE_CONTRACT
-// PURPOSE: «Собрать компанию» flow: pick friends with their free/busy/unknown availability, propose a meeting time, launch the gathering (mock POST).
+// PURPOSE: «Собрать компанию» flow: pick friends in the FriendPicker sheet (avatar, nick, search), propose a meeting time, launch the gathering.
 // SCOPE: Data via apiClient.getEvent + apiClient.getFriendAvailability(eventId), local selection state, launch via apiClient.createGathering, then navigation to the gathering screen; an empty friend graph says why instead of showing an empty picker.
-// DEPENDS: ../api/client.js (apiClient, FriendAvailability), ../friends/friends-empty.js, ../routing/router.js, ../ui/WhenField.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, FriendAvailability), ../friends/avatar.js, ../friends/friends-empty.js, ../routing/router.js, ../ui/FriendPicker.js, ../ui/WhenField.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - AVAILABILITY_LABELS - ru labels for friend availability (free/busy/unknown)
+// - gatheringFriends - Friend[] the picker and the selected column share
 // - GatheringFlowState - union of flow fetch states (loading / error / ready)
-// - GatheringFlowView - presentational: friend chips with availability, WhenField calendar, launch CTA
-// - GatheringFlowPage - route container: loads the event and availability, wires selection and launch
+// - GatheringFlowView - presentational: selected people as a column, FriendPicker sheet, WhenField, launch CTA
+// - GatheringFlowPage - route container: loads the event and availability, opens the picker on arrival, wires selection and launch
 // END_MODULE_MAP
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient } from "../api/client";
-import type { FriendAvailability } from "@max-events/api-contracts";
+import type { Friend, FriendAvailability } from "@max-events/api-contracts";
+import { PersonAvatar } from "../friends/avatar";
 import { FRIENDS_GRAPH_EMPTY_TEXT } from "../friends/friends-empty";
 import { useRoute } from "../routing/router";
+import { friendHandle } from "../ui/friend-handle";
+import { FriendPicker } from "../ui/FriendPicker";
+import { ActionIcon } from "../ui/icons";
 import { AppButton, AppTitle, AppState } from "../ui/primitives";
 import { WhenField } from "../ui/WhenField";
 
 export const AVAILABILITY_LABELS: Record<FriendAvailability["availability"], string> = { free: "Свободен", busy: "Занят", unknown: "Неизвестно" };
+
+export function gatheringFriends(rows: FriendAvailability[]): Friend[] {
+  return rows.map((row) => row.friend);
+}
 
 export type GatheringFlowState = { status: "loading" } | { status: "error" } | { status: "ready"; eventTitle: string; defaultMeetingAt: string; friends: FriendAvailability[] };
 
@@ -30,32 +39,47 @@ interface GatheringFlowViewProps {
   meetingAt: string;
   submitting: boolean;
   failed: boolean;
-  onToggle: (friendId: string) => void;
+  picking: boolean;
+  onSelected: (friendIds: string[]) => void;
   onMeetingAt: (value: string) => void;
   onLaunch: () => void;
+  onOpenPicker: () => void;
+  onClosePicker: () => void;
 }
 
-export function GatheringFlowView({ state, selected, meetingAt, submitting, failed, onToggle, onMeetingAt, onLaunch }: GatheringFlowViewProps) {
+export function GatheringFlowView({ state, selected, meetingAt, submitting, failed, picking, onSelected, onMeetingAt, onLaunch, onOpenPicker, onClosePicker }: GatheringFlowViewProps) {
   if (state.status === "loading") return <AppState>Загрузка…</AppState>;
   if (state.status === "error") return <AppState error>Не удалось загрузить друзей.</AppState>;
+  const friends = gatheringFriends(state.friends);
+  const picked = friends.filter((friend) => selected.includes(friend.id));
   return (
     <section className="app-gathering">
       <AppTitle asChild>
         <h2 className="app-section-title">Собрать компанию</h2>
       </AppTitle>
       <p className="app-gathering-hint">{state.eventTitle}</p>
-      {/* Without this the screen was an empty picker above a dead button, with nothing saying why. */}
-      {state.friends.length === 0 ? (
+      {friends.length === 0 ? (
         <AppState>{FRIENDS_GRAPH_EMPTY_TEXT}</AppState>
       ) : (
-        <div className="app-gathering-friends" role="group" aria-label="Кого позвать">
-          {state.friends.map(({ friend, availability }) => (
-            <button key={friend.id} type="button" className="app-gathering-friend" aria-pressed={selected.includes(friend.id)} onClick={() => onToggle(friend.id)}>
-              <span className="app-gathering-friend-name">{friend.name}</span>
-              <span className={`app-gathering-friend-status app-gathering-friend-status--${availability}`}>{AVAILABILITY_LABELS[availability]}</span>
-            </button>
-          ))}
-        </div>
+        <>
+          {picked.length > 0 && (
+            <ul className="app-we-form-people" aria-label="Кого позвать">
+              {picked.map((friend) => (
+                <li key={friend.id} className="app-we-form-person">
+                  {friend.avatarUrl ? <img className="app-fpick-avatar" src={friend.avatarUrl} alt="" /> : <PersonAvatar id={friend.id} name={friend.name} size={36} />}
+                  <span className="app-fpick-name">
+                    {friend.name}
+                    <span className="app-fpick-handle">@{friendHandle(friend)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button type="button" className="app-poll-more" onClick={onOpenPicker}>
+            <ActionIcon name="plus" size={16} strokeWidth={2.8} />
+            {picked.length === 0 ? "Выбрать людей" : "Изменить"}
+          </button>
+        </>
       )}
       <div className="app-gathering-time">
         Когда встречаемся
@@ -65,6 +89,22 @@ export function GatheringFlowView({ state, selected, meetingAt, submitting, fail
         {submitting ? "Запускаем…" : "Запустить сбор"}
       </AppButton>
       {failed && <AppState error>Не удалось запустить сбор.</AppState>}
+      {picking && (
+        <FriendPicker
+          title="Кого позвать"
+          hint="Аватар и ник — найди по имени или пролистай список."
+          friends={friends}
+          selectedIds={selected}
+          multiple
+          confirmLabel="Готово"
+          emptyText={FRIENDS_GRAPH_EMPTY_TEXT}
+          onConfirm={(ids) => {
+            onSelected(ids);
+            onClosePicker();
+          }}
+          onClose={onClosePicker}
+        />
+      )}
     </section>
   );
 }
@@ -76,13 +116,20 @@ export function GatheringFlowPage({ eventId }: { eventId: string }) {
   const [meetingAt, setMeetingAt] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const openedPicker = useRef(false);
 
   useEffect(() => {
     let alive = true;
     setState({ status: "loading" });
     Promise.all([apiClient.getEvent(eventId), apiClient.getFriendAvailability(eventId)]).then(
       ([event, friends]) => {
-        if (alive) setState({ status: "ready", eventTitle: event.title, defaultMeetingAt: event.startsAt.slice(0, 16), friends });
+        if (!alive) return;
+        setState({ status: "ready", eventTitle: event.title, defaultMeetingAt: event.startsAt.slice(0, 16), friends });
+        if (!openedPicker.current && friends.length > 0) {
+          openedPicker.current = true;
+          setPicking(true);
+        }
       },
       () => {
         if (alive) setState({ status: "error" });
@@ -94,10 +141,6 @@ export function GatheringFlowPage({ eventId }: { eventId: string }) {
   }, [eventId]);
 
   const effectiveMeetingAt = meetingAt || (state.status === "ready" ? state.defaultMeetingAt : "");
-
-  const toggle = useCallback((friendId: string) => {
-    setSelected((current) => (current.includes(friendId) ? current.filter((id) => id !== friendId) : [...current, friendId]));
-  }, []);
 
   const launch = useCallback(() => {
     if (effectiveMeetingAt === "") return;
@@ -112,5 +155,19 @@ export function GatheringFlowPage({ eventId }: { eventId: string }) {
     );
   }, [eventId, effectiveMeetingAt, selected, navigate]);
 
-  return <GatheringFlowView state={state} selected={selected} meetingAt={effectiveMeetingAt} submitting={submitting} failed={failed} onToggle={toggle} onMeetingAt={setMeetingAt} onLaunch={launch} />;
+  return (
+    <GatheringFlowView
+      state={state}
+      selected={selected}
+      meetingAt={effectiveMeetingAt}
+      submitting={submitting}
+      failed={failed}
+      picking={picking}
+      onSelected={setSelected}
+      onMeetingAt={setMeetingAt}
+      onLaunch={launch}
+      onOpenPicker={() => setPicking(true)}
+      onClosePicker={() => setPicking(false)}
+    />
+  );
 }
