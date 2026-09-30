@@ -25,7 +25,7 @@ import { useRoute } from "../routing/router";
 import { EventPicker } from "../ui/EventPicker";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
-import { PlaceSheet } from "../ui/PlaceSheet";
+import { PlaceModeButtons, PlaceSheet } from "../ui/PlaceSheet";
 import { placePinTitle } from "../ui/pin-label";
 import { AppState } from "../ui/primitives";
 import { WhenField, whenValue } from "../ui/WhenField";
@@ -127,14 +127,20 @@ interface PlanCreateViewProps {
   onSubmit: () => void;
 }
 
+const FREQ_MODES = [
+  ["none", "Один раз"],
+  ["weekly", "Каждую неделю"],
+  ["monthly", "Раз в месяц"],
+] as const;
+
 export function PlanCreateView({ draft, events, places, friends, submitting = false, failed = false, failText, eventsFailed = false, onRetryEvents, onDraft, onToggleFriend, onSubmit }: PlanCreateViewProps) {
-  const rule = planRecurringRule(draft);
   const [pickingFriends, setPickingFriends] = useState(false);
-  const [pickingPlace, setPickingPlace] = useState(false);
+  const [placeMode, setPlaceMode] = useState<"address" | "map" | null>(null);
   const [pickingEvent, setPickingEvent] = useState(false);
   const eventEmpty = draft.event.trim() === "";
   const placeEmpty = draft.meetingPoint.trim() === "";
   const peopleEmpty = draft.participantIds.length === 0;
+  const freqIndex = Math.max(0, FREQ_MODES.findIndex(([mode]) => mode === draft.repeat));
   return (
     <section className="app-plan-build" aria-label="Свой план">
       <p className="app-make-lead">Событие из афиши. Время и место встречи.</p>
@@ -161,15 +167,16 @@ export function PlanCreateView({ draft, events, places, friends, submitting = fa
           <WhenField title="Когда встречаемся" label="Выбрать" value={draft.meetingAt} onChange={(meetingAt) => onDraft({ meetingAt })} />
         </span>
       </div>
-      <button type="button" className="app-field" onClick={() => setPickingPlace(true)}>
+      <div className="app-field">
         <span className="app-field-copy">
           <span className="app-field-k">
             <ActionIcon name="pin" size={16} strokeWidth={2.2} />
             Где встречаемся
           </span>
-          <span className={placeEmpty ? "app-field-v app-field-v--empty" : "app-field-v"}>{placeEmpty ? "Адрес или карта" : placePinTitle(draft.meetingPoint)}</span>
+          <span className={placeEmpty ? "app-field-v app-field-v--empty" : "app-field-v"}>{placeEmpty ? "Выбрать" : placePinTitle(draft.meetingPoint)}</span>
         </span>
-      </button>
+        <PlaceModeButtons onPick={setPlaceMode} />
+      </div>
       <button type="button" className="app-field" onClick={() => setPickingFriends(true)}>
         <span className="app-field-copy">
           <span className="app-field-k">
@@ -206,34 +213,37 @@ export function PlanCreateView({ draft, events, places, friends, submitting = fa
           onClose={() => setPickingEvent(false)}
         />
       )}
-      {pickingPlace && (
+      {placeMode !== null && (
         <PlaceSheet
           title="Где встречаемся"
+          mode={placeMode}
           places={places}
           onConfirm={(choice) => {
             onDraft({ meetingPoint: choice.label });
-            setPickingPlace(false);
+            setPlaceMode(null);
           }}
-          onClose={() => setPickingPlace(false)}
+          onClose={() => setPlaceMode(null)}
         />
       )}
       <div className="app-freq-block">
         <span className="app-freq-label">Как часто</span>
-        <div className="app-freq" role="radiogroup" aria-label="Повторение">
-          {(
-            [
-              ["none", "Один раз"],
-              ["weekly", "Каждую неделю"],
-              ["monthly", "Раз в месяц"],
-            ] as const
-          ).map(([mode, label]) => (
-            <button key={mode} type="button" role="radio" aria-checked={draft.repeat === mode} className={draft.repeat === mode ? "app-freq-opt app-freq-opt--on" : "app-freq-opt"} onClick={() => onDraft({ repeat: mode })}>
+        <div
+          className="app-me-tabs"
+          role="radiogroup"
+          aria-label="Повторение"
+          style={{
+            ["--me-tabs" as string]: FREQ_MODES.length,
+            ["--me-tab" as string]: freqIndex,
+          }}
+        >
+          <span className="app-me-tab-pill" aria-hidden="true" />
+          {FREQ_MODES.map(([mode, label]) => (
+            <button key={mode} type="button" role="radio" aria-checked={draft.repeat === mode} className={draft.repeat === mode ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onDraft({ repeat: mode })}>
               {label}
             </button>
           ))}
         </div>
       </div>
-      {draft.repeat !== "none" && rule !== undefined && <p className="app-plan-repeat-line">Повторяется {planRepeatLabel(rule)}, в то же время</p>}
       <button type="button" className="app-choose-go" disabled={submitting} onClick={onSubmit}>
         {submitting ? "Создаём…" : "Создать план"}
       </button>

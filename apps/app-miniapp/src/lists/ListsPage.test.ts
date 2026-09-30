@@ -117,14 +117,24 @@ describe("ListsView", () => {
     expect(renderToStaticMarkup(createElement(ListsView, { state: ready, onOpen: () => {} }))).not.toContain("app-lists-faces");
   });
 
-  it("opens the create row only when asked, and keeps the button out of reach on a blank title", () => {
+  it("opens the create sheet only when asked, and keeps the button out of reach on a blank title", () => {
     const closed = renderToStaticMarkup(createElement(ListsView, { state: ready, onOpen: () => {} }));
     const open = renderToStaticMarkup(createElement(ListsView, { state: ready, onOpen: () => {}, creating: true, newTitle: "   " }));
 
     expect(closed).not.toContain("Название списка");
     expect(open).toContain("Название списка");
+    expect(open).toContain("app-sheet-grab");
+    expect(open).toContain("Новый список");
     // A blank title is not a list name: the button stays disabled rather than failing at the backend.
     expect(open).toContain("disabled");
+  });
+
+  it("keeps tiles as a grid of equal cards without a visibility chip", () => {
+    const html = renderToStaticMarkup(createElement(ListsView, { state: ready, onOpen: () => {} }));
+
+    expect(html).not.toContain("Закрытый");
+    expect(html).not.toContain("Открытый");
+    expect(html).not.toContain("app-lists-visibility");
   });
 
   it("says when a change did not go through", () => {

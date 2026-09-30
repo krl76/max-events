@@ -24,7 +24,7 @@
 // END_MODULE_MAP
 
 import { useCallback, useEffect, useState } from "react";
-import type { Event, Friend, List, ListVisibility } from "@max-events/api-contracts";
+import type { Event, Friend, List } from "@max-events/api-contracts";
 import { apiClient, type ListItemCard, type ListScreen, type ListSummary } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { pluralRu } from "../catalog/format";
@@ -34,6 +34,7 @@ import { AppButton, AppState } from "../ui/primitives";
 import { ActionIcon } from "../ui/icons";
 import { pictured } from "../ui/photos";
 import { useRoute } from "../routing/router";
+import { useSheetSwipe } from "../ui/sheet";
 
 /** Mirrors MAX_CUSTOM_LISTS. Two preset shelves plus six of one's own is the ceiling of eight. */
 const MAX_OWN_LISTS = 6;
@@ -104,9 +105,9 @@ export function ListFaces({ participants, className }: { participants: Friend[];
 
 export type ListsState = { status: "loading" } | { status: "error" } | { status: "ready"; summaries: ListSummary[] };
 
-function ListTile({ summary, onOpen, onToggleVisibility }: { summary: ListSummary; onOpen: (listId: string) => void; onToggleVisibility?: (listId: string, visibility: ListVisibility) => void }) {
+function ListTile({ summary, onOpen }: { summary: ListSummary; onOpen: (listId: string) => void }) {
   const { list, itemsCount, participants } = summary;
-  const open = (
+  return (
     <button type="button" className="app-lists-tile" onClick={() => onOpen(list.id)}>
       <span className="app-lists-tile-top">
         <span className="app-lists-tile-mark" aria-hidden="true">
@@ -118,14 +119,28 @@ function ListTile({ summary, onOpen, onToggleVisibility }: { summary: ListSummar
       <span className="app-lists-tile-count">{listCountLabel(itemsCount)}</span>
     </button>
   );
-  if (onToggleVisibility === undefined || list.preset !== null) return open;
-  const next: ListVisibility = list.visibility === "public" ? "private" : "public";
+}
+
+function CreateListSheet({ title, busy, error, onTitle, onSubmit, onClose }: { title: string; busy: boolean; error: string | null; onTitle: (value: string) => void; onSubmit: () => void; onClose: () => void }) {
+  const swipe = useSheetSwipe(onClose);
   return (
-    <div className="app-lists-tile-wrap">
-      {open}
-      <button type="button" className="app-lists-visibility" aria-pressed={list.visibility === "public"} onClick={() => onToggleVisibility(list.id, next)}>
-        {list.visibility === "public" ? "Открытый" : "Закрытый"}
-      </button>
+    <div className="app-picker" role="dialog" aria-modal="true" aria-label="Новый список">
+      <button type="button" className="app-picker-scrim" aria-label="Закрыть" onClick={onClose} />
+      <div className="app-picker-sheet app-sheet" style={swipe.style}>
+        <div className="app-sheet-grab" aria-hidden="true" {...swipe.grab} />
+        <h2 className="app-picker-title">Новый список</h2>
+        <label className="app-lists-form-label" htmlFor="lists-new-title">
+          Название списка
+        </label>
+        <input id="lists-new-title" className="app-lists-form-input" value={title} placeholder="Например, «Сводить маму»" onChange={(change) => onTitle(change.target.value)} />
+        {error !== null && <AppState error>{error}</AppState>}
+        <button type="button" className="app-choose-go" disabled={title.trim() === "" || busy} onClick={onSubmit}>
+          Создать список
+        </button>
+        <button type="button" className="app-sheet-dismiss" onClick={onClose}>
+          Отмена
+        </button>
+      </div>
     </div>
   );
 }
@@ -144,10 +159,9 @@ interface ListsViewProps {
   onCreateCancel?: () => void;
   busy?: boolean;
   error?: string | null;
-  onToggleVisibility?: (listId: string, visibility: ListVisibility) => void;
 }
 
-export function ListsView({ state, onOpen, topbar = false, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, onCreateCancel = () => {}, busy = false, error = null, onToggleVisibility }: ListsViewProps) {
+export function ListsView({ state, onOpen, topbar = false, creating = false, newTitle = "", onNewTitle = () => {}, onCreateStart = () => {}, onCreateSubmit = () => {}, onCreateCancel = () => {}, busy = false, error = null }: ListsViewProps) {
   const presets = state.status === "ready" ? state.summaries.filter((summary) => summary.list.preset !== null && SHELF_PRESETS.has(summary.list.preset)) : [];
   const own = state.status === "ready" ? state.summaries.filter((summary) => summary.list.preset === null) : [];
   const canCreate = own.length < MAX_OWN_LISTS && presets.length + own.length < MAX_SAVED_LISTS;
@@ -166,29 +180,14 @@ export function ListsView({ state, onOpen, topbar = false, creating = false, new
       {state.status === "error" && <AppState error>Не удалось загрузить списки.</AppState>}
       {state.status === "ready" && (
         <>
-          {creating && (
-            <div className="app-lists-form">
-              <label className="app-lists-form-label" htmlFor="lists-new-title">
-                Название списка
-              </label>
-              <input id="lists-new-title" className="app-lists-form-input" value={newTitle} placeholder="Например, «Сводить маму»" onChange={(change) => onNewTitle(change.target.value)} />
-              <div className="app-lists-form-actions">
-                <AppButton disabled={newTitle.trim() === "" || busy} onClick={onCreateSubmit}>
-                  Создать список
-                </AppButton>
-                <AppButton tone="secondary" onClick={onCreateCancel}>
-                  Отмена
-                </AppButton>
-              </div>
-            </div>
-          )}
-          {error !== null && <AppState error>{error}</AppState>}
+          {creating && <CreateListSheet title={newTitle} busy={busy} error={error} onTitle={onNewTitle} onSubmit={onCreateSubmit} onClose={onCreateCancel} />}
+          {!creating && error !== null && <AppState error>{error}</AppState>}
           <div className="app-lists-grid">
             {presets.map((summary) => (
               <ListTile key={summary.list.id} summary={summary} onOpen={onOpen} />
             ))}
             {own.map((summary) => (
-              <ListTile key={summary.list.id} summary={summary} onOpen={onOpen} onToggleVisibility={onToggleVisibility} />
+              <ListTile key={summary.list.id} summary={summary} onOpen={onOpen} />
             ))}
             {canCreate && (
               <button type="button" className="app-lists-new" onClick={onCreateStart} disabled={busy}>
@@ -207,7 +206,6 @@ export function ListsPage({ topbar = false, userId: subjectId }: { topbar?: bool
   const auth = useAuth();
   const viewerId = auth.status === "authenticated" ? auth.user.id : null;
   const userId = viewerId === null ? null : (subjectId ?? viewerId);
-  const editable = viewerId !== null && userId === viewerId;
   const { navigate } = useRoute();
   const [state, setState] = useState<ListsState>({ status: "loading" });
   const [creating, setCreating] = useState(false);
@@ -253,25 +251,6 @@ export function ListsPage({ topbar = false, userId: subjectId }: { topbar?: bool
     );
   }, [newTitle]);
 
-  const toggleVisibility = useCallback(
-    (listId: string, visibility: ListVisibility) => {
-      if (!editable) return;
-      setBusy(true);
-      setError(null);
-      apiClient.setListVisibility(listId, visibility).then(
-        () => {
-          setBusy(false);
-          setReloads((value) => value + 1);
-        },
-        () => {
-          setError("Не удалось изменить видимость.");
-          setBusy(false);
-        },
-      );
-    },
-    [editable],
-  );
-
   return (
     <ListsView
       state={state}
@@ -291,7 +270,6 @@ export function ListsPage({ topbar = false, userId: subjectId }: { topbar?: bool
       }}
       busy={busy}
       error={error}
-      onToggleVisibility={editable ? toggleVisibility : undefined}
     />
   );
 }

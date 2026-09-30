@@ -64,16 +64,20 @@ describe("PlanCreateView", () => {
     expect(html).toContain("Создать план");
   });
 
-  it("hides the repeat details until repeating is chosen", () => {
+  it("offers the three repeat choices without a gray explanation, and address or map for the place", () => {
     const once = view();
     expect(once).toContain("Один раз");
+    expect(once).toContain("Каждую неделю");
+    expect(once).toContain("Раз в месяц");
     expect(once).not.toContain("Повторяется");
+    expect(once).toContain("Адрес");
+    expect(once).toContain("Карта");
+    expect(once).toContain("app-me-tab-pill");
 
     const weekly = view({ repeat: "weekly" });
-    expect(weekly).toContain("Повторяется каждый четверг");
-    // The week-of-month chips belong to the monthly rule only.
+    expect(weekly).not.toContain("Повторяется");
     expect(weekly).not.toContain("Какая неделя месяца");
-    expect(view({ repeat: "monthly", weekday: 6 })).toContain("Повторяется в первую субботу месяца");
+    expect(view({ repeat: "monthly", weekday: 6 })).not.toContain("Повторяется");
   });
 
   it("names the missing fields and reports a failure", () => {

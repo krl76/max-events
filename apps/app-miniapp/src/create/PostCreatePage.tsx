@@ -30,7 +30,7 @@ import { EventPicker } from "../ui/EventPicker";
 import { friendHandle } from "../ui/friend-handle";
 import { FriendPicker } from "../ui/FriendPicker";
 import { ActionIcon } from "../ui/icons";
-import { PlaceSheet } from "../ui/PlaceSheet";
+import { PlaceModeButtons, PlaceSheet } from "../ui/PlaceSheet";
 import { placePinLabel, placePinTitle } from "../ui/pin-label";
 import { pictured } from "../ui/photos";
 import { AppMedia } from "../ui/primitives";
@@ -220,16 +220,7 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
               <span className="app-post-compose-row-title">{whereLine === "" ? "Место" : whereLine}</span>
               <span className="app-post-compose-row-note">{whereLine === "" ? "На карте или вписать адрес" : "Адрес"}</span>
             </span>
-            <span className="app-field-side">
-              <button type="button" className="app-field-action" onClick={() => setPlaceMode("address")}>
-                <ActionIcon name="pin" size={18} strokeWidth={2.2} />
-                Адрес
-              </button>
-              <button type="button" className="app-field-action" onClick={() => setPlaceMode("map")}>
-                <ActionIcon name="layers" size={18} strokeWidth={2.2} />
-                Карта
-              </button>
-            </span>
+            <PlaceModeButtons onPick={setPlaceMode} />
           </div>
           <button type="button" className="app-post-compose-row app-post-compose-row--button" aria-expanded={taggingOpen} onClick={() => setTaggingOpen(true)}>
             <span className="app-post-compose-row-text">
@@ -268,9 +259,18 @@ export function PostCreateView({ draft, authorName, authorAvatar = null, events,
 
         <div className="app-post-who">
           <span className="app-post-who-label">Кто увидит</span>
-          <div className="app-post-who-seg" role="radiogroup" aria-label="Кто увидит">
+          <div
+            className="app-me-tabs"
+            role="radiogroup"
+            aria-label="Кто увидит"
+            style={{
+              ["--me-tabs" as string]: POST_AUDIENCES.length,
+              ["--me-tab" as string]: Math.max(0, POST_AUDIENCES.findIndex((audience) => audience.id === draft.audience)),
+            }}
+          >
+            <span className="app-me-tab-pill" aria-hidden="true" />
             {POST_AUDIENCES.map((audience) => (
-              <button key={audience.id} type="button" role="radio" aria-checked={draft.audience === audience.id} onClick={() => onDraft({ ...draft, audience: audience.id })}>
+              <button key={audience.id} type="button" role="radio" aria-checked={draft.audience === audience.id} className={draft.audience === audience.id ? "app-me-tab app-me-tab--active" : "app-me-tab"} onClick={() => onDraft({ ...draft, audience: audience.id })}>
                 {audience.label}
               </button>
             ))}

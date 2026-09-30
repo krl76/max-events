@@ -69,12 +69,12 @@ describe("GatheringFlowView", () => {
     expect(launchable).not.toContain("disabled");
   });
 
-  it("defaults the meeting time to the event start and renders a datetime input", () => {
+  it("defaults the meeting time to the event start and opens the same calendar as other create screens", () => {
     const html = viewHtml(readyState(), { meetingAt: mockEvents[0].startsAt.slice(0, 16) });
 
-    expect(html).toContain('type="datetime-local"');
-    expect(html).toContain(`value="${mockEvents[0].startsAt.slice(0, 16)}"`);
+    expect(html).not.toContain('type="datetime-local"');
     expect(html).toContain("Когда встречаемся");
+    expect(html).toContain("app-when-open");
   });
 
   it("renders the submitting state and the launch failure hint", () => {

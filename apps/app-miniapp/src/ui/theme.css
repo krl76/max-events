@@ -8303,7 +8303,7 @@ button.app-today-stat {
   gap: 8px;
   left: 0;
   max-height: 86dvh;
-  padding: 6px var(--app-space-screen) calc(var(--app-space-l) + env(safe-area-inset-bottom, 0px));
+  padding: 10px var(--app-space-screen) calc(var(--app-space-l) + env(safe-area-inset-bottom, 0px));
   position: absolute;
   right: 0;
 }
@@ -8330,7 +8330,7 @@ button.app-today-stat {
   font-size: var(--app-font-size-title);
   font-weight: 800;
   letter-spacing: -0.02em;
-  margin: 0;
+  margin: 4px 0 8px;
 }
 
 .app-picker-search {
@@ -10452,7 +10452,7 @@ button.app-set-row {
 }
 
 .app-lists-grid {
-  align-items: start;
+  align-items: stretch;
   display: grid;
   gap: 8px;
   grid-template-columns: 1fr 1fr;
@@ -10460,6 +10460,7 @@ button.app-set-row {
 }
 
 .app-lists-tile {
+  aspect-ratio: 1 / 1;
   background: none;
   border: 1px solid var(--app-divider);
   border-radius: 16px;
@@ -10469,10 +10470,12 @@ button.app-set-row {
   display: flex;
   flex-direction: column;
   font: inherit;
-  min-height: 96px;
+  min-height: 0;
+  min-width: 0;
   padding: 10px;
   text-align: left;
   transition: transform 0.16s ease-out;
+  width: 100%;
 }
 
 .app-lists-tile:hover {
@@ -10502,7 +10505,10 @@ button.app-set-row {
   font-size: 13px;
   font-weight: 800;
   line-height: 1.2;
-  margin-top: 8px;
+  margin-top: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-lists-tile-count {
@@ -10510,27 +10516,6 @@ button.app-set-row {
   font-size: var(--app-font-size-description);
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
-}
-
-.app-lists-tile-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.app-lists-tile-wrap .app-lists-tile {
-  width: 100%;
-}
-
-.app-lists-visibility {
-  align-self: flex-start;
-  background: transparent;
-  border: 0;
-  color: var(--app-text-secondary);
-  cursor: pointer;
-  font-size: var(--app-font-size-description);
-  padding: 0;
 }
 
 /* Стек участников: кольцо каждой аватарки — цвет холста, поэтому он работает в обеих схемах */
@@ -10573,6 +10558,7 @@ button.app-set-row {
 /* Пунктирная плитка «Новый список»: то же действие, что и «Создать» в шапке */
 .app-lists-new {
   align-items: center;
+  aspect-ratio: 1 / 1;
   background: none;
   border: 1px dashed rgba(var(--app-scheme-neutral), 0.2);
   border-radius: 16px;
@@ -10586,8 +10572,10 @@ button.app-set-row {
   font-weight: 800;
   gap: var(--app-space-s);
   justify-content: center;
-  min-height: 96px;
+  min-height: 0;
+  min-width: 0;
   padding: 10px;
+  width: 100%;
 }
 
 .app-lists-new:disabled {
@@ -10603,7 +10591,6 @@ button.app-set-row {
   width: auto;
 }
 
-/* Название нового списка вводится строкой: в макете формы нет, а имя списку нужно */
 .app-lists-form--sheet {
   flex: none;
   margin: 0 16px 16px;
@@ -22287,7 +22274,6 @@ button.app-cal-peer-chip {
   width: 100%;
 }
 
-.app-when-sheet,
 .app-pin-sheet {
   background: var(--app-sheet);
   border-radius: 20px 20px 0 0;
@@ -22295,11 +22281,29 @@ button.app-cal-peer-chip {
   padding: 16px;
 }
 
+.app-when-sheet .app-picker-title {
+  margin: 8px 0 0;
+  text-align: center;
+}
+
+.app-when-picked {
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+  text-align: center;
+}
+
 .app-when-month {
   align-items: center;
   display: grid;
   gap: 4px;
   grid-template-columns: 44px 1fr 44px;
+}
+
+.app-when-month span {
+  font-weight: 800;
+  text-align: center;
 }
 
 .app-when-week,
@@ -22329,22 +22333,50 @@ button.app-cal-peer-chip {
   color: white;
 }
 
+.app-when-day--today:not(.app-when-day--on) {
+  box-shadow: inset 0 0 0 1.5px var(--app-accent);
+}
+
 .app-when-day--out {
   visibility: hidden;
 }
 
-.app-when-dials {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
+.app-when-week span {
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
 }
 
-.app-when-dial {
+.app-when-time {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 4px;
+}
+
+.app-when-time-col {
   display: flex;
+  flex-direction: column;
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  min-width: 0;
+}
+
+.app-when-time-k {
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.app-when-time-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 168px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .app-when-tick {
@@ -22353,10 +22385,11 @@ button.app-cal-peer-chip {
   border-radius: 12px;
   color: inherit;
   cursor: pointer;
-  flex: 0 0 44px;
+  flex: none;
   font: inherit;
   font-weight: 800;
-  height: 44px;
+  height: 40px;
+  width: 100%;
 }
 
 .app-when-tick--on {
@@ -25857,14 +25890,9 @@ ion-button.ion-focused {
 }
 
 html:not([data-theme="dark"]) .app-micro-title,
-html:not([data-theme="dark"]) .app-plan-meet,
-html:not([data-theme="dark"]) .app-when-sheet {
+html:not([data-theme="dark"]) .app-plan-meet {
   background: var(--app-surface);
   box-shadow: inset 0 0 0 1px var(--app-divider);
-}
-
-.app-micro-build .app-when-sheet {
-  border-radius: 16px;
 }
 
 .app-comments-sheet {
@@ -27614,31 +27642,9 @@ button.app-fin-op--btn {
   margin-bottom: 8px;
 }
 
-.app-post-who-seg {
-  background: var(--app-surface);
-  border-radius: 14px;
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-}
-
-.app-post-who-seg button {
-  background: transparent;
-  border: none;
-  border-radius: 10px;
-  color: inherit;
-  cursor: pointer;
-  flex: 1;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  min-height: 40px;
-  padding: 6px 4px;
-}
-
-.app-post-who-seg button[aria-checked="true"] {
-  background: var(--app-accent);
-  color: #ffffff;
+.app-post-who .app-me-tabs,
+.app-freq-block .app-me-tabs {
+  margin-top: 0;
 }
 
 .app-place-layer {
@@ -27954,31 +27960,7 @@ label.app-field {
   font-weight: 700;
 }
 
-.app-freq {
-  background: var(--app-surface);
-  border-radius: var(--app-radius-pill);
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-}
-
-.app-freq-opt {
-  background: transparent;
-  border: none;
-  border-radius: var(--app-radius-pill);
-  color: inherit;
-  cursor: pointer;
-  flex: 1;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  min-height: 44px;
-  padding: 8px 4px;
-  white-space: nowrap;
-}
-
-.app-limit-chip--on,
-.app-freq-opt--on {
+.app-limit-chip--on {
   background: var(--app-accent);
   color: #ffffff;
 }
@@ -27987,7 +27969,7 @@ label.app-field {
   align-items: center;
   background: var(--app-accent);
   border: none;
-  border-radius: var(--app-radius-pill);
+  border-radius: var(--app-radius-card);
   color: #ffffff;
   cursor: pointer;
   display: flex;
@@ -28003,6 +27985,21 @@ label.app-field {
 .app-choose-go:disabled {
   cursor: default;
   opacity: 0.4;
+}
+
+.app-picker-sheet > .app-choose-go {
+  margin-top: 12px;
+}
+
+.app-sheet-dismiss {
+  background: none;
+  border: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  min-height: 44px;
 }
 
 .app-make {

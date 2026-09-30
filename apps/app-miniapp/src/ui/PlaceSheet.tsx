@@ -1,7 +1,24 @@
 import { useMemo, useState } from "react";
 import type { Place } from "@max-events/api-contracts";
+import { ActionIcon } from "./icons";
 import { PinPicker } from "./PinPicker";
 import { useSheetSwipe } from "./sheet";
+
+/** Адрес — список мест, карта — метка. Одна пара кнопок на всех формах с местом. */
+export function PlaceModeButtons({ onPick }: { onPick: (mode: "address" | "map") => void }) {
+  return (
+    <span className="app-field-side">
+      <button type="button" className="app-field-action" onClick={() => onPick("address")}>
+        <ActionIcon name="layers" size={18} strokeWidth={2.2} />
+        Адрес
+      </button>
+      <button type="button" className="app-field-action" onClick={() => onPick("map")}>
+        <ActionIcon name="pin" size={18} strokeWidth={2.2} />
+        Карта
+      </button>
+    </span>
+  );
+}
 
 export interface PlaceChoice {
   /** What a person reads: a street, a venue, or the words they typed. */

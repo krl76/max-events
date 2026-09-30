@@ -1,14 +1,14 @@
 // START_MODULE_CONTRACT
 // PURPOSE: «Собрать компанию» flow: pick friends with their free/busy/unknown availability, propose a meeting time, launch the gathering (mock POST).
 // SCOPE: Data via apiClient.getEvent + apiClient.getFriendAvailability(eventId), local selection state, launch via apiClient.createGathering, then navigation to the gathering screen; an empty friend graph says why instead of showing an empty picker.
-// DEPENDS: ../api/client.js (apiClient, FriendAvailability), ../friends/friends-empty.js, ../routing/router.js, ../ui/theme.css
+// DEPENDS: ../api/client.js (apiClient, FriendAvailability), ../friends/friends-empty.js, ../routing/router.js, ../ui/WhenField.js, ../ui/theme.css
 // LINKS: M-APP-MINIAPP, M-PKG-API-CONTRACTS
 // END_MODULE_CONTRACT
 //
 // START_MODULE_MAP
 // - AVAILABILITY_LABELS - ru labels for friend availability (free/busy/unknown)
 // - GatheringFlowState - union of flow fetch states (loading / error / ready)
-// - GatheringFlowView - presentational: friend chips with availability, datetime input, launch CTA
+// - GatheringFlowView - presentational: friend chips with availability, WhenField calendar, launch CTA
 // - GatheringFlowPage - route container: loads the event and availability, wires selection and launch
 // END_MODULE_MAP
 
@@ -18,6 +18,7 @@ import type { FriendAvailability } from "@max-events/api-contracts";
 import { FRIENDS_GRAPH_EMPTY_TEXT } from "../friends/friends-empty";
 import { useRoute } from "../routing/router";
 import { AppButton, AppTitle, AppState } from "../ui/primitives";
+import { WhenField } from "../ui/WhenField";
 
 export const AVAILABILITY_LABELS: Record<FriendAvailability["availability"], string> = { free: "Свободен", busy: "Занят", unknown: "Неизвестно" };
 
@@ -56,10 +57,10 @@ export function GatheringFlowView({ state, selected, meetingAt, submitting, fail
           ))}
         </div>
       )}
-      <label className="app-gathering-time">
+      <div className="app-gathering-time">
         Когда встречаемся
-        <input className="app-gathering-time-input" type="datetime-local" value={meetingAt} min={state.defaultMeetingAt} onChange={(change) => onMeetingAt(change.target.value)} />
-      </label>
+        <WhenField title="Когда встречаемся" label="Выбрать" value={meetingAt} onChange={onMeetingAt} />
+      </div>
       <AppButton disabled={selected.length === 0 || meetingAt === "" || submitting} onClick={onLaunch} stretched>
         {submitting ? "Запускаем…" : "Запустить сбор"}
       </AppButton>

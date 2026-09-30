@@ -25,7 +25,7 @@ import { useAuth } from "../auth/AuthContext";
 import { formatStartsAt } from "../catalog/CatalogPage";
 import { useRoute } from "../routing/router";
 import { ActionIcon } from "../ui/icons";
-import { PlaceSheet } from "../ui/PlaceSheet";
+import { PlaceModeButtons, PlaceSheet } from "../ui/PlaceSheet";
 import { placePinTitle } from "../ui/pin-label";
 import { pictured } from "../ui/photos";
 import { AppIconButton, AppButton, AppMedia, AppState, AppSkeleton, AppSection } from "../ui/primitives";
@@ -322,16 +322,7 @@ export function MicroEventCreateView({ draft, places, submitting, failed, onChan
           </span>
           <span className={whereEmpty ? "app-field-v app-field-v--empty" : "app-field-v"}>{whereEmpty ? "Выбрать" : placePinTitle(draft.where)}</span>
         </span>
-        <span className="app-field-side">
-          <button type="button" className="app-field-action" onClick={() => setPlaceMode("address")}>
-            <ActionIcon name="pin" size={18} strokeWidth={2.2} />
-            Адрес
-          </button>
-          <button type="button" className="app-field-action" onClick={() => setPlaceMode("map")}>
-            <ActionIcon name="layers" size={18} strokeWidth={2.2} />
-            Карта
-          </button>
-        </span>
+        <PlaceModeButtons onPick={setPlaceMode} />
       </div>
       <label className="app-field app-field--tall">
         <span className="app-field-copy">
