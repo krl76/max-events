@@ -36,7 +36,7 @@ import { apiClient, type OrganizerEvent, type OrganizerPlace, type UpdateOrganiz
 import { CATEGORY_LABELS, formatStartsAt } from "../catalog/CatalogPage";
 import { PLACE_CATEGORY_LABELS } from "../catalog/format";
 import { eventFillLabel, pictured } from "../ui/photos";
-import { CABINET_EVENTS, mergeCabinetEvents } from "./cabinet-catalog";
+import { CABINET_EVENTS, mergeCabinetEvents, posterEvents } from "./cabinet-catalog";
 import { weeklySeriesUntil } from "./OrganizerEventForm";
 import { SettingsSwitchRow } from "../profile/SettingsPage";
 import { ActionIcon } from "../ui/icons";
@@ -1001,7 +1001,8 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
   }
 
   const merged = events.status === "ready" ? mergeCabinetEvents(events.items) : [];
-  const groups = events.status === "ready" ? splitOrganizerEvents(merged) : null;
+  const listedAt = Date.now();
+  const groups = events.status === "ready" ? splitOrganizerEvents(merged, listedAt) : null;
   const seatsSold = (item: OrganizerEvent) => {
     const known = CABINET_EVENTS.find((row) => row.id === item.id);
     if (known) return known.draft ? 0 : known.sold;
@@ -1009,7 +1010,7 @@ export function OrganizerPanel({ organizationId: _organizationId, createOnMount 
     return Math.min(item.capacity, Math.round(item.capacity * 0.6));
   };
   const matchesQuery = (item: OrganizerEvent) => item.title.toLowerCase().includes(eventQuery.trim().toLowerCase());
-  const visibleEvents = groups === null ? [] : (eventFilter === "drafts" ? groups.drafts : eventFilter === "archive" ? groups.past : eventFilter === "published" ? groups.upcoming : merged).filter(matchesQuery);
+  const visibleEvents = groups === null ? [] : (eventFilter === "drafts" ? groups.drafts : eventFilter === "archive" ? groups.past : eventFilter === "published" ? posterEvents(merged, listedAt) : merged).filter(matchesQuery);
   const renderEvents = (items: OrganizerEvent[]) => (
     <div className="app-poster-stack">
       {items.map((item) => (

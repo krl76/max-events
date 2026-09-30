@@ -27,7 +27,7 @@ export interface MailingRow {
 
 export const MAILING_ROWS: MailingRow[] = [
   { id: "announce", phase: "active", title: "Анонс новых событий", detail: "25.09.2025 · 2 342 получателя", opened: "42%", clicks: "7%" },
-  { id: "offers", phase: "active", title: "Специальные предложения", detail: "20.09.2025 · 1 900 получателя", opened: "38%", clicks: "8%" },
+  { id: "offers", phase: "active", title: "Специальное предложение на выходные", detail: "20.09.2025 · 1 502 получателя", opened: "38%", clicks: "8%" },
   { id: "remind", phase: "active", title: "Напоминание о событии", detail: "15.09.2025 · 3 201 получателя", opened: "56%", clicks: "19%" },
 ];
 
@@ -43,7 +43,7 @@ export interface MailingFigures {
 
 /** The reference mailing on the results mock, plus the other two cabinet rows. */
 const MAILING_FIGURES: Record<string, MailingFigures> = {
-  offers: { when: "20.09.2025 · 14:30", sent: 1900, opened: 722, clicked: 152, delivered: 1875, missed: 25, unsubscribed: 4 },
+  offers: { when: "20.09.2025 · 14:30", sent: 1502, opened: 570, clicked: 120, delivered: 1482, missed: 20, unsubscribed: 3 },
   announce: { when: "25.09.2025 · 11:15", sent: 2342, opened: 984, clicked: 164, delivered: 2310, missed: 32, unsubscribed: 5 },
   remind: { when: "15.09.2025 · 18:40", sent: 3201, opened: 1793, clicked: 608, delivered: 3160, missed: 41, unsubscribed: 8 },
 };
@@ -116,8 +116,8 @@ export function mailingResult(row: MailingRow): MailingResultView {
   };
 }
 
-const OPEN_CURVE = [24, 20, 42, 48, 33, 30, 46, 57, 49, 41];
-const CLICK_CURVE = [9, 7, 16, 20, 13, 11, 18, 26, 20, 15];
+const OPEN_CURVE = [18, 34, 54, 56, 38, 34, 50, 66, 52, 40];
+const CLICK_CURVE = [8, 14, 22, 24, 14, 12, 18, 28, 22, 12];
 
 function curvePath(series: number[]): string {
   const points = series.map((value, index) => [(index / (series.length - 1)) * 100, 100 - value] as const);
@@ -373,7 +373,7 @@ export function MailingResults({ row, onBack }: { row: MailingRow; onBack: () =>
           </li>
           <li>
             <i className="app-mail-detail-icon app-mail-detail-icon--mute" aria-hidden="true">
-              <ActionIcon name="user" size={14} strokeWidth={2.2} />
+              <ActionIcon name="userMinus" size={14} strokeWidth={2.2} />
             </i>
             <span>Отписались</span>
             <b>{result.unsubscribedLabel}</b>

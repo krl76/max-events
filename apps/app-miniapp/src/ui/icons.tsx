@@ -14,7 +14,7 @@
 // END_MODULE_MAP
 
 import type { LucideIcon } from "lucide-react";
-import { AlignVerticalJustifyCenter, ArrowRight, ArrowUp, Armchair, BarChart3, Bell, Bookmark, Building, CalendarDays, Camera, Car, Check, ChevronRight, CircleAlert, Clock, CloudRain, CloudSun, CreditCard, Ellipsis, Eye, Group, Heart, House, Info, Layers, Link, List, LocateFixed, Lock, Mail, MapPin, Medal, Megaphone, MessageCircle, Minus, Navigation, PenLine, Percent, PersonStanding, Plus, RefreshCw, Repeat2, ScanQrCode, Search, Send, Settings, ShieldCheck, SlidersHorizontal, Sparkles, SquarePlus, SquareStack, Star, Sun, Tag, Target, TextAlignCenter, TextAlignStart, Ticket, Trash2, TramFront, TrendingUp, Undo2, Upload, User, Users, UsersRound, Wallet, WandSparkles, X } from "lucide-react";
+import { AlignVerticalJustifyCenter, ArrowRight, ArrowUp, Armchair, BarChart3, Bell, Bookmark, Building, CalendarDays, Camera, Car, Check, ChevronRight, CircleAlert, Clock, Cloud, CloudRain, CloudSun, CreditCard, Ellipsis, Eye, Group, Heart, House, Info, Layers, Link, List, LocateFixed, Lock, Mail, MapPin, Medal, Megaphone, MessageCircle, Minus, Navigation, PenLine, Percent, PersonStanding, Plus, RefreshCw, Repeat2, ScanQrCode, Search, Send, Settings, Share2, ShieldCheck, SlidersHorizontal, Sparkle, Sparkles, SquarePlus, SquareStack, Star, Sun, Tag, Target, TextAlignCenter, TextAlignStart, Ticket, Trash2, TramFront, TrendingUp, Undo2, Upload, User, UserMinus, Users, UsersRound, Wallet, WandSparkles, X } from "lucide-react";
 
 export type TabIcon = "feed" | "search" | "create" | "map" | "plans" | "profile" | "dashboard" | "events" | "promo" | "finance";
 
@@ -45,6 +45,7 @@ const ACTIONS = {
   clock: Clock,
   ticket: Ticket,
   user: User,
+  userMinus: UserMinus,
   chevron: ChevronRight,
   star: Star,
   alert: CircleAlert,
@@ -103,6 +104,9 @@ const ACTIONS = {
   bars: BarChart3,
   pen: PenLine,
   info: Info,
+  nodes: Share2,
+  cloud: Cloud,
+  twinkle: Sparkle,
 } satisfies Record<string, LucideIcon>;
 
 export type ActionIconName = keyof typeof ACTIONS;

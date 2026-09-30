@@ -247,25 +247,26 @@ describe("OrganizerPromotion", () => {
     const { host, root } = await mount(createElement(OrganizerPromotion));
 
     await act(async () => {
-      buttonNamed(host, "Специальные предложения").click();
+      buttonNamed(host, "Специальное предложение на выходные").click();
     });
 
     expect(host.textContent).toContain("Результаты рассылки");
+    expect(host.textContent).toContain("Специальное предложение на выходные");
     expect(host.textContent).toContain("20.09.2025 · 14:30");
     expect(host.textContent).toContain("Отправлено");
-    expect(host.textContent).toContain("1 900");
+    expect(host.textContent).toContain("1 502");
     expect(host.textContent).toContain("Открыто");
     expect(host.textContent).toContain("38%");
-    expect(host.textContent).toContain("722");
+    expect(host.textContent).toContain("570");
     expect(host.textContent).toContain("Перешли");
     expect(host.textContent).toContain("8%");
-    expect(host.textContent).toContain("152");
+    expect(host.textContent).toContain("120");
     expect(host.textContent).toContain("График активности");
     expect(host.textContent).toContain("Открытия");
     expect(host.textContent).toContain("Переходы");
     expect(host.textContent).toContain("Детализация");
     expect(host.textContent).toContain("Успешно доставлено");
-    expect(host.textContent).toContain("1 875");
+    expect(host.textContent).toContain("1 482");
     expect(host.textContent).toContain("99%");
     expect(host.textContent).toContain("Не доставлено");
     expect(host.textContent).toContain("Отписались");

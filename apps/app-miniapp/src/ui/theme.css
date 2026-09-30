@@ -30455,12 +30455,12 @@ button.app-mail-card {
 
 .app-mail-chart-toggle svg {
   color: #8b97b3;
-  transform: rotate(90deg);
+  transform: rotate(-90deg);
   transition: transform 160ms ease;
 }
 
 .app-mail-chart-toggle[aria-expanded="true"] svg {
-  transform: rotate(-90deg);
+  transform: rotate(90deg);
 }
 
 .app-mail-chart {
@@ -30617,4 +30617,512 @@ button.app-mail-card {
 .app-mail-detail-icon--mute {
   background: #eef2f8;
   color: #7e8daf;
+}
+
+/* Кабинет организатора, вкладка «Финансы» — макет: холст, герой, график, кольцо, история. */
+.app-cab.app-fin {
+  background: #f4f9fe;
+  gap: 12px;
+  min-height: 100%;
+  padding: 16px 16px 28px;
+}
+
+.app-cab.app-fin .app-fin-title {
+  color: #000824;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.app-cab.app-fin .app-fin-lead {
+  color: #5d7399;
+  font-size: 15px;
+  font-weight: 500;
+  margin: -6px 0 2px;
+}
+
+.app-cab.app-fin .app-fin-scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-cab.app-fin .app-fin-chip {
+  background: #e8f2fb;
+  border: none;
+  border-radius: 999px;
+  box-shadow: none;
+  color: #6d82a6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 16px;
+}
+
+.app-cab.app-fin .app-fin-chip--on {
+  background: linear-gradient(90deg, #0b6bff 0%, #3d4efc 48%, #7d39fc 100%);
+  box-shadow: none;
+  color: #ffffff;
+}
+
+.app-cab.app-fin .app-fin-hero {
+  background: linear-gradient(102deg, #1634d6 0%, #2f4cf6 36%, #5b45fb 70%, #8a48fc 100%);
+  border-radius: 22px;
+  box-shadow: 0 12px 28px rgba(62, 58, 232, 0.18);
+  color: #ffffff;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 18px 16px 16px;
+}
+
+.app-cab.app-fin .app-fin-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.app-cab.app-fin .app-fin-hero-label {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  opacity: 0.92;
+}
+
+.app-cab.app-fin .app-fin-hero-value {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 30px;
+  font-weight: 800;
+  gap: 8px;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0;
+}
+
+.app-cab.app-fin .app-fin-delta {
+  align-items: center;
+  background: none;
+  border-radius: 0;
+  color: #47ddca;
+  display: inline-flex;
+  font-size: 15px;
+  font-weight: 800;
+  gap: 2px;
+  letter-spacing: 0;
+  padding: 0;
+}
+
+.app-cab.app-fin .app-fin-delta--down {
+  color: #ff8ea0;
+}
+
+.app-cab.app-fin .app-fin-delta--down svg {
+  transform: rotate(180deg);
+}
+
+.app-cab.app-fin .app-fin-hero-note {
+  font-size: 13px;
+  font-weight: 500;
+  margin: 2px 0 0;
+  opacity: 0.82;
+}
+
+.app-cab.app-fin .app-fin-hero-wallet {
+  align-items: center;
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  color: #ffffff;
+  display: flex;
+  flex: none;
+  height: 46px;
+  justify-content: center;
+  width: 46px;
+}
+
+.app-cab.app-fin .app-fin-tiles {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.app-cab.app-fin .app-fin-tile {
+  background: #ffffff;
+  border: 1px solid #e7eef8;
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(40, 72, 140, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 12px 10px 12px;
+}
+
+.app-cab.app-fin .app-fin-tile-icon {
+  align-items: center;
+  background: transparent;
+  border-radius: 0;
+  display: flex;
+  height: 24px;
+  justify-content: flex-start;
+  margin-bottom: 6px;
+  width: 24px;
+}
+
+.app-cab.app-fin .app-fin-tile-icon--blue {
+  color: #2f6bff;
+}
+
+.app-cab.app-fin .app-fin-tile-icon--violet {
+  color: #7a3cff;
+}
+
+.app-cab.app-fin .app-fin-tile-label {
+  color: #8ea2c2;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.app-cab.app-fin .app-fin-tile-amount {
+  color: #1a2468;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+}
+
+.app-cab.app-fin .app-fin-tile-share {
+  color: #8ea2c2;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-cab.app-fin .app-fin-card {
+  background: #ffffff;
+  border: 1px solid #e7eef8;
+  border-radius: 22px;
+  box-shadow: 0 10px 26px rgba(40, 72, 140, 0.045);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 14px 14px;
+}
+
+.app-cab.app-fin .app-fin-card-title {
+  color: #1a2468;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.app-cab.app-fin .app-fin-switch {
+  background: #e7f1fb;
+  border-radius: 999px;
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 4px;
+}
+
+.app-cab.app-fin .app-fin-switch-btn {
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  color: #7d92b0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 34px;
+  padding: 6px 2px;
+}
+
+.app-cab.app-fin .app-fin-switch-btn--on {
+  background: linear-gradient(90deg, #1c3eef 0%, #4a3df8 55%, #7a3cff 100%);
+  color: #ffffff;
+}
+
+.app-cab.app-fin .app-fin-legend {
+  display: flex;
+  gap: 16px;
+  margin: 0;
+}
+
+.app-cab.app-fin .app-fin-legend-item {
+  align-items: center;
+  color: #5c6f92;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.app-cab.app-fin .app-fin-dot {
+  border-radius: 50%;
+  display: inline-block;
+  height: 8px;
+  width: 8px;
+}
+
+.app-cab.app-fin .app-fin-dot--income {
+  background: #5b46f5;
+}
+
+.app-cab.app-fin .app-fin-dot--payout {
+  background: #7ec4ff;
+}
+
+.app-cab.app-fin .app-fin-chart {
+  column-gap: 4px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  row-gap: 6px;
+}
+
+.app-cab.app-fin .app-fin-axis {
+  color: #a3b2c9;
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  font-weight: 600;
+  grid-column: 1;
+  grid-row: 1;
+  justify-content: space-between;
+  line-height: 1;
+}
+
+.app-cab.app-fin .app-fin-plot {
+  display: block;
+  grid-column: 2;
+  grid-row: 1;
+  height: auto;
+  overflow: visible;
+  width: 100%;
+}
+
+.app-cab.app-fin .app-fin-grid {
+  stroke: #e5eef8;
+  stroke-width: 1;
+}
+
+.app-cab.app-fin .app-fin-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.app-cab.app-fin .app-fin-line--income {
+  stroke: #4f46f5;
+}
+
+.app-cab.app-fin .app-fin-line--payout {
+  stroke: #79b8ff;
+}
+
+.app-cab.app-fin .app-fin-dot-mark--income {
+  fill: #4f46f5;
+}
+
+.app-cab.app-fin .app-fin-dot-mark--payout {
+  fill: #79b8ff;
+}
+
+.app-cab.app-fin .app-fin-dates {
+  color: #a3b2c9;
+  display: flex;
+  font-size: 11px;
+  font-weight: 600;
+  grid-column: 2;
+  grid-row: 2;
+  justify-content: space-between;
+  margin: 0;
+}
+
+.app-cab.app-fin .app-fin-exp {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 118px minmax(0, 1fr);
+}
+
+.app-cab.app-fin .app-fin-donut-wrap {
+  height: 118px;
+  position: relative;
+  width: 118px;
+}
+
+.app-cab.app-fin .app-fin-donut,
+.app-cab.app-fin .app-fin-donut svg {
+  height: 100%;
+  width: 100%;
+}
+
+.app-cab.app-fin .app-fin-donut-mid {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  justify-content: center;
+  position: absolute;
+  text-align: center;
+}
+
+.app-cab.app-fin .app-fin-donut-mid b {
+  color: #1a2468;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.app-cab.app-fin .app-fin-donut-mid span {
+  color: #8ea2c2;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.app-cab.app-fin .app-fin-exp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.app-cab.app-fin .app-fin-exp-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+}
+
+.app-cab.app-fin .app-fin-exp-dot {
+  border-radius: 50%;
+  height: 8px;
+  width: 8px;
+}
+
+.app-cab.app-fin .app-fin-exp-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-cab.app-fin .app-fin-exp-name {
+  color: #24356e;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.app-cab.app-fin .app-fin-exp-meta {
+  color: #8ea2c2;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.app-cab.app-fin .app-fin-exp-mark {
+  color: #8ea2c2;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-cab.app-fin .app-fin-pays {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-cab.app-fin .app-fin-pay {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e8eef8;
+  border-radius: 16px;
+  display: flex;
+  gap: 10px;
+  padding: 10px 10px;
+}
+
+.app-cab.app-fin .app-fin-pay-icon {
+  align-items: center;
+  border-radius: 50%;
+  display: flex;
+  flex: none;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.app-cab.app-fin .app-fin-pay-icon--blue {
+  background: #e7f1ff;
+  color: #2f6bff;
+}
+
+.app-cab.app-fin .app-fin-pay-icon--violet {
+  background: #eee9ff;
+  color: #6a46f5;
+}
+
+.app-cab.app-fin .app-fin-pay-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.app-cab.app-fin .app-fin-pay-title,
+.app-cab.app-fin .app-fin-pay-amount {
+  color: #1a2468;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.app-cab.app-fin .app-fin-pay-when {
+  color: #8ea2c2;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.app-cab.app-fin .app-fin-badge {
+  border-radius: 999px;
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+
+.app-cab.app-fin .app-fin-badge--paid {
+  background: #c8f6e8;
+  color: #1aa36e;
+}
+
+.app-cab.app-fin .app-fin-badge--charged {
+  background: #e7eef8;
+  color: #7d92b0;
+}
+
+.app-cab.app-fin .app-fin-empty {
+  color: #8ea2c2;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
 }
